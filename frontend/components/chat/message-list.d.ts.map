@@ -1,0 +1,1 @@
+{"version":3,"file":"message-list.d.ts","sourceRoot":"","sources":["message-list.tsx"],"names":[],"mappings":"AAAA,OAAO,EAAE,OAAO,EAAE,MAAM,SAAS,CAAC;AAGlC,UAAU,gBAAgB;IACxB,QAAQ,EAAE,OAAO,EAAE,CAAC;IACpB,gBAAgB,EAAE,MAAM,CAAC;IACzB,WAAW,EAAE,OAAO,CAAC;CACtB;AAED,wBAAgB,WAAW,CAAC,EAAE,QAAQ,EAAE,gBAAgB,EAAE,WAAW,EAAE,EAAE,gBAAgB,2CAaxF"}

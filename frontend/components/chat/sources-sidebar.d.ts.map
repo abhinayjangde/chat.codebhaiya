@@ -1,0 +1,1 @@
+{"version":3,"file":"sources-sidebar.d.ts","sourceRoot":"","sources":["sources-sidebar.tsx"],"names":[],"mappings":"AAEA,OAAO,EAAE,MAAM,EAAE,MAAM,SAAS,CAAC;AAEjC,UAAU,mBAAmB;IAC3B,OAAO,EAAE,MAAM,EAAE,CAAC;IAClB,MAAM,EAAE,OAAO,CAAC;IAChB,OAAO,EAAE,MAAM,IAAI,CAAC;CACrB;AAED,wBAAgB,cAAc,CAAC,EAAE,OAAO,EAAE,MAAM,EAAE,OAAO,EAAE,EAAE,mBAAmB,kDAkD/E"}
