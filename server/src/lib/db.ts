@@ -1,16 +1,9 @@
-import mongoose from "mongoose"
+import mongoose from "mongoose";
+import { env } from "../config/env.js";
 
-const db = async () => {
-    try {
-        if (!process.env.MONGODB_URL) {
-            throw new Error("MongoDB URL is not defined in environment variables");
-        }
-        await mongoose.connect(process.env.MONGODB_URL);
-        console.log("Database connected successfully 🌴");
-    } catch (error) {
-        console.error("Error connecting to MongoDB:", error);
-        process.exit(1);
-    }
-}
+const db = async (): Promise<void> => {
+  await mongoose.connect(env.MONGODB_URL);
+  console.log("Database connected successfully");
+};
 
-export default db
+export default db;

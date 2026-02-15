@@ -1,10 +1,11 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { createAgent } from "langchain";
+import { env } from "../config/env.js";
 import { webSearchTool } from "./tools.js";
 
 const chatgpt = new ChatOpenAI({
-  model: process.env.OPENAI_MODEL || "gpt-4o",
-  temperature: 0.7,
+  apiKey: env.OPENAI_API_KEY,
+  model: env.OPENAI_MODEL,
   streaming: true,
 });
 

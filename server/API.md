@@ -21,6 +21,23 @@ Authorization: Bearer <access_token>
 
 ## Endpoints
 
+### Health
+
+#### GET /health
+Readiness and liveness check.
+
+**Response (200 OK):**
+```json
+{
+  "status": "ok",
+  "database": "connected",
+  "uptimeSeconds": 123,
+  "timestamp": "2026-02-15T12:00:00.000Z"
+}
+```
+
+---
+
 ### Authentication
 
 #### POST /auth/register
@@ -526,6 +543,7 @@ JWT_REFRESH_EXPIRY=7d
 
 # Server Configuration
 PORT=9000
+CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
 ```
 
 ---

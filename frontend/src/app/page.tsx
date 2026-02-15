@@ -1,9 +1,5 @@
+import { ChatApp } from "@/components/chat-app";
 
 export default function Home() {
-  return (
-    <div>
-      <h1>Home</h1>
-      <p>Welcome to Code Bhaiya</p>
-    </div>
-  );
+  return <ChatApp />;
 }

@@ -1,29 +1,57 @@
-import dotenv from 'dotenv';
-import express from 'express';
-import cors from 'cors';
+import cors from "cors";
+import express from "express";
+import mongoose from "mongoose";
 
+import { env } from "./config/env.js";
+import db from "./lib/db.js";
 import authRoutes from "./routes/auth.route.js";
 import chatRoutes from "./routes/chat.route.js";
-import db from './lib/db.js';
 
-
-dotenv.config();
 const app = express();
+const allowedOrigins = new Set(env.corsOrigins);
 
-app.use(cors({
-    origin: "*",
-    methods: ["GET", "POST", "PUT", "DELETE"],
+app.use(
+  cors({
+    origin(origin, callback) {
+      if (!origin || allowedOrigins.has(origin)) {
+        callback(null, true);
+        return;
+      }
+      callback(new Error("Not allowed by CORS"));
+    },
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
-}));
+  })
+);
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const port = process.env.PORT || 3000;
-db();
+app.get("/health", (_req, res) => {
+  const dbConnected = mongoose.connection.readyState === 1;
+  const statusCode = dbConnected ? 200 : 503;
+
+  res.status(statusCode).json({
+    status: dbConnected ? "ok" : "degraded",
+    database: dbConnected ? "connected" : "disconnected",
+    uptimeSeconds: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+  });
+});
 
 app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
 
-app.listen(port, () => {
-    console.log(`Server is running on port http://localhost:${port}`);
-});
+async function bootstrap(): Promise<void> {
+  try {
+    await db();
+    app.listen(env.PORT, () => {
+      console.log(`Server is running on port http://localhost:${env.PORT}`);
+    });
+  } catch (error) {
+    console.error("Failed to start server:", error);
+    process.exit(1);
+  }
+}
+
+void bootstrap();

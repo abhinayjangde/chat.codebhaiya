@@ -1,11 +1,12 @@
 import jwt from "jsonwebtoken";
 import type { IUser } from "../models/user.model.js";
 import { User, hashPassword } from "../models/user.model.js";
+import { env } from "../config/env.js";
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "your-refresh-secret";
-const JWT_ACCESS_EXPIRY = process.env.JWT_ACCESS_EXPIRY || "15m";
-const JWT_REFRESH_EXPIRY = process.env.JWT_REFRESH_EXPIRY || "7d";
+const JWT_SECRET = env.JWT_SECRET;
+const JWT_REFRESH_SECRET = env.JWT_REFRESH_SECRET;
+const JWT_ACCESS_EXPIRY = env.JWT_ACCESS_EXPIRY;
+const JWT_REFRESH_EXPIRY = env.JWT_REFRESH_EXPIRY;
 
 export interface TokenPayload {
   userId: string;
