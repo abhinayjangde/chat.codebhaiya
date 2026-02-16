@@ -987,28 +987,14 @@ export function ChatApp() {
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 border-b border-white/10 bg-[#212121] px-4 py-3 md:px-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-[#8f8f8f]">Code Bhaiya AI</p>
-              <h1 className="truncate text-sm font-medium text-[#e8e8e8]">
-                {activeChat ? shortTitle(activeChat.title) : "New chat"}
-              </h1>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-[#cfcfcf] transition hover:bg-white/10 md:hidden"
-                onClick={() => setMobileSidebarOpen(true)}
-              >
-                <Menu className="h-4 w-4" />
-              </button>
-              <span className="hidden text-xs text-[#8f8f8f] sm:inline">
-                Responses are streamed from backend
-              </span>
-            </div>
-          </div>
-        </header>
+        {/* Mobile sidebar toggle — no header bar */}
+        <button
+          type="button"
+          className="absolute left-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-[#cfcfcf] transition hover:bg-white/10 md:hidden"
+          onClick={() => setMobileSidebarOpen(true)}
+        >
+          <Menu className="h-4 w-4" />
+        </button>
 
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-6">
@@ -1024,21 +1010,87 @@ export function ChatApp() {
                 Loading messages...
               </div>
             ) : messages.length === 0 ? (
-              <div className="pt-16">
-                <h2 className="text-center text-3xl font-medium text-[#f0f0f0]">
-                  How can I help you today?
+              <div className="flex min-h-[calc(100vh-120px)] flex-col items-center justify-center">
+                {/* Brand name */}
+                <h2
+                  className="mb-10 text-4xl font-light tracking-wide text-[#b0b0b0]"
+                  style={{ fontFamily: "var(--font-fraunces), serif" }}
+                >
+                  codebhaiya
                 </h2>
-                <div className="mx-auto mt-8 grid max-w-2xl gap-2 sm:grid-cols-2">
-                  {STARTER_PROMPTS.map((prompt) => (
+
+                {/* Centered composer */}
+                <form
+                  className="w-full max-w-2xl"
+                  onSubmit={handleComposerSubmit}
+                >
+                  <div className="rounded-2xl border border-white/12 bg-[#2a2a2a] p-1.5">
+                    <textarea
+                      value={composer}
+                      onChange={(event) => setComposer(event.target.value)}
+                      onKeyDown={handleComposerKeyDown}
+                      placeholder="Ask anything. Type @ for sources and / for shortcuts."
+                      rows={2}
+                      disabled={isSending || isBootstrapping}
+                      className="w-full resize-none border-0 bg-transparent px-3 py-2 text-sm leading-6 text-[#ececec] outline-none placeholder:text-[#7a7a7a]"
+                    />
+
+                    <div className="flex items-center justify-between px-2 pb-1 pt-1">
+                      <button
+                        type="button"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#888] transition hover:bg-white/10 hover:text-[#ccc]"
+                        aria-label="Attach"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </button>
+
+                      <div className="flex items-center gap-1">
+                        <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-[#888] transition hover:bg-white/10 hover:text-[#ccc] cursor-pointer">
+                          Model <span className="text-[10px]">▾</span>
+                        </span>
+                        <button
+                          type="button"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#888] transition hover:bg-white/10 hover:text-[#ccc]"
+                          aria-label="Voice input"
+                        >
+                          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                            <line x1="12" x2="12" y1="19" y2="22" />
+                          </svg>
+                        </button>
+                        <button
+                          type="submit"
+                          disabled={isBootstrapping || !composer.trim()}
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#444] text-white transition hover:bg-[#555] disabled:cursor-not-allowed disabled:opacity-40"
+                          aria-label="Send"
+                        >
+                          <SendHorizontal className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </form>
+
+                {/* Quick action chips */}
+                <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                  {[
+                    { icon: "❤️", label: "Health" },
+                    { icon: "📋", label: "Plan" },
+                    { icon: "🔍", label: "Research" },
+                    { icon: "📰", label: "Latest News" },
+                    { icon: "📊", label: "Analyze" },
+                  ].map((chip) => (
                     <button
-                      key={prompt}
+                      key={chip.label}
                       type="button"
-                      className="rounded-xl border border-white/10 bg-[#2a2a2a] p-3 text-left text-sm text-[#d8d8d8] transition hover:bg-[#333333]"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-transparent px-3.5 py-1.5 text-xs text-[#999] transition hover:border-white/20 hover:bg-white/5 hover:text-[#ccc]"
                       onClick={() => {
-                        void handleSendPrompt(prompt);
+                        setComposer(chip.label + ": ");
                       }}
                     >
-                      {prompt}
+                      <span>{chip.icon}</span>
+                      {chip.label}
                     </button>
                   ))}
                 </div>
@@ -1140,6 +1192,8 @@ export function ChatApp() {
           </div>
         </main>
 
+        {/* Bottom composer — only shown when messages exist */}
+        {messages.length > 0 && (
         <footer className="border-t border-white/10 bg-[#212121] px-3 py-3 md:px-6">
           <form className="mx-auto w-full max-w-3xl" onSubmit={handleComposerSubmit}>
             <div className="rounded-3xl border border-white/15 bg-[#2a2a2a] p-2">
@@ -1182,6 +1236,7 @@ export function ChatApp() {
             </div>
           </form>
         </footer>
+        )}
       </div>
     </div>
   );
