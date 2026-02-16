@@ -1,4 +1,4 @@
-import type { AuthTokens, ChatMessage, ChatSummary, UserProfile } from "@/lib/types";
+import type { AuthTokens, ChatMessage, ChatSummary, UserProfile, ModelInfo } from "@/lib/types";
 
 const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:9000/api"
@@ -172,6 +172,13 @@ export const apiClient = {
     });
   },
 
+  async listModels(): Promise<{ models: ModelInfo[]; default: string }> {
+    return requestData<{ models: ModelInfo[]; default: string }>("/chat/models", {
+      method: "GET",
+      headers: authHeaders(),
+    });
+  },
+
   async listChats(accessToken: string): Promise<{ chats: ChatSummary[] }> {
     return requestData<{ chats: ChatSummary[] }>("/chat", {
       method: "GET",
@@ -191,12 +198,13 @@ export const apiClient = {
 
   async createChat(
     message: string,
-    accessToken: string
+    accessToken: string,
+    model?: string
   ): Promise<{ title: string; chatId: string }> {
     return requestData<{ title: string; chatId: string }>("/chat", {
       method: "POST",
       headers: authHeaders(accessToken),
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, model }),
     });
   },
 
@@ -204,12 +212,13 @@ export const apiClient = {
     chatId: string,
     message: string,
     accessToken: string,
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    model?: string
   ): Promise<ReadableStream<Uint8Array>> {
     const response = await fetch(`${API_BASE_URL}/chat/${chatId}/stream`, {
       method: "POST",
       headers: authHeaders(accessToken),
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, model }),
       signal,
       cache: "no-store",
     });

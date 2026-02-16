@@ -8,6 +8,13 @@ export interface UserPreferences {
   defaultModel?: string;
 }
 
+export interface ModelInfo {
+  id: string;
+  provider: string;
+  modelName: string;
+  displayName: string;
+}
+
 export interface UserProfile {
   id?: string;
   userId?: string;

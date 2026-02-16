@@ -1,12 +1,18 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+import path from "path";
 import { z } from "zod";
+
+// Load .env
+dotenv.config();
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
   MONGODB_URL: z.string().trim().min(1, "MONGODB_URL is required"),
-  OPENAI_API_KEY: z.string().trim().min(1, "OPENAI_API_KEY is required"),
-  OPENAI_MODEL: z.string().trim().min(1).default("gpt-5-mini-2025-08-07"),
+
+  OPENAI_API_KEY: z.string().trim().optional(),
+  OPENAI_MODEL: z.string().trim().min(1).default("gpt-4o-mini"),
+  GROQ_API_KEY: z.string().trim().optional(),
   JWT_SECRET: z
     .string()
     .trim()

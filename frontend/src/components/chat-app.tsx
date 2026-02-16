@@ -31,6 +31,8 @@ import {
   ThumbsUp,
   UserRound,
   X,
+  ChevronDown,
+  Check,
 } from "lucide-react";
 import { ApiError, apiClient } from "@/lib/api";
 import {
@@ -48,6 +50,7 @@ import type {
   StreamEvent,
   UsedTool,
   UserProfile,
+  ModelInfo,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -239,7 +242,12 @@ export function ChatApp() {
   const [isBootstrapping, setIsBootstrapping] = useState(false);
   const [isLoadingChats, setIsLoadingChats] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+
   const [isSending, setIsSending] = useState(false);
+
+  const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>("");
+  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
 
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
@@ -252,6 +260,8 @@ export function ChatApp() {
 
   const streamAbortRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const skipNextFetchRef = useRef(false);
+  const isSendingRef = useRef(false);
 
   const clearSession = useCallback(() => {
     streamAbortRef.current?.abort();
@@ -358,6 +368,14 @@ export function ChatApp() {
   }, []);
 
   useEffect(() => {
+    // Fetch available models on mount
+    apiClient.listModels().then((data) => {
+      setAvailableModels(data.models);
+      setSelectedModel(data.default);
+    }).catch(console.error);
+  }, []);
+
+  useEffect(() => {
     if (!tokens) {
       return;
     }
@@ -410,10 +428,21 @@ export function ChatApp() {
   }, [tokens, runWithSession, loadChats]);
 
   useEffect(() => {
-    if (!tokens || !activeChatId || isSending) {
+    if (!tokens || !activeChatId) {
       if (!activeChatId) {
         setMessages([]);
       }
+      return;
+    }
+
+    // Skip fetch if we're currently sending or if we just finished streaming
+    // (messages are already up-to-date from the stream)
+    if (isSendingRef.current) {
+      return;
+    }
+
+    if (skipNextFetchRef.current) {
+      skipNextFetchRef.current = false;
       return;
     }
 
@@ -451,7 +480,7 @@ export function ChatApp() {
     return () => {
       cancelled = true;
     };
-  }, [tokens, activeChatId, runWithSession, isSending]);
+  }, [tokens, activeChatId, runWithSession]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
@@ -547,6 +576,7 @@ export function ChatApp() {
     setComposer("");
     setChatError(null);
     setIsSending(true);
+    isSendingRef.current = true;
     setMobileSidebarOpen(false);
 
     let targetChatId = activeChatId;
@@ -570,6 +600,7 @@ export function ChatApp() {
         };
 
         setChats((previous) => [provisionalChat, ...previous]);
+        skipNextFetchRef.current = true;
         setActiveChatId(targetChatId);
         setMessages([]);
       }
@@ -616,7 +647,13 @@ export function ChatApp() {
       streamAbortRef.current = controller;
 
       const stream = await runWithSession((accessToken) =>
-        apiClient.streamMessage(readyChatId, prompt, accessToken, controller.signal)
+        apiClient.streamMessage(
+          readyChatId, 
+          prompt, 
+          accessToken, 
+          controller.signal,
+          selectedModel // Pass selected model
+        )
       );
 
       await consumeSseStream(stream, (event) => {
@@ -756,6 +793,8 @@ export function ChatApp() {
       );
     } finally {
       streamAbortRef.current = null;
+      skipNextFetchRef.current = true;
+      isSendingRef.current = false;
       setIsSending(false);
     }
   };
@@ -968,9 +1007,44 @@ export function ChatApp() {
                       </button>
 
                       <div className="flex items-center gap-1.5">
-                        <span className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs text-[#888] transition hover:bg-white/10 hover:text-[#ccc]">
-                          Model <span className="text-[10px]">▾</span>
-                        </span>
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
+                            className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs text-[#888] transition hover:bg-white/10 hover:text-[#ccc]"
+                          >
+                            {availableModels.find(m => m.id === selectedModel)?.displayName || "Model"}
+                            <ChevronDown className="h-3 w-3" />
+                          </button>
+                          
+                          {modelDropdownOpen && (
+                            <>
+                              <div 
+                                className="fixed inset-0 z-10" 
+                                onClick={() => setModelDropdownOpen(false)}
+                              />
+                              <div className="absolute bottom-full left-0 mb-2 z-20 w-48 rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-xl">
+                                {availableModels.map((model) => (
+                                  <button
+                                    key={model.id}
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedModel(model.id);
+                                      setModelDropdownOpen(false);
+                                    }}
+                                    className={cn(
+                                      "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition hover:bg-white/5",
+                                      selectedModel === model.id ? "text-white bg-white/10" : "text-[#b4b4b4]"
+                                    )}
+                                  >
+                                    <span>{model.displayName}</span>
+                                    {selectedModel === model.id && <Check className="h-3 w-3" />}
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
                         <button
                           type="button"
                           className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#888] transition hover:bg-white/10 hover:text-[#ccc]"
@@ -1184,11 +1258,46 @@ export function ChatApp() {
                   <Plus className="h-4 w-4" />
                 </button>
 
-                {/* Right — model, mic, send/stop */}
+                  {/* Right — model, mic, send/stop */}
                 <div className="flex items-center gap-1.5">
-                  <span className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs text-[#888] transition hover:bg-white/10 hover:text-[#ccc]">
-                    Model <span className="text-[10px]">▾</span>
-                  </span>
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
+                      className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs text-[#888] transition hover:bg-white/10 hover:text-[#ccc]"
+                    >
+                      {availableModels.find(m => m.id === selectedModel)?.displayName || "Model"}
+                      <ChevronDown className="h-3 w-3" />
+                    </button>
+                    
+                    {modelDropdownOpen && (
+                      <>
+                        <div 
+                          className="fixed inset-0 z-10" 
+                          onClick={() => setModelDropdownOpen(false)}
+                        />
+                        <div className="absolute bottom-full right-0 mb-2 z-20 w-48 rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-xl">
+                          {availableModels.map((model) => (
+                            <button
+                              key={model.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedModel(model.id);
+                                setModelDropdownOpen(false);
+                              }}
+                              className={cn(
+                                "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition hover:bg-white/5",
+                                selectedModel === model.id ? "text-white bg-white/10" : "text-[#b4b4b4]"
+                              )}
+                            >
+                              <span>{model.displayName}</span>
+                              {selectedModel === model.id && <Check className="h-3 w-3" />}
+                            </button>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
                   <button
                     type="button"
                     className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#888] transition hover:bg-white/10 hover:text-[#ccc]"

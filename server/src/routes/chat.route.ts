@@ -3,12 +3,24 @@ import type { Request, Response, Router } from "express";
 import { ObjectId } from "mongodb";
 import { Chat } from "../models/chat.model.js";
 import { Message } from "../models/message.model.js";
-import agent from "../lib/model.js";
+import { getAgent, getAvailableModels, DEFAULT_MODEL } from "../lib/model.js";
 import { authenticateToken } from "../middleware/auth.middleware.js";
 import type { SearchResult } from "../services/search.service.js";
 import { getPaginatedMessages } from "../services/message.service.js";
 
 const router: Router = express.Router();
+
+// Public endpoint to get available models
+router.get("/models", (_req: Request, res: Response) => {
+    const models = getAvailableModels();
+    res.status(200).json({
+        success: true,
+        data: { 
+            models,
+            default: DEFAULT_MODEL
+        }
+    });
+});
 
 router.use(authenticateToken);
 
@@ -127,7 +139,7 @@ router.post("/", async (req: Request, res: Response) => {
 router.post("/:chatId", async (req: Request, res: Response) => {
     try {
         const chatId = Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId;
-        const { message } = req.body;
+        const { message, model } = req.body;
         const userId = req.user?.userId;
 
         if (!message) {
@@ -165,6 +177,7 @@ router.post("/:chatId", async (req: Request, res: Response) => {
 
         formatted.push({ role: "user", content: message });
 
+        const agent = getAgent(model);
         const response = await agent.invoke({ messages: formatted });
 
         await Message.create({
@@ -206,7 +219,7 @@ router.post("/:chatId", async (req: Request, res: Response) => {
 // Streaming endpoint with Server-Sent Events (SSE)
 router.post("/:chatId/stream", async (req: Request, res: Response) => {
     const chatId = Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId;
-    const { message } = req.body;
+    const { message, model } = req.body;
     const userId = req.user?.userId;
 
     if (!message) {
@@ -265,6 +278,7 @@ router.post("/:chatId/stream", async (req: Request, res: Response) => {
         const sources: SearchResult[] = [];
 
         // Stream the response
+        const agent = getAgent(model);
         const stream = await agent.stream(
             { messages: formatted },
             { streamMode: "values" }

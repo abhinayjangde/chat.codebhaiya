@@ -169,6 +169,32 @@ Authorization: Bearer <access_token>
 
 ---
 
+### Models
+ 
+#### GET /chat/models
+List available models based on server configuration.
+ 
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "models": [
+      {
+        "id": "groq-llama-3.3-70b",
+        "provider": "groq",
+        "modelName": "llama-3.3-70b-versatile",
+        "displayName": "Llama 3.3 70B (Groq)"
+      },
+      // ... other available models
+    ],
+    "default": "groq-llama-3.3-70b"
+  }
+}
+```
+ 
+---
+ 
 ### Chats
 
 #### GET /chat
@@ -209,7 +235,10 @@ Content-Type: application/json
 **Request Body:**
 ```json
 {
-  "message": "Initial message for the chat"
+{
+   "message": "Initial message for the chat",
+   "model": "groq-llama-3.3-70b" // Optional
+ }
 }
 ```
 
@@ -305,7 +334,10 @@ Content-Type: application/json
 **Request Body:**
 ```json
 {
-  "message": "What is the weather today?"
+{
+   "message": "What is the weather today?",
+   "model": "groq-llama-3.3-70b" // Optional
+ }
 }
 ```
 
@@ -331,7 +363,10 @@ Content-Type: application/json
 **Request Body:**
 ```json
 {
-  "message": "What is the weather today?"
+{
+   "message": "What is the weather today?",
+   "model": "groq-llama-3.3-70b" // Optional
+ }
 }
 ```
 
