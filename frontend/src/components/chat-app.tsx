@@ -626,14 +626,15 @@ export function ChatApp() {
 
         if (event.type === "token") {
           setMessages((previous) =>
-            previous.map((message) =>
-              message._id === assistantMessageId
-                ? {
-                    ...message,
-                    content: `${message.content}${event.content}`,
-                  }
-                : message
-            )
+            previous.map((message) => {
+              if (message._id !== assistantMessageId) return message;
+              let newContent = `${message.content}${event.content}`;
+              // Strip user prompt if backend echoes it at the start
+              if (newContent.startsWith(prompt)) {
+                newContent = newContent.slice(prompt.length);
+              }
+              return { ...message, content: newContent };
+            })
           );
           return;
         }
@@ -850,11 +851,7 @@ export function ChatApp() {
           </button>
         </div>
 
-        <div className="px-3 pb-2">
-          <div className="rounded-lg border border-white/10 bg-[#1f1f1f] px-3 py-2 text-xs text-[#a8a8a8]">
-            GPT-style workspace
-          </div>
-        </div>
+       
 
         <div className="flex-1 space-y-1 overflow-y-auto px-2 pb-3">
           {isLoadingChats || isBootstrapping ? (
@@ -1026,6 +1023,21 @@ export function ChatApp() {
                 {messages.map((message, index) => {
                   const isUser = message.role === "user";
 
+                  // Strip the user query that the backend echoes at the start of AI responses
+                  let displayContent = message.content;
+                  if (!isUser && index > 0) {
+                    const prevMsg = messages[index - 1];
+                    if (
+                      prevMsg?.role === "user" &&
+                      prevMsg.content &&
+                      displayContent.startsWith(prevMsg.content)
+                    ) {
+                      displayContent = displayContent
+                        .slice(prevMsg.content.length)
+                        .trimStart();
+                    }
+                  }
+
                   return (
                     <div
                       key={message._id ?? `${message.role}-${index}`}
@@ -1037,7 +1049,7 @@ export function ChatApp() {
                       {isUser ? (
                         /* ── User bubble: dark-blue pill, right-aligned ── */
                         <div className="max-w-[80%]">
-                          <div className="rounded-full bg-[#1a3a5c] px-5 py-2.5 text-[15px] leading-6 text-[#e8e8e8]">
+                          <div className="rounded-full bg-[#131313] px-5 py-2.5 text-[15px] leading-6 text-[#e8e8e8]">
                             {message.content}
                           </div>
                           <p className="mt-1 text-right text-[11px] text-[#666]">
@@ -1047,9 +1059,11 @@ export function ChatApp() {
                       ) : (
                         /* ── AI response: no bubble, full-width text ── */
                         <div className="w-full max-w-none">
-                          <p className="whitespace-pre-wrap text-[15px] leading-8 text-[#e0e0e0]">
-                            {message.content || (message.isStreaming ? "Thinking..." : "")}
-                          </p>
+                          {displayContent ? (
+                            <p className="whitespace-pre-wrap text-[15px] leading-8 text-[#e0e0e0]">
+                              {displayContent}
+                            </p>
+                          ) : null}
 
                           {message.sources && message.sources.length > 0 ? (
                             <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -1100,12 +1114,12 @@ export function ChatApp() {
                           {message.isStreaming ? (
                             <div className="mt-3 inline-flex items-center gap-2 text-xs text-[#b3b3b3]">
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              generating...
+                              thinking...
                             </div>
                           ) : null}
 
                           {/* Action bar */}
-                          {!message.isStreaming && message.content ? (
+                          {!message.isStreaming && displayContent ? (
                             <div className="mt-4 flex items-center gap-1">
                               <p className="mr-2 text-[11px] text-[#666]">
                                 {formatTime(message.createdAt)}
@@ -1124,8 +1138,8 @@ export function ChatApp() {
                                   className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[#777] transition hover:bg-white/8 hover:text-[#bbb]"
                                   aria-label={action.label}
                                   onClick={() => {
-                                    if (action.label === "Copy" && message.content) {
-                                      void navigator.clipboard.writeText(message.content);
+                                    if (action.label === "Copy" && displayContent) {
+                                      void navigator.clipboard.writeText(displayContent);
                                     }
                                   }}
                                 >
