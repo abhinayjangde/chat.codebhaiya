@@ -1,5 +1,7 @@
 ﻿"use client";
 
+import { useRouter } from "next/navigation";
+
 import {
   type FormEvent,
   type KeyboardEvent,
@@ -10,16 +12,23 @@ import {
   useState,
 } from "react";
 import {
+  ArrowUp,
   AtSign,
   Bot,
+  Copy,
   Loader2,
   LogOut,
   Menu,
   MessageSquareText,
+  MoreHorizontal,
   Plus,
+  RefreshCw,
   SendHorizontal,
+  Share,
   Square,
   Sparkles,
+  ThumbsDown,
+  ThumbsUp,
   UserRound,
   X,
 } from "lucide-react";
@@ -239,6 +248,8 @@ export function ChatApp() {
   const [chatError, setChatError] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
+  const router = useRouter();
+
   const streamAbortRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -448,6 +459,12 @@ export function ChatApp() {
       block: "end",
     });
   }, [messages]);
+
+  useEffect(() => {
+    if (hydrated && !tokens) {
+      router.replace("/login");
+    }
+  }, [hydrated, tokens, router]);
 
   const activeChat = useMemo(
     () => chats.find((chat) => chat._id === activeChatId) ?? null,
@@ -784,101 +801,10 @@ export function ChatApp() {
 
   if (!tokens) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#212121] px-4 py-10 text-[#ececec]">
-        <div className="w-full max-w-md rounded-2xl border border-white/10 bg-[#2a2a2a] p-6 shadow-[0_24px_80px_-45px_rgba(0,0,0,0.85)]">
-          <div className="mb-6 text-center">
-            <p className="inline-flex items-center gap-2 rounded-full border border-white/15 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-[#b7b7b7]">
-              <Sparkles className="h-3.5 w-3.5" />
-              Code Bhaiya AI
-            </p>
-            <h2 className="mt-4 text-2xl font-medium text-[#f3f3f3]">
-              {authMode === "login" ? "Welcome back" : "Create account"}
-            </h2>
-            <p className="mt-2 text-sm text-[#a6a6a6]">
-              {authMode === "login"
-                ? "Sign in to continue your conversations."
-                : "Register to start chatting."}
-            </p>
-          </div>
-
-          <form className="space-y-4" onSubmit={handleAuthSubmit}>
-            {authMode === "register" ? (
-              <label className="block space-y-1.5">
-                <span className="text-sm text-[#c6c6c6]">Name</span>
-                <input
-                  className="h-11 w-full rounded-xl border border-white/15 bg-[#1f1f1f] px-3 text-sm text-[#ececec] outline-none transition focus:border-[#7a7a7a]"
-                  placeholder="Your full name"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  autoComplete="name"
-                />
-              </label>
-            ) : null}
-
-            <label className="block space-y-1.5">
-              <span className="text-sm text-[#c6c6c6]">Email</span>
-              <input
-                className="h-11 w-full rounded-xl border border-white/15 bg-[#1f1f1f] px-3 text-sm text-[#ececec] outline-none transition focus:border-[#7a7a7a]"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-                autoComplete="email"
-              />
-            </label>
-
-            <label className="block space-y-1.5">
-              <span className="text-sm text-[#c6c6c6]">Password</span>
-              <input
-                className="h-11 w-full rounded-xl border border-white/15 bg-[#1f1f1f] px-3 text-sm text-[#ececec] outline-none transition focus:border-[#7a7a7a]"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                autoComplete={
-                  authMode === "login" ? "current-password" : "new-password"
-                }
-              />
-            </label>
-
-            {authError ? (
-              <div className="rounded-xl border border-red-500/35 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-                {authError}
-              </div>
-            ) : null}
-
-            <button
-              type="submit"
-              disabled={isAuthLoading}
-              className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#f3f3f3] px-4 text-sm font-medium text-[#1f1f1f] transition hover:bg-white disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {isAuthLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Please wait...
-                </>
-              ) : authMode === "login" ? (
-                "Sign in"
-              ) : (
-                "Create account"
-              )}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center text-sm text-[#a7a7a7]">
-            {authMode === "login" ? "Need an account?" : "Already have one?"}{" "}
-            <button
-              type="button"
-              className="font-medium text-[#f3f3f3] underline-offset-4 hover:underline"
-              onClick={() =>
-                setAuthMode((current) =>
-                  current === "login" ? "register" : "login"
-                )
-              }
-            >
-              {authMode === "login" ? "Register" : "Sign in"}
-            </button>
-          </div>
+      <div className="flex min-h-screen items-center justify-center bg-[#212121]">
+        <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-[#2a2a2a] px-4 py-2 text-sm text-[#b8b8b8]">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Redirecting to login...
         </div>
       </div>
     );
@@ -1024,33 +950,33 @@ export function ChatApp() {
                   className="w-full max-w-2xl"
                   onSubmit={handleComposerSubmit}
                 >
-                  <div className="rounded-2xl border border-white/12 bg-[#2a2a2a] p-1.5">
+                  <div className="rounded-2xl border border-white/12 bg-[#303030] px-4 pb-2.5 pt-3">
                     <textarea
                       value={composer}
                       onChange={(event) => setComposer(event.target.value)}
                       onKeyDown={handleComposerKeyDown}
-                      placeholder="Ask anything. Type @ for sources and / for shortcuts."
-                      rows={2}
+                      placeholder="Ask anything..."
+                      rows={1}
                       disabled={isSending || isBootstrapping}
-                      className="w-full resize-none border-0 bg-transparent px-3 py-2 text-sm leading-6 text-[#ececec] outline-none placeholder:text-[#7a7a7a]"
+                      className="w-full resize-none border-0 bg-transparent text-[15px] leading-6 text-[#ececec] outline-none placeholder:text-[#7a7a7a]"
                     />
 
-                    <div className="flex items-center justify-between px-2 pb-1 pt-1">
+                    <div className="mt-2 flex items-center justify-between">
                       <button
                         type="button"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#888] transition hover:bg-white/10 hover:text-[#ccc]"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/15 text-[#888] transition hover:bg-white/10 hover:text-[#ccc]"
                         aria-label="Attach"
                       >
                         <Plus className="h-4 w-4" />
                       </button>
 
-                      <div className="flex items-center gap-1">
-                        <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-[#888] transition hover:bg-white/10 hover:text-[#ccc] cursor-pointer">
+                      <div className="flex items-center gap-1.5">
+                        <span className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs text-[#888] transition hover:bg-white/10 hover:text-[#ccc]">
                           Model <span className="text-[10px]">▾</span>
                         </span>
                         <button
                           type="button"
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#888] transition hover:bg-white/10 hover:text-[#ccc]"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#888] transition hover:bg-white/10 hover:text-[#ccc]"
                           aria-label="Voice input"
                         >
                           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1062,10 +988,10 @@ export function ChatApp() {
                         <button
                           type="submit"
                           disabled={isBootstrapping || !composer.trim()}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#444] text-white transition hover:bg-[#555] disabled:cursor-not-allowed disabled:opacity-40"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#555] text-white transition hover:bg-[#666] disabled:cursor-not-allowed disabled:opacity-40"
                           aria-label="Send"
                         >
-                          <SendHorizontal className="h-4 w-4" />
+                          <ArrowUp className="h-4 w-4" />
                         </button>
                       </div>
                     </div>
@@ -1103,86 +1029,113 @@ export function ChatApp() {
                   return (
                     <div
                       key={message._id ?? `${message.role}-${index}`}
-                      className={cn("flex", isUser ? "justify-end" : "justify-start")}
+                      className={cn(
+                        "flex",
+                        isUser ? "justify-end" : "justify-start"
+                      )}
                     >
-                      <article
-                        className={cn(
-                          "max-w-[90%] rounded-2xl px-4 py-3",
-                          isUser
-                            ? "border border-white/10 bg-[#303030]"
-                            : "bg-transparent"
-                        )}
-                      >
-                        <div className="mb-2 flex items-center gap-2 text-xs text-[#9b9b9b]">
-                          <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-white/15 bg-[#2b2b2b]">
-                            {isUser ? (
-                              <UserRound className="h-3.5 w-3.5" />
-                            ) : (
-                              <Bot className="h-3.5 w-3.5 text-[#d8d8d8]" />
-                            )}
-                          </span>
-                          <span>{isUser ? "You" : "Assistant"}</span>
-                          <span aria-hidden="true">•</span>
-                          <span>{formatTime(message.createdAt)}</span>
+                      {isUser ? (
+                        /* ── User bubble: dark-blue pill, right-aligned ── */
+                        <div className="max-w-[80%]">
+                          <div className="rounded-full bg-[#1a3a5c] px-5 py-2.5 text-[15px] leading-6 text-[#e8e8e8]">
+                            {message.content}
+                          </div>
+                          <p className="mt-1 text-right text-[11px] text-[#666]">
+                            {formatTime(message.createdAt)}
+                          </p>
                         </div>
+                      ) : (
+                        /* ── AI response: no bubble, full-width text ── */
+                        <div className="w-full max-w-none">
+                          <p className="whitespace-pre-wrap text-[15px] leading-8 text-[#e0e0e0]">
+                            {message.content || (message.isStreaming ? "Thinking..." : "")}
+                          </p>
 
-                        <p className="whitespace-pre-wrap text-[15px] leading-7 text-[#ececec]">
-                          {message.content || (message.isStreaming ? "Thinking..." : "")}
-                        </p>
+                          {message.sources && message.sources.length > 0 ? (
+                            <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                              {message.sources.map((source, sourceIndex) => {
+                                const href = source.url ?? source.link;
+                                return (
+                                  <a
+                                    key={`${source.title}-${sourceIndex}`}
+                                    href={href || "#"}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="rounded-xl border border-white/10 bg-[#2a2a2a] p-3 text-xs transition hover:bg-[#333333]"
+                                  >
+                                    <p className="font-medium text-[#f1f1f1]">
+                                      {source.title || "Source"}
+                                    </p>
+                                    {source.snippet ? (
+                                      <p className="mt-1 line-clamp-3 text-[#b4b4b4]">
+                                        {source.snippet}
+                                      </p>
+                                    ) : null}
+                                    {href ? (
+                                      <p className="mt-2 inline-flex items-center gap-1 text-[#9dd3c7]">
+                                        <AtSign className="h-3 w-3" />
+                                        {formatSourceHost(href)}
+                                      </p>
+                                    ) : null}
+                                  </a>
+                                );
+                              })}
+                            </div>
+                          ) : null}
 
-                        {!isUser && message.sources && message.sources.length > 0 ? (
-                          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                            {message.sources.map((source, sourceIndex) => {
-                              const href = source.url ?? source.link;
-                              return (
-                                <a
-                                  key={`${source.title}-${sourceIndex}`}
-                                  href={href || "#"}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="rounded-xl border border-white/10 bg-[#2a2a2a] p-3 text-xs transition hover:bg-[#333333]"
+                          {message.usedTools && message.usedTools.length > 0 ? (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {message.usedTools.map((tool, toolIndex) => (
+                                <span
+                                  key={`${tool.name}-${toolIndex}`}
+                                  className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-[#2a2a2a] px-2.5 py-1 text-xs text-[#b4b4b4]"
                                 >
-                                  <p className="font-medium text-[#f1f1f1]">
-                                    {source.title || "Source"}
-                                  </p>
-                                  {source.snippet ? (
-                                    <p className="mt-1 line-clamp-3 text-[#b4b4b4]">
-                                      {source.snippet}
-                                    </p>
-                                  ) : null}
-                                  {href ? (
-                                    <p className="mt-2 inline-flex items-center gap-1 text-[#9dd3c7]">
-                                      <AtSign className="h-3 w-3" />
-                                      {formatSourceHost(href)}
-                                    </p>
-                                  ) : null}
-                                </a>
-                              );
-                            })}
-                          </div>
-                        ) : null}
+                                  <MessageSquareText className="h-3 w-3" />
+                                  {tool.name}
+                                </span>
+                              ))}
+                            </div>
+                          ) : null}
 
-                        {!isUser && message.usedTools && message.usedTools.length > 0 ? (
-                          <div className="mt-3 flex flex-wrap gap-2">
-                            {message.usedTools.map((tool, toolIndex) => (
-                              <span
-                                key={`${tool.name}-${toolIndex}`}
-                                className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-[#2a2a2a] px-2.5 py-1 text-xs text-[#b4b4b4]"
-                              >
-                                <MessageSquareText className="h-3 w-3" />
-                                {tool.name}
-                              </span>
-                            ))}
-                          </div>
-                        ) : null}
+                          {message.isStreaming ? (
+                            <div className="mt-3 inline-flex items-center gap-2 text-xs text-[#b3b3b3]">
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              generating...
+                            </div>
+                          ) : null}
 
-                        {message.isStreaming ? (
-                          <div className="mt-3 inline-flex items-center gap-2 text-xs text-[#b3b3b3]">
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                            generating...
-                          </div>
-                        ) : null}
-                      </article>
+                          {/* Action bar */}
+                          {!message.isStreaming && message.content ? (
+                            <div className="mt-4 flex items-center gap-1">
+                              <p className="mr-2 text-[11px] text-[#666]">
+                                {formatTime(message.createdAt)}
+                              </p>
+                              {[
+                                { icon: Copy, label: "Copy" },
+                                { icon: ThumbsUp, label: "Like" },
+                                { icon: ThumbsDown, label: "Dislike" },
+                                { icon: Share, label: "Share" },
+                                { icon: RefreshCw, label: "Regenerate" },
+                                { icon: MoreHorizontal, label: "More" },
+                              ].map((action) => (
+                                <button
+                                  key={action.label}
+                                  type="button"
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[#777] transition hover:bg-white/8 hover:text-[#bbb]"
+                                  aria-label={action.label}
+                                  onClick={() => {
+                                    if (action.label === "Copy" && message.content) {
+                                      void navigator.clipboard.writeText(message.content);
+                                    }
+                                  }}
+                                >
+                                  <action.icon className="h-4 w-4" />
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1194,44 +1147,65 @@ export function ChatApp() {
 
         {/* Bottom composer — only shown when messages exist */}
         {messages.length > 0 && (
-        <footer className="border-t border-white/10 bg-[#212121] px-3 py-3 md:px-6">
+        <footer className="bg-[#212121] px-3 py-3 md:px-6">
           <form className="mx-auto w-full max-w-3xl" onSubmit={handleComposerSubmit}>
-            <div className="rounded-3xl border border-white/15 bg-[#2a2a2a] p-2">
+            <div className="rounded-2xl border border-white/12 bg-[#303030] px-4 pb-2.5 pt-3">
               <textarea
                 value={composer}
                 onChange={(event) => setComposer(event.target.value)}
                 onKeyDown={handleComposerKeyDown}
-                placeholder="Message Code Bhaiya AI..."
-                rows={3}
+                placeholder="Ask a follow-up"
+                rows={1}
                 disabled={isSending || isBootstrapping}
-                className="w-full resize-none border-0 bg-transparent px-2 py-1.5 text-sm leading-6 text-[#ececec] outline-none placeholder:text-[#9d9d9d]"
+                className="w-full resize-none border-0 bg-transparent text-[15px] leading-6 text-[#ececec] outline-none placeholder:text-[#7a7a7a]"
               />
 
-              <div className="mt-2 flex items-center justify-between gap-3 border-t border-white/10 px-1 pt-2">
-                <p className="text-xs text-[#a8a8a8]">
-                  {isSending
-                    ? "Receiving live stream from backend..."
-                    : "Enter to send, Shift+Enter for new line."}
-                </p>
-                {isSending ? (
+              <div className="mt-2 flex items-center justify-between">
+                {/* Left — attach */}
+                <button
+                  type="button"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/15 text-[#888] transition hover:bg-white/10 hover:text-[#ccc]"
+                  aria-label="Attach"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+
+                {/* Right — model, mic, send/stop */}
+                <div className="flex items-center gap-1.5">
+                  <span className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs text-[#888] transition hover:bg-white/10 hover:text-[#ccc]">
+                    Model <span className="text-[10px]">▾</span>
+                  </span>
                   <button
                     type="button"
-                    onClick={handleStopStreaming}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#5a2a2a] px-3 text-sm font-medium text-[#f0d3d3] transition hover:bg-[#683232]"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#888] transition hover:bg-white/10 hover:text-[#ccc]"
+                    aria-label="Voice input"
                   >
-                    <Square className="h-3.5 w-3.5 fill-current" />
-                    Stop
+                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                      <line x1="12" x2="12" y1="19" y2="22" />
+                    </svg>
                   </button>
-                ) : (
-                  <button
-                    type="submit"
-                    disabled={isBootstrapping || !composer.trim()}
-                    className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#10a37f] px-3 text-sm font-medium text-white transition hover:bg-[#0f8f70] disabled:cursor-not-allowed disabled:opacity-65"
-                  >
-                    <SendHorizontal className="h-4 w-4" />
-                    Send
-                  </button>
-                )}
+                  {isSending ? (
+                    <button
+                      type="button"
+                      onClick={handleStopStreaming}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#5a2a2a] text-[#f0d3d3] transition hover:bg-[#683232]"
+                      aria-label="Stop"
+                    >
+                      <Square className="h-3.5 w-3.5 fill-current" />
+                    </button>
+                  ) : (
+                    <button
+                      type="submit"
+                      disabled={isBootstrapping || !composer.trim()}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#555] text-white transition hover:bg-[#666] disabled:cursor-not-allowed disabled:opacity-40"
+                      aria-label="Send"
+                    >
+                      <ArrowUp className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           </form>

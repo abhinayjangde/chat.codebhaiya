@@ -1,15 +1,57 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Eye, EyeOff, HelpCircle } from "lucide-react";
+import { Eye, EyeOff, HelpCircle, Loader2 } from "lucide-react";
+import { apiClient } from "@/lib/api";
+import { writeStoredTokens, writeStoredUser } from "@/lib/storage";
+import type { UserProfile } from "@/lib/types";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    if (!email.trim() || !password.trim()) {
+      setError("Email and password are required.");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const authData = await apiClient.login({
+        email: email.trim().toLowerCase(),
+        password,
+      });
+
+      const user: UserProfile = {
+        ...authData.user,
+        id: authData.user.id ?? authData.user.userId ?? "",
+      };
+
+      writeStoredTokens(authData.tokens);
+      writeStoredUser(user);
+
+      router.replace("/");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Login failed. Please try again."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
@@ -50,20 +92,22 @@ export default function LoginPage() {
             Welcome to CodebhaiyaAI
           </h1>
 
+          {/* ── Error message ── */}
+          {error && (
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              {error}
+            </div>
+          )}
+
           {/* ── Form ── */}
-          <form
-            className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault();
-              // TODO: wire up authentication
-            }}
-          >
+          <form className="space-y-4" onSubmit={handleSubmit}>
             {/* Email */}
             <Input
               type="email"
               placeholder="Email address"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              disabled={isLoading}
               className="h-11 rounded-md border-[#2a2a2a] bg-[#151515] text-[#e0e0e0] placeholder:text-[#666] focus-visible:border-[#444] focus-visible:ring-[#444]/30"
             />
 
@@ -74,6 +118,7 @@ export default function LoginPage() {
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
                 className="h-11 rounded-md border-[#2a2a2a] bg-[#151515] pr-10 text-[#e0e0e0] placeholder:text-[#666] focus-visible:border-[#444] focus-visible:ring-[#444]/30"
               />
               <button
@@ -93,9 +138,17 @@ export default function LoginPage() {
             {/* Submit */}
             <Button
               type="submit"
-              className="h-11 w-full rounded-md border border-[#2a2a2a] bg-[#1a1a1a] text-sm font-medium text-[#ccc] transition-colors hover:bg-[#252525] hover:text-white"
+              disabled={isLoading}
+              className="h-11 w-full rounded-md border border-[#2a2a2a] bg-[#1a1a1a] text-sm font-medium text-[#ccc] transition-colors hover:bg-[#252525] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
             >
-              Log In
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing in...
+                </>
+              ) : (
+                "Log In"
+              )}
             </Button>
           </form>
 
