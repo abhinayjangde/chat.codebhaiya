@@ -886,7 +886,7 @@ export function ChatApp() {
         <div className="flex items-center justify-between px-3 pt-3 pb-1">
           <button
             type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[#ececec] transition hover:bg-white/5"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[#ececec] transition hover:bg-white/5 hover:cursor-pointer"
             onClick={() => {
               setActiveChatId(null);
               setMessages([]);
@@ -906,7 +906,7 @@ export function ChatApp() {
           <span className="ml-0 text-lg font-semibold">codebhaiya.ai</span>
           <button
             type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[#b4b4b4] transition hover:bg-white/5 hover:text-[#ececec]"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[#b4b4b4] transition hover:bg-white/5 hover:text-[#ececec] hover:cursor-pointer"
             onClick={() => {
               setSidebarOpen(false);
               setMobileSidebarOpen(false);
@@ -921,7 +921,7 @@ export function ChatApp() {
         <nav className="mt-2 flex flex-col gap-0.5 px-2">
           <button
             type="button"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[#ececec] transition hover:bg-white/5"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[#ececec] transition hover:bg-white/5 hover:cursor-pointer"
             onClick={() => {
               setActiveChatId(null);
               setMessages([]);
@@ -935,8 +935,8 @@ export function ChatApp() {
           </button>
           <button
             type="button"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[#ececec] transition hover:bg-white/5"
-          >
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[#ececec] transition hover:bg-white/5 hover:cursor-pointer"
+          > 
             <Search className="h-[18px] w-[18px] text-[#b4b4b4]" />
             Search chats
           </button>
@@ -963,7 +963,7 @@ export function ChatApp() {
                     key={chat._id}
                     type="button"
                     className={cn(
-                      "w-full rounded-lg px-3 py-2 text-left text-sm transition",
+                      "w-full rounded-lg px-3 py-2 text-left text-sm transition hover:cursor-pointer",
                       chat._id === activeChatId
                         ? "bg-[#2a2a2a] text-[#ececec]"
                         : "text-[#cfcfcf] hover:bg-[#212121]"
@@ -1025,7 +1025,7 @@ export function ChatApp() {
                   </button>
 
                   {/* Divider */}
-                  <div className="my-1.5 border-t border-white/[0.06]" />
+                  <div className="my-1.5 border-t border-white/6" />
 
                   {/* Middle group */}
                   <button
@@ -1070,7 +1070,7 @@ export function ChatApp() {
                   </button>
 
                   {/* Divider */}
-                  <div className="my-1.5 border-t border-white/[0.06]" />
+                  <div className="my-1.5 border-t border-white/6" />
 
                   {/* Logout */}
                   <button

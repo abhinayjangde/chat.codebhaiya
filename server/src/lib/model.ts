@@ -117,6 +117,7 @@ export function getAgent(modelId?: string) {
         apiKey: env.GROQ_API_KEY,
         model: config.modelName,
         temperature: 0.7,
+        streaming: true,
       });
       break;
 
@@ -127,6 +128,7 @@ export function getAgent(modelId?: string) {
         apiKey: env.GOOGLE_API_KEY,
         model: config.modelName,
         temperature: 0.7,
+        streaming: true,
       });
       break;
 

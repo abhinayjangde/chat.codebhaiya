@@ -277,41 +277,58 @@ router.post("/:chatId/stream", async (req: Request, res: Response) => {
         const usedTools: any[] = [];
         const sources: SearchResult[] = [];
 
-        // Stream the response
+        // Stream the response using "messages" mode for token-by-token deltas
         const agent = getAgent(model);
         const stream = await agent.stream(
             { messages: formatted },
-            { streamMode: "values" }
+            { streamMode: "messages" }
         );
 
         for await (const chunk of stream) {
-            // Get the latest message from the chunk
-            const latestMessage = chunk.messages[chunk.messages.length - 1];
+            // streamMode "messages" yields [messageChunk, metadata] tuples
+            const [messageChunk, _metadata] = chunk as [any, any];
             
-            if (latestMessage) {
-                // Check for tool calls
-                const toolCalls = (latestMessage as any).tool_calls;
-                if (toolCalls && Array.isArray(toolCalls) && toolCalls.length > 0) {
-                    for (const toolCall of toolCalls) {
-                        if (toolCall.name === "web_search") {
+            if (!messageChunk) continue;
+
+            const msgType = messageChunk._getType?.() ?? messageChunk.constructor?.name ?? "";
+
+            // Handle tool call chunks from the AI
+            if (msgType === "ai" || msgType === "AIMessageChunk") {
+                const toolCallChunks = messageChunk.tool_call_chunks;
+                if (toolCallChunks && Array.isArray(toolCallChunks) && toolCallChunks.length > 0) {
+                    for (const toolChunk of toolCallChunks) {
+                        if (toolChunk.name === "web_search") {
                             usedTools.push({
-                                name: toolCall.name,
-                                input: toolCall.args,
+                                name: toolChunk.name,
+                                input: toolChunk.args,
                             });
                             
-                            // Send tool start event
                             res.write(`data: ${JSON.stringify({ 
                                 type: 'tool_start', 
-                                tool: toolCall.name 
+                                tool: toolChunk.name 
                             })}\n\n`);
                         }
                     }
                 }
-                
-                // Check if it's a tool message (result)
-                if ((latestMessage as any).name === "web_search") {
-                    const content = getMessageContent(latestMessage.content);
+
+                // Stream AI token deltas
+                const content = getMessageContent(messageChunk.content);
+                if (content) {
+                    fullResponse += content;
                     
+                    res.write(`data: ${JSON.stringify({ 
+                        type: 'token', 
+                        content 
+                    })}\n\n`);
+                }
+            }
+
+            // Handle tool result messages
+            if (msgType === "tool" || msgType === "ToolMessageChunk" || msgType === "ToolMessage") {
+                const toolName = messageChunk.name || "unknown";
+                const content = getMessageContent(messageChunk.content);
+                
+                if (toolName === "web_search") {
                     // Parse search results if available
                     try {
                         const searchResults = parseSearchResults(content);
@@ -326,31 +343,18 @@ router.post("/:chatId/stream", async (req: Request, res: Response) => {
                     } catch (e) {
                         // Not search results, ignore
                     }
-
-                    usedTools.push({
-                        name: (latestMessage as any).name || "unknown",
-                        output: content,
-                    });
-
-                    res.write(`data: ${JSON.stringify({ 
-                        type: 'tool_result', 
-                        tool: (latestMessage as any).name,
-                        output: content 
-                    })}\n\n`);
                 }
-                
-                // Stream AI response content
-                const hasToolCalls = (latestMessage as any).tool_calls && (latestMessage as any).tool_calls.length > 0;
-                if (latestMessage.content && !hasToolCalls && (latestMessage as any).name !== "web_search") {
-                    const content = getMessageContent(latestMessage.content);
-                    
-                    fullResponse += content;
-                    
-                    res.write(`data: ${JSON.stringify({ 
-                        type: 'token', 
-                        content 
-                    })}\n\n`);
-                }
+
+                usedTools.push({
+                    name: toolName,
+                    output: content,
+                });
+
+                res.write(`data: ${JSON.stringify({ 
+                    type: 'tool_result', 
+                    tool: toolName,
+                    output: content 
+                })}\n\n`);
             }
         }
 
