@@ -9,6 +9,7 @@ import { Eye, EyeOff, HelpCircle, Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { writeStoredTokens, writeStoredUser } from "@/lib/storage";
 import type { UserProfile } from "@/lib/types";
+import Image from "next/image";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -76,10 +77,12 @@ export default function LoginPage() {
       >
         {/* Logo / brand mark — top-right */}
         <div className="absolute right-6 top-6">
-          <img
+          <Image
             src="https://avatars.githubusercontent.com/u/166032907?v=4"
             alt="Logo"
             className="size-8 rounded-full"
+            width={100}
+            height={100}
           />
         </div>
 

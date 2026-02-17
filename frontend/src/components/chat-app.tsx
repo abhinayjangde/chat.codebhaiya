@@ -16,17 +16,22 @@ import {
   AtSign,
   Bot,
   Copy,
+  ExternalLink,
   Loader2,
   LogOut,
   Menu,
   MessageSquareText,
   MoreHorizontal,
+  PanelLeft,
   Plus,
   RefreshCw,
+  Search,
   SendHorizontal,
+  Settings,
   Share,
   Square,
   Sparkles,
+  SquarePen,
   ThumbsDown,
   ThumbsUp,
   UserRound,
@@ -53,6 +58,7 @@ import type {
   ModelInfo,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 const STARTER_PROMPTS = [
   "Summarize the latest AI safety trends with citations.",
@@ -255,6 +261,7 @@ export function ChatApp() {
   const [composer, setComposer] = useState("");
   const [chatError, setChatError] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
 
   const router = useRouter();
 
@@ -862,14 +869,51 @@ export function ChatApp() {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-30 flex w-[260px] flex-col border-r border-white/10 bg-[#171717] transition-transform md:static md:translate-x-0",
-          mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
+          "fixed inset-y-0 left-0 z-30 flex w-[260px] flex-col bg-[#171717] transition-all duration-300 ease-in-out md:static",
+          mobileSidebarOpen ? "translate-x-0" : "-translate-x-full",
+          sidebarOpen ? "md:translate-x-0 md:w-[260px] md:opacity-100" : "md:-translate-x-full md:w-0 md:opacity-0 md:overflow-hidden"
         )}
       >
-        <div className="flex items-center justify-between px-3 pb-2 pt-3">
+        {/* ── Top bar: logo + new-chat icon ── */}
+        <div className="flex items-center justify-between px-3 pt-3 pb-1">
           <button
             type="button"
-            className="inline-flex h-10 w-full items-center justify-start gap-2 rounded-lg border border-white/10 px-3 text-sm font-medium text-[#e9e9e9] transition hover:bg-white/5"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[#ececec] transition hover:bg-white/5"
+            onClick={() => {
+              setActiveChatId(null);
+              setMessages([]);
+              setChatError(null);
+              setMobileSidebarOpen(false);
+            }}
+            aria-label="Home"
+          >
+            <Image
+            src="https://avatars.githubusercontent.com/u/166032907?v=4"
+            alt="Logo"
+            className="size-6 rounded-full"
+            width={100}
+            height={100}
+          />
+          </button>
+          <span className="ml-0 text-lg font-semibold">codebhaiya.ai</span>
+          <button
+            type="button"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[#b4b4b4] transition hover:bg-white/5 hover:text-[#ececec]"
+            onClick={() => {
+              setSidebarOpen(false);
+              setMobileSidebarOpen(false);
+            }}
+            aria-label="Toggle sidebar"
+          >
+            <PanelLeft className="h-[18px] w-[18px]" />
+          </button>
+        </div>
+
+        {/* ── Navigation links ── */}
+        <nav className="mt-2 flex flex-col gap-0.5 px-2">
+          <button
+            type="button"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[#ececec] transition hover:bg-white/5"
             onClick={() => {
               setActiveChatId(null);
               setMessages([]);
@@ -878,85 +922,111 @@ export function ChatApp() {
             }}
             disabled={isSending}
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-[18px] w-[18px] text-[#b4b4b4]" />
             New chat
           </button>
           <button
             type="button"
-            className="ml-2 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-white/10 text-[#bdbdbd] transition hover:bg-white/10 md:hidden"
-            onClick={() => setMobileSidebarOpen(false)}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[#ececec] transition hover:bg-white/5"
           >
-            <X className="h-4 w-4" />
+            <Search className="h-[18px] w-[18px] text-[#b4b4b4]" />
+            Search chats
           </button>
-        </div>
+        </nav>
 
-       
-
-        <div className="flex-1 space-y-1 overflow-y-auto px-2 pb-3">
-          {isLoadingChats || isBootstrapping ? (
-            <div className="rounded-lg px-3 py-2 text-sm text-[#9e9e9e]">
-              Loading chats...
-            </div>
-          ) : chats.length === 0 ? (
-            <div className="rounded-lg border border-white/10 bg-[#1f1f1f] px-3 py-2 text-sm text-[#9e9e9e]">
-              No conversations yet.
-            </div>
-          ) : (
-            chats.map((chat) => (
-              <button
-                key={chat._id}
-                type="button"
-                className={cn(
-                  "w-full rounded-lg border px-3 py-2 text-left transition",
-                  chat._id === activeChatId
-                    ? "border-white/20 bg-[#2a2a2a]"
-                    : "border-transparent text-[#cfcfcf] hover:bg-[#242424]"
-                )}
-                onClick={() => {
-                  setActiveChatId(chat._id);
-                  setMobileSidebarOpen(false);
-                }}
-              >
-                <p className="line-clamp-1 text-sm">{shortTitle(chat.title || "New chat")}</p>
-                <p className="mt-1 text-[11px] text-[#8f8f8f]">
-                  {formatDateLabel(chat.updatedAt)}
-                </p>
-              </button>
-            ))
-          )}
-        </div>
-
-        <div className="border-t border-white/10 p-3">
-          <div className="mb-2 rounded-lg border border-white/10 bg-[#1f1f1f] px-3 py-2">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-[#8f8f8f]">
-              Signed in
-            </p>
-            <p className="mt-1 truncate text-sm text-[#ececec]">
-              {user?.name || user?.email || "Account"}
-            </p>
+        {/* ── Your chats section ── */}
+        <div className="mt-5 flex flex-col flex-1 min-h-0">
+          <p className="px-4 pb-2 text-[11px] font-medium text-[#8a8a8a]">
+            Your chats
+          </p>
+          <div className="sidebar-scroll flex-1 overflow-y-auto px-2 pb-3">
+            {isLoadingChats || isBootstrapping ? (
+              <div className="px-3 py-2 text-sm text-[#7a7a7a]">
+                Loading chats…
+              </div>
+            ) : chats.length === 0 ? (
+              <div className="px-3 py-2 text-sm text-[#7a7a7a]">
+                No conversations yet.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-0.5">
+                {chats.map((chat) => (
+                  <button
+                    key={chat._id}
+                    type="button"
+                    className={cn(
+                      "w-full rounded-lg px-3 py-2 text-left text-sm transition",
+                      chat._id === activeChatId
+                        ? "bg-[#2a2a2a] text-[#ececec]"
+                        : "text-[#cfcfcf] hover:bg-[#212121]"
+                    )}
+                    onClick={() => {
+                      setActiveChatId(chat._id);
+                      setMobileSidebarOpen(false);
+                    }}
+                  >
+                    <p className="truncate">{shortTitle(chat.title || "New chat")}</p>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
+        </div>
+
+        {/* ── Bottom section ── */}
+        <div className="mt-auto flex flex-col gap-0.5 px-2 pb-3">
           <button
             type="button"
-            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-white/10 text-sm text-[#d4d4d4] transition hover:bg-white/10"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[#cfcfcf] transition hover:bg-white/5"
+          >
+            <ExternalLink className="h-[18px] w-[18px] text-[#8a8a8a]" />
+            Get API key
+          </button>
+          <button
+            type="button"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[#cfcfcf] transition hover:bg-white/5"
+          >
+            <Settings className="h-[18px] w-[18px] text-[#8a8a8a]" />
+            Settings
+          </button>
+          <button
+            type="button"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition hover:bg-white/5"
             onClick={() => {
               void handleLogout();
             }}
           >
-            <LogOut className="h-4 w-4" />
-            Log out
+            <Image
+              src="https://avatars.githubusercontent.com/u/166032907?v=4"
+              alt="Avatar"
+              className="h-7 w-7 shrink-0 rounded-full"
+              width={28}
+              height={28}
+            />
+            <span className="truncate text-sm text-[#cfcfcf]">
+              {user?.email || user?.name || "Account"}
+            </span>
           </button>
         </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        {/* Mobile sidebar toggle — no header bar */}
-        <button
-          type="button"
-          className="absolute left-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-lg border border-white/10 text-[#cfcfcf] transition hover:bg-white/10 md:hidden"
-          onClick={() => setMobileSidebarOpen(true)}
-        >
-          <Menu className="h-4 w-4" />
-        </button>
+        {/* Sidebar toggle — visible when sidebar is closed (desktop) or always on mobile */}
+        {(!sidebarOpen || true) && (
+          <button
+            type="button"
+            className={cn(
+              "absolute left-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-lg text-[#cfcfcf] transition hover:bg-white/10",
+              sidebarOpen ? "md:hidden" : ""
+            )}
+            onClick={() => {
+              setSidebarOpen(true);
+              setMobileSidebarOpen(true);
+            }}
+          >
+            <PanelLeft className="h-[18px] w-[18px]" />
+          </button>
+        )}
 
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-6">
