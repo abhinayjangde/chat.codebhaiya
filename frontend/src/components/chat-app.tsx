@@ -15,11 +15,17 @@ import {
   ArrowUp,
   AtSign,
   Bot,
+  ChevronDown,
+  ChevronRight,
+  Check,
   Copy,
+  CreditCard,
   ExternalLink,
+  FileText,
   Loader2,
   LogOut,
   Menu,
+  MessageCircle,
   MessageSquareText,
   MoreHorizontal,
   PanelLeft,
@@ -29,15 +35,16 @@ import {
   SendHorizontal,
   Settings,
   Share,
+  Shield,
   Square,
   Sparkles,
   SquarePen,
+  SunMoon,
   ThumbsDown,
   ThumbsUp,
   UserRound,
+  Users,
   X,
-  ChevronDown,
-  Check,
 } from "lucide-react";
 import { ApiError, apiClient } from "@/lib/api";
 import {
@@ -262,6 +269,7 @@ export function ChatApp() {
   const [chatError, setChatError] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
 
   const router = useRouter();
 
@@ -982,19 +990,121 @@ export function ChatApp() {
             <ExternalLink className="h-[18px] w-[18px] text-[#8a8a8a]" />
             Get API key
           </button>
-          <button
-            type="button"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[#cfcfcf] transition hover:bg-white/5"
-          >
-            <Settings className="h-[18px] w-[18px] text-[#8a8a8a]" />
-            Settings
-          </button>
+
+          {/* Settings with popup */}
+          <div className="relative">
+            {settingsMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-40"
+                  onClick={() => setSettingsMenuOpen(false)}
+                />
+                <div className="absolute bottom-full left-0 z-50 mb-1 w-56 rounded-xl border border-white/10 bg-[#2a2a2a] py-1.5 shadow-2xl">
+                  {/* Top group */}
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between px-4 py-2.5 text-sm text-[#cfcfcf] transition hover:bg-white/5"
+                    onClick={() => setSettingsMenuOpen(false)}
+                  >
+                    <span className="flex items-center gap-3">
+                      <SunMoon className="h-[18px] w-[18px] text-[#8a8a8a]" />
+                      Theme
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-[#666]" />
+                  </button>
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between px-4 py-2.5 text-sm text-[#cfcfcf] transition hover:bg-white/5"
+                    onClick={() => setSettingsMenuOpen(false)}
+                  >
+                    <span className="flex items-center gap-3">
+                      <CreditCard className="h-[18px] w-[18px] text-[#8a8a8a]" />
+                      Submit prompt key
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-[#666]" />
+                  </button>
+
+                  {/* Divider */}
+                  <div className="my-1.5 border-t border-white/[0.06]" />
+
+                  {/* Middle group */}
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[#cfcfcf] transition hover:bg-white/5"
+                    onClick={() => setSettingsMenuOpen(false)}
+                  >
+                    <Users className="h-[18px] w-[18px] text-[#8a8a8a]" />
+                    View status
+                  </button>
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[#cfcfcf] transition hover:bg-white/5"
+                    onClick={() => setSettingsMenuOpen(false)}
+                  >
+                    <FileText className="h-[18px] w-[18px] text-[#8a8a8a]" />
+                    Terms of service
+                  </button>
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[#cfcfcf] transition hover:bg-white/5"
+                    onClick={() => setSettingsMenuOpen(false)}
+                  >
+                    <Shield className="h-[18px] w-[18px] text-[#8a8a8a]" />
+                    Privacy policy
+                  </button>
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[#cfcfcf] transition hover:bg-white/5"
+                    onClick={() => setSettingsMenuOpen(false)}
+                  >
+                    <MessageCircle className="h-[18px] w-[18px] text-[#8a8a8a]" />
+                    Send feedback
+                  </button>
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[#cfcfcf] transition hover:bg-white/5"
+                    onClick={() => setSettingsMenuOpen(false)}
+                  >
+                    <CreditCard className="h-[18px] w-[18px] text-[#8a8a8a]" />
+                    Billing Support
+                  </button>
+
+                  {/* Divider */}
+                  <div className="my-1.5 border-t border-white/[0.06]" />
+
+                  {/* Logout */}
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[#cf6f6f] transition hover:bg-white/5"
+                    onClick={() => {
+                      setSettingsMenuOpen(false);
+                      void handleLogout();
+                    }}
+                  >
+                    <LogOut className="h-[18px] w-[18px]" />
+                    Log out
+                  </button>
+                </div>
+              </>
+            )}
+
+            <button
+              type="button"
+              className={cn(
+                "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[#cfcfcf] transition hover:bg-white/5",
+                settingsMenuOpen && "bg-white/5"
+              )}
+              onClick={() => setSettingsMenuOpen(!settingsMenuOpen)}
+            >
+              <Settings className="h-[18px] w-[18px] text-[#8a8a8a]" />
+              Settings
+            </button>
+          </div>
+
+          {/* User row */}
           <button
             type="button"
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition hover:bg-white/5"
-            onClick={() => {
-              void handleLogout();
-            }}
           >
             <Image
               src="https://avatars.githubusercontent.com/u/166032907?v=4"
