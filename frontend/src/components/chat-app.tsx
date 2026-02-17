@@ -13,6 +13,9 @@ import {
 } from "react";
 import {
   ArrowUp,
+  Sun,
+  Moon,
+  Monitor,
   AtSign,
   Bot,
   ChevronDown,
@@ -68,6 +71,8 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { FcGoogle } from "react-icons/fc";
 import { SiMeta, SiOpenai } from "react-icons/si";
+import { useTheme } from "next-themes";
+import Link from "next/link";
 
 const STARTER_PROMPTS = [
   "Summarize the latest AI safety trends with citations.",
@@ -250,6 +255,8 @@ function ModelLogo({ provider, className = "h-4 w-4" }: { provider: string; clas
       return <FcGoogle className={className} />;
     case "openai":
       return <SiOpenai className={className} />;
+    case "ollama":
+      return <span className={className} style={{ fontSize: "inherit", lineHeight: 1 }}>🦙</span>;
     default:
       return <Bot className={className} />;
   }
@@ -285,6 +292,8 @@ export function ChatApp() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
+  const [themeSubmenuOpen, setThemeSubmenuOpen] = useState(false);
+  const { theme, setTheme } = useTheme();
 
   const router = useRouter();
 
@@ -871,8 +880,8 @@ export function ChatApp() {
 
   if (!tokens) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#212121]">
-        <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-[#2a2a2a] px-4 py-2 text-sm text-[#b8b8b8]">
+      <div className="flex min-h-screen items-center justify-center bg-(--chat-bg)">
+        <div className="inline-flex items-center gap-3 rounded-full border border-(--chat-dropdown-border) bg-(--chat-surface) px-4 py-2 text-sm text-(--chat-loading)">
           <Loader2 className="h-4 w-4 animate-spin" />
           Redirecting to login...
         </div>
@@ -881,10 +890,10 @@ export function ChatApp() {
   }
 
   return (
-    <div className="relative flex h-screen overflow-hidden bg-[#212121] text-[#ececec]">
+    <div className="relative flex h-screen overflow-hidden bg-(--chat-bg) text-(--chat-text)">
       <div
         className={cn(
-          "fixed inset-0 z-20 bg-black/60 transition md:hidden",
+          "fixed inset-0 z-20 bg-(--chat-overlay) transition md:hidden",
           mobileSidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
         )}
         onClick={() => setMobileSidebarOpen(false)}
@@ -892,7 +901,7 @@ export function ChatApp() {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-30 flex w-[260px] flex-col bg-[#171717] transition-all duration-300 ease-in-out md:static",
+          "fixed inset-y-0 left-0 z-30 flex w-[260px] flex-col bg-(--chat-sidebar) transition-all duration-300 ease-in-out md:static",
           mobileSidebarOpen ? "translate-x-0" : "-translate-x-full",
           sidebarOpen ? "md:translate-x-0 md:w-[260px] md:opacity-100" : "md:-translate-x-full md:w-0 md:opacity-0 md:overflow-hidden"
         )}
@@ -901,7 +910,7 @@ export function ChatApp() {
         <div className="flex items-center justify-between px-3 pt-3 pb-1">
           <button
             type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[#ececec] transition hover:bg-white/5 hover:cursor-pointer"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-(--chat-text) transition hover:bg-(--chat-sidebar-text-hover) hover:cursor-pointer"
             onClick={() => {
               setActiveChatId(null);
               setMessages([]);
@@ -921,7 +930,7 @@ export function ChatApp() {
           <span className="ml-0 text-lg font-semibold">codebhaiya.ai</span>
           <button
             type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-[#b4b4b4] transition hover:bg-white/5 hover:text-[#ececec] hover:cursor-pointer"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-(--chat-text-muted) transition hover:bg-(--chat-sidebar-text-hover) hover:text-(--chat-text) hover:cursor-pointer"
             onClick={() => {
               setSidebarOpen(false);
               setMobileSidebarOpen(false);
@@ -936,7 +945,7 @@ export function ChatApp() {
         <nav className="mt-2 flex flex-col gap-0.5 px-2">
           <button
             type="button"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[#ececec] transition hover:bg-white/5 hover:cursor-pointer"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-(--chat-text) transition hover:bg-(--chat-sidebar-text-hover) hover:cursor-pointer"
             onClick={() => {
               setActiveChatId(null);
               setMessages([]);
@@ -945,30 +954,30 @@ export function ChatApp() {
             }}
             disabled={isSending}
           >
-            <Plus className="h-[18px] w-[18px] text-[#b4b4b4]" />
+            <Plus className="h-[18px] w-[18px] text-(--chat-text-muted)" />
             New chat
           </button>
           <button
             type="button"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[#ececec] transition hover:bg-white/5 hover:cursor-pointer"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-(--chat-text) transition hover:bg-(--chat-sidebar-text-hover) hover:cursor-pointer"
           > 
-            <Search className="h-[18px] w-[18px] text-[#b4b4b4]" />
+            <Search className="h-[18px] w-[18px] text-(--chat-text-muted)" />
             Search chats
           </button>
         </nav>
 
         {/* ── Your chats section ── */}
         <div className="mt-5 flex flex-col flex-1 min-h-0">
-          <p className="px-4 pb-2 text-[11px] font-medium text-[#8a8a8a]">
+          <p className="px-4 pb-2 text-[11px] font-medium text-(--chat-label)">
             Your chats
           </p>
           <div className="sidebar-scroll flex-1 overflow-y-auto px-2 pb-3">
             {isLoadingChats || isBootstrapping ? (
-              <div className="px-3 py-2 text-sm text-[#7a7a7a]">
+              <div className="px-3 py-2 text-sm text-(--chat-text-faint)">
                 Loading chats…
               </div>
             ) : chats.length === 0 ? (
-              <div className="px-3 py-2 text-sm text-[#7a7a7a]">
+              <div className="px-3 py-2 text-sm text-(--chat-text-faint)">
                 No conversations yet.
               </div>
             ) : (
@@ -980,8 +989,8 @@ export function ChatApp() {
                     className={cn(
                       "w-full rounded-lg px-3 py-2 text-left text-sm transition hover:cursor-pointer",
                       chat._id === activeChatId
-                        ? "bg-[#2a2a2a] text-[#ececec]"
-                        : "text-[#cfcfcf] hover:bg-[#212121]"
+                        ? "bg-(--chat-sidebar-active) text-(--chat-text)"
+                        : "text-(--chat-text-secondary) hover:bg-(--chat-sidebar-hover)"
                     )}
                     onClick={() => {
                       setActiveChatId(chat._id);
@@ -1000,10 +1009,10 @@ export function ChatApp() {
         <div className="mt-auto flex flex-col gap-0.5 px-2 pb-3">
           <button
             type="button"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[#cfcfcf] transition hover:bg-white/5"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-sidebar-text-hover)"
           >
-            <ExternalLink className="h-[18px] w-[18px] text-[#8a8a8a]" />
-            Get API key
+            <ExternalLink className="h-[18px] w-[18px] text-(--chat-label)" />
+            <Link href="https://www.codebhaiya.com" target="_blank" rel="noopener noreferrer" >codebhaiya.com</Link>
           </button>
 
           {/* Settings with popup */}
@@ -1014,83 +1023,120 @@ export function ChatApp() {
                   className="fixed inset-0 z-40"
                   onClick={() => setSettingsMenuOpen(false)}
                 />
-                <div className="absolute bottom-full left-0 z-50 mb-1 w-56 rounded-xl border border-white/10 bg-[#2a2a2a] py-1.5 shadow-2xl">
-                  {/* Top group */}
+                <div className="absolute bottom-full left-0 z-50 mb-1 w-56 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
+                  {/* Top group - Theme with hover submenu */}
+                  <div
+                    className="relative"
+                    onMouseEnter={() => setThemeSubmenuOpen(true)}
+                    onMouseLeave={() => setThemeSubmenuOpen(false)}
+                  >
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover)"
+                    >
+                      <span className="flex items-center gap-3">
+                        <SunMoon className="h-[18px] w-[18px] text-(--chat-label)" />
+                        Theme
+                      </span>
+                      <ChevronRight className="h-4 w-4 text-[#666]" />
+                    </button>
+
+                    {/* Theme submenu */}
+                    {themeSubmenuOpen && (
+                      <div className="absolute left-full top-0 z-[60] ml-1 w-40 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
+                        {[
+                          { id: "light", label: "Light", icon: Sun },
+                          { id: "dark", label: "Dark", icon: Moon },
+                          { id: "system", label: "System", icon: Monitor },
+                        ].map((opt) => (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover)"
+                            onClick={() => {
+                              setTheme(opt.id);
+                              setThemeSubmenuOpen(false);
+                              setSettingsMenuOpen(false);
+                            }}
+                          >
+                            <span
+                              className={`h-2.5 w-2.5 rounded-full border ${
+                                theme === opt.id
+                                  ? "border-white bg-white"
+                                  : "border-[#666] bg-transparent"
+                              }`}
+                            />
+                            <opt.icon className="h-[16px] w-[16px] text-(--chat-label)" />
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                   <button
                     type="button"
-                    className="flex w-full items-center justify-between px-4 py-2.5 text-sm text-[#cfcfcf] transition hover:bg-white/5"
+                    className="flex w-full items-center justify-between px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover)"
                     onClick={() => setSettingsMenuOpen(false)}
                   >
                     <span className="flex items-center gap-3">
-                      <SunMoon className="h-[18px] w-[18px] text-[#8a8a8a]" />
-                      Theme
-                    </span>
-                    <ChevronRight className="h-4 w-4 text-[#666]" />
-                  </button>
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between px-4 py-2.5 text-sm text-[#cfcfcf] transition hover:bg-white/5"
-                    onClick={() => setSettingsMenuOpen(false)}
-                  >
-                    <span className="flex items-center gap-3">
-                      <CreditCard className="h-[18px] w-[18px] text-[#8a8a8a]" />
+                      <CreditCard className="h-[18px] w-[18px] text-(--chat-label)" />
                       Submit prompt key
                     </span>
                     <ChevronRight className="h-4 w-4 text-[#666]" />
                   </button>
 
                   {/* Divider */}
-                  <div className="my-1.5 border-t border-white/6" />
+                  <div className="my-1.5 border-t border-(--chat-dropdown-border)" />
 
                   {/* Middle group */}
                   <button
                     type="button"
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[#cfcfcf] transition hover:bg-white/5"
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover)"
                     onClick={() => setSettingsMenuOpen(false)}
                   >
-                    <Users className="h-[18px] w-[18px] text-[#8a8a8a]" />
+                    <Users className="h-[18px] w-[18px] text-(--chat-label)" />
                     View status
                   </button>
                   <button
                     type="button"
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[#cfcfcf] transition hover:bg-white/5"
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover)"
                     onClick={() => setSettingsMenuOpen(false)}
                   >
-                    <FileText className="h-[18px] w-[18px] text-[#8a8a8a]" />
+                    <FileText className="h-[18px] w-[18px] text-(--chat-label)" />
                     Terms of service
                   </button>
                   <button
                     type="button"
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[#cfcfcf] transition hover:bg-white/5"
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover)"
                     onClick={() => setSettingsMenuOpen(false)}
                   >
-                    <Shield className="h-[18px] w-[18px] text-[#8a8a8a]" />
+                    <Shield className="h-[18px] w-[18px] text-(--chat-label)" />
                     Privacy policy
                   </button>
                   <button
                     type="button"
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[#cfcfcf] transition hover:bg-white/5"
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover)"
                     onClick={() => setSettingsMenuOpen(false)}
                   >
-                    <MessageCircle className="h-[18px] w-[18px] text-[#8a8a8a]" />
+                    <MessageCircle className="h-[18px] w-[18px] text-(--chat-label)" />
                     Send feedback
                   </button>
                   <button
                     type="button"
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[#cfcfcf] transition hover:bg-white/5"
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover)"
                     onClick={() => setSettingsMenuOpen(false)}
                   >
-                    <CreditCard className="h-[18px] w-[18px] text-[#8a8a8a]" />
+                    <CreditCard className="h-[18px] w-[18px] text-(--chat-label)" />
                     Billing Support
                   </button>
 
                   {/* Divider */}
-                  <div className="my-1.5 border-t border-white/6" />
+                  <div className="my-1.5 border-t border-(--chat-dropdown-border)" />
 
                   {/* Logout */}
                   <button
                     type="button"
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-[#cf6f6f] transition hover:bg-white/5"
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-logout-text) transition hover:bg-(--chat-dropdown-hover)"
                     onClick={() => {
                       setSettingsMenuOpen(false);
                       void handleLogout();
@@ -1106,12 +1152,12 @@ export function ChatApp() {
             <button
               type="button"
               className={cn(
-                "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-[#cfcfcf] transition hover:bg-white/5",
+                "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-sidebar-text-hover)",
                 settingsMenuOpen && "bg-white/5"
               )}
               onClick={() => setSettingsMenuOpen(!settingsMenuOpen)}
             >
-              <Settings className="h-[18px] w-[18px] text-[#8a8a8a]" />
+              <Settings className="h-[18px] w-[18px] text-(--chat-label)" />
               Settings
             </button>
           </div>
@@ -1119,7 +1165,7 @@ export function ChatApp() {
           {/* User row */}
           <button
             type="button"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition hover:bg-white/5"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition hover:bg-(--chat-sidebar-text-hover)"
           >
             <Image
               src="https://avatars.githubusercontent.com/u/166032907?v=4"
@@ -1128,7 +1174,7 @@ export function ChatApp() {
               width={28}
               height={28}
             />
-            <span className="truncate text-sm text-[#cfcfcf]">
+            <span className="truncate text-sm text-(--chat-text-secondary)">
               {user?.email || user?.name || "Account"}
             </span>
           </button>
@@ -1141,7 +1187,7 @@ export function ChatApp() {
           <button
             type="button"
             className={cn(
-              "absolute left-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-lg text-[#cfcfcf] transition hover:bg-white/10",
+              "absolute left-3 top-3 z-10 inline-flex h-9 w-9 items-center justify-center rounded-lg text-(--chat-text-secondary) transition hover:bg-(--chat-sidebar-text-hover)",
               sidebarOpen ? "md:hidden" : ""
             )}
             onClick={() => {
@@ -1156,13 +1202,13 @@ export function ChatApp() {
         <main className="flex-1 overflow-y-auto">
           <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-6">
             {chatError ? (
-              <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
+              <div className="mb-4 rounded-lg border border-(--chat-error-border) bg-(--chat-error-bg) px-3 py-2 text-sm text-(--chat-error-text)">
                 {chatError}
               </div>
             ) : null}
 
             {isLoadingMessages ? (
-              <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-[#2a2a2a] px-3 py-2 text-sm text-[#b8b8b8]">
+              <div className="flex items-center gap-2 rounded-lg border border-(--chat-dropdown-border) bg-(--chat-surface) px-3 py-2 text-sm text-(--chat-loading)">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Loading messages...
               </div>
@@ -1170,7 +1216,7 @@ export function ChatApp() {
               <div className="flex min-h-[calc(100vh-120px)] flex-col items-center justify-center">
                 {/* Brand name */}
                 <h2
-                  className="mb-10 text-4xl font-light tracking-wide text-[#b0b0b0]"
+                  className="mb-10 text-4xl font-light tracking-wide text-(--chat-brand)"
                   style={{ fontFamily: "var(--font-fraunces), serif" }}
                 >
                   codebhaiya
@@ -1181,7 +1227,7 @@ export function ChatApp() {
                   className="w-full max-w-2xl"
                   onSubmit={handleComposerSubmit}
                 >
-                  <div className="rounded-2xl border border-white/12 bg-[#303030] px-4 pb-2.5 pt-3">
+                  <div className="rounded-2xl border border-(--chat-composer-border) bg-(--chat-composer) px-4 pb-2.5 pt-3">
                     <textarea
                       value={composer}
                       onChange={(event) => setComposer(event.target.value)}
@@ -1189,13 +1235,13 @@ export function ChatApp() {
                       placeholder="Ask anything..."
                       rows={1}
                       disabled={isSending || isBootstrapping}
-                      className="w-full resize-none border-0 bg-transparent text-[15px] leading-6 text-[#ececec] outline-none placeholder:text-[#7a7a7a]"
+                      className="w-full resize-none border-0 bg-transparent text-[15px] leading-6 text-(--chat-input-text) outline-none placeholder:text-(--chat-input-placeholder)"
                     />
 
                     <div className="mt-2 flex items-center justify-between">
                       <button
                         type="button"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/15 text-[#888] transition hover:bg-white/10 hover:text-[#ccc]"
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-(--chat-composer-border) text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)"
                         aria-label="Attach"
                       >
                         <Plus className="h-4 w-4" />
@@ -1206,7 +1252,7 @@ export function ChatApp() {
                           <button
                             type="button"
                             onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-                            className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs text-[#888] transition hover:bg-white/10 hover:text-[#ccc]"
+                            className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)"
                           >
                             <ModelLogo provider={availableModels.find(m => m.id === selectedModel)?.provider || ""} className="h-3.5 w-3.5" />
                             {availableModels.find(m => m.id === selectedModel)?.displayName || "Model"}
@@ -1219,7 +1265,7 @@ export function ChatApp() {
                                 className="fixed inset-0 z-10" 
                                 onClick={() => setModelDropdownOpen(false)}
                               />
-                              <div className="absolute bottom-full left-0 mb-2 z-20 w-56 rounded-xl border border-white/10 bg-[#2a2a2a] p-1.5 shadow-2xl">
+                              <div className="absolute bottom-full left-0 mb-2 z-20 w-56 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) p-1.5 shadow-2xl">
                                 {availableModels.map((model) => (
                                   <button
                                     key={model.id}
@@ -1229,13 +1275,13 @@ export function ChatApp() {
                                       setModelDropdownOpen(false);
                                     }}
                                     className={cn(
-                                      "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition hover:bg-white/5 cursor-pointer",
-                                      selectedModel === model.id ? "text-white bg-white/8" : "text-[#b4b4b4]"
+                                      "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition hover:bg-(--chat-dropdown-hover) cursor-pointer",
+                                      selectedModel === model.id ? "text-(--chat-text) bg-[var(--chat-dropdown-hover)]" : "text-(--chat-text-muted)"
                                     )}
                                   >
                                     <ModelLogo provider={model.provider} className="h-4 w-4 shrink-0" />
                                     <span className="flex-1">{model.displayName}</span>
-                                    {selectedModel === model.id && <Check className="h-3.5 w-3.5 text-[#888]" />}
+                                    {selectedModel === model.id && <Check className="h-3.5 w-3.5 text-(--chat-action-icon)" />}
                                   </button>
                                 ))}
                               </div>
@@ -1244,7 +1290,7 @@ export function ChatApp() {
                         </div>
                         <button
                           type="button"
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#888] transition hover:bg-white/10 hover:text-[#ccc]"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)"
                           aria-label="Voice input"
                         >
                           <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1256,7 +1302,7 @@ export function ChatApp() {
                         <button
                           type="submit"
                           disabled={isBootstrapping || !composer.trim()}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#555] text-white transition hover:bg-[#666] disabled:cursor-not-allowed disabled:opacity-40"
+                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-(--chat-send-bg) text-white transition hover:bg-(--chat-send-bg-hover) disabled:cursor-not-allowed disabled:opacity-40"
                           aria-label="Send"
                         >
                           <ArrowUp className="h-4 w-4" />
@@ -1278,7 +1324,7 @@ export function ChatApp() {
                     <button
                       key={chip.label}
                       type="button"
-                      className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-transparent px-3.5 py-1.5 text-xs text-[#999] transition hover:border-white/20 hover:bg-white/5 hover:text-[#ccc]"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-(--chat-chip-border) bg-transparent px-3.5 py-1.5 text-xs text-(--chat-chip-text) transition hover:border-(--chat-dropdown-border) hover:bg-(--chat-dropdown-hover) hover:text-(--chat-chip-text-hover)"
                       onClick={() => {
                         setComposer(chip.label + ": ");
                       }}
@@ -1320,10 +1366,10 @@ export function ChatApp() {
                       {isUser ? (
                         /* ── User bubble: dark-blue pill, right-aligned ── */
                         <div className="max-w-[80%]">
-                          <div className="rounded-full bg-[#131313] px-5 py-2.5 text-[15px] leading-6 text-[#e8e8e8]">
+                          <div className="rounded-full bg-(--chat-user-bubble) px-5 py-2.5 text-[15px] leading-6 text-(--chat-user-bubble-text)">
                             {message.content}
                           </div>
-                          <p className="mt-1 text-right text-[11px] text-[#666]">
+                          <p className="mt-1 text-right text-[11px] text-(--chat-timestamp)">
                             {formatTime(message.createdAt)}
                           </p>
                         </div>
@@ -1331,7 +1377,7 @@ export function ChatApp() {
                         /* ── AI response: no bubble, full-width text ── */
                         <div className="w-full max-w-none">
                           {displayContent ? (
-                            <p className="whitespace-pre-wrap text-[15px] leading-8 text-[#e0e0e0]">
+                            <p className="whitespace-pre-wrap text-[15px] leading-8 text-(--chat-ai-text)">
                               {displayContent}
                             </p>
                           ) : null}
@@ -1346,18 +1392,18 @@ export function ChatApp() {
                                     href={href || "#"}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="rounded-xl border border-white/10 bg-[#2a2a2a] p-3 text-xs transition hover:bg-[#333333]"
+                                    className="rounded-xl border border-(--chat-dropdown-border) bg-(--chat-source-card) p-3 text-xs transition hover:bg-(--chat-source-card-hover)"
                                   >
-                                    <p className="font-medium text-[#f1f1f1]">
+                                    <p className="font-medium text-(--chat-source-title)">
                                       {source.title || "Source"}
                                     </p>
                                     {source.snippet ? (
-                                      <p className="mt-1 line-clamp-3 text-[#b4b4b4]">
+                                      <p className="mt-1 line-clamp-3 text-(--chat-source-snippet)">
                                         {source.snippet}
                                       </p>
                                     ) : null}
                                     {href ? (
-                                      <p className="mt-2 inline-flex items-center gap-1 text-[#9dd3c7]">
+                                      <p className="mt-2 inline-flex items-center gap-1 text-(--chat-source-link)">
                                         <AtSign className="h-3 w-3" />
                                         {formatSourceHost(href)}
                                       </p>
@@ -1373,7 +1419,7 @@ export function ChatApp() {
                               {message.usedTools.map((tool, toolIndex) => (
                                 <span
                                   key={`${tool.name}-${toolIndex}`}
-                                  className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-[#2a2a2a] px-2.5 py-1 text-xs text-[#b4b4b4]"
+                                  className="inline-flex items-center gap-1 rounded-full border border-(--chat-dropdown-border) bg-(--chat-tool-badge) px-2.5 py-1 text-xs text-(--chat-tool-badge-text)"
                                 >
                                   <MessageSquareText className="h-3 w-3" />
                                   {tool.name}
@@ -1383,7 +1429,7 @@ export function ChatApp() {
                           ) : null}
 
                           {message.isStreaming ? (
-                            <div className="mt-3 inline-flex items-center gap-2 text-xs text-[#b3b3b3]">
+                            <div className="mt-3 inline-flex items-center gap-2 text-xs text-(--chat-loading)">
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
                               thinking...
                             </div>
@@ -1392,7 +1438,7 @@ export function ChatApp() {
                           {/* Action bar */}
                           {!message.isStreaming && displayContent ? (
                             <div className="mt-4 flex items-center gap-1">
-                              <p className="mr-2 text-[11px] text-[#666]">
+                              <p className="mr-2 text-[11px] text-(--chat-timestamp)">
                                 {formatTime(message.createdAt)}
                               </p>
                               {[
@@ -1406,7 +1452,7 @@ export function ChatApp() {
                                 <button
                                   key={action.label}
                                   type="button"
-                                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-[#777] transition hover:bg-white/8 hover:text-[#bbb]"
+                                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)"
                                   aria-label={action.label}
                                   onClick={() => {
                                     if (action.label === "Copy" && displayContent) {
@@ -1432,9 +1478,9 @@ export function ChatApp() {
 
         {/* Bottom composer — only shown when messages exist */}
         {messages.length > 0 && (
-        <footer className="bg-[#212121] px-3 py-3 md:px-6">
+        <footer className="bg-(--chat-bg) px-3 py-3 md:px-6">
           <form className="mx-auto w-full max-w-3xl" onSubmit={handleComposerSubmit}>
-            <div className="rounded-2xl border border-white/12 bg-[#303030] px-4 pb-2.5 pt-3">
+            <div className="rounded-2xl border border-(--chat-composer-border) bg-(--chat-composer) px-4 pb-2.5 pt-3">
               <textarea
                 value={composer}
                 onChange={(event) => setComposer(event.target.value)}
@@ -1442,14 +1488,14 @@ export function ChatApp() {
                 placeholder="Ask a follow-up"
                 rows={1}
                 disabled={isSending || isBootstrapping}
-                className="w-full resize-none border-0 bg-transparent text-[15px] leading-6 text-[#ececec] outline-none placeholder:text-[#7a7a7a]"
+                className="w-full resize-none border-0 bg-transparent text-[15px] leading-6 text-(--chat-input-text) outline-none placeholder:text-(--chat-input-placeholder)"
               />
 
               <div className="mt-2 flex items-center justify-between">
                 {/* Left — attach */}
                 <button
                   type="button"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/15 text-[#888] transition hover:bg-white/10 hover:text-[#ccc]"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-(--chat-composer-border) text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)"
                   aria-label="Attach"
                 >
                   <Plus className="h-4 w-4" />
@@ -1461,7 +1507,7 @@ export function ChatApp() {
                     <button
                       type="button"
                       onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-                      className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs text-[#888] transition hover:bg-white/10 hover:text-[#ccc]"
+                      className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)"
                     >
                       <ModelLogo provider={availableModels.find(m => m.id === selectedModel)?.provider || ""} className="h-3.5 w-3.5" />
                       {availableModels.find(m => m.id === selectedModel)?.displayName || "Model"}
@@ -1474,7 +1520,7 @@ export function ChatApp() {
                           className="fixed inset-0 z-10" 
                           onClick={() => setModelDropdownOpen(false)}
                         />
-                        <div className="absolute bottom-full right-0 mb-2 z-20 w-56 rounded-xl border border-white/10 bg-[#2a2a2a] p-1.5 shadow-2xl">
+                        <div className="absolute bottom-full right-0 mb-2 z-20 w-56 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) p-1.5 shadow-2xl">
                           {availableModels.map((model) => (
                             <button
                               key={model.id}
@@ -1484,13 +1530,13 @@ export function ChatApp() {
                                 setModelDropdownOpen(false);
                               }}
                               className={cn(
-                                "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition hover:bg-white/5 cursor-pointer",
-                                selectedModel === model.id ? "text-white bg-white/8" : "text-[#b4b4b4]"
+                                "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition hover:bg-(--chat-dropdown-hover) cursor-pointer",
+                                selectedModel === model.id ? "text-(--chat-text) bg-[var(--chat-dropdown-hover)]" : "text-(--chat-text-muted)"
                               )}
                             >
                               <ModelLogo provider={model.provider} className="h-4 w-4 shrink-0" />
                               <span className="flex-1">{model.displayName}</span>
-                              {selectedModel === model.id && <Check className="h-3.5 w-3.5 text-[#888]" />}
+                              {selectedModel === model.id && <Check className="h-3.5 w-3.5 text-(--chat-action-icon)" />}
                             </button>
                           ))}
                         </div>
@@ -1499,7 +1545,7 @@ export function ChatApp() {
                   </div>
                   <button
                     type="button"
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[#888] transition hover:bg-white/10 hover:text-[#ccc]"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)"
                     aria-label="Voice input"
                   >
                     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1512,7 +1558,7 @@ export function ChatApp() {
                     <button
                       type="button"
                       onClick={handleStopStreaming}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#5a2a2a] text-[#f0d3d3] transition hover:bg-[#683232]"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-(--chat-stop-bg) text-(--chat-stop-text) transition hover:bg-(--chat-stop-bg-hover)"
                       aria-label="Stop"
                     >
                       <Square className="h-3.5 w-3.5 fill-current" />
@@ -1521,7 +1567,7 @@ export function ChatApp() {
                     <button
                       type="submit"
                       disabled={isBootstrapping || !composer.trim()}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#555] text-white transition hover:bg-[#666] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-(--chat-send-bg) text-white transition hover:bg-(--chat-send-bg-hover) disabled:cursor-not-allowed disabled:opacity-40"
                       aria-label="Send"
                     >
                       <ArrowUp className="h-4 w-4" />

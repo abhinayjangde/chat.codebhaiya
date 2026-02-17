@@ -1,6 +1,7 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { ChatGroq } from "@langchain/groq";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { ChatOllama } from "@langchain/ollama";
 import { createAgent } from "langchain";
 import { env } from "../config/env.js";
 import { webSearchTool } from "./tools.js";
@@ -9,7 +10,7 @@ import { webSearchTool } from "./tools.js";
 
 export interface ModelConfig {
   id: string;
-  provider: "groq" | "google" | "openai";
+  provider: "groq" | "google" | "openai" | "ollama";
   modelName: string;
   displayName: string;
 }
@@ -50,6 +51,20 @@ export const MODEL_REGISTRY: Record<string, ModelConfig> = {
     modelName: "gpt-5-nano-2025-08-07",
     displayName: "GPT-5 Nano",
   },
+
+  // Ollama Cloud Models
+  "ollama-glm-5-cloud": {
+    id: "ollama-glm-5-cloud",
+    provider: "ollama",
+    modelName: "glm-5:cloud",
+    displayName: "GLM-5 (Ollama Cloud)",
+  },
+  "ollama-kimi-k2.5-cloud": {
+    id: "ollama-kimi-k2.5-cloud",
+    provider: "ollama",
+    modelName: "kimi-k2.5:cloud",
+    displayName: "Kimi K2.5 (Ollama Cloud)",
+  },
 };
 
 export const DEFAULT_MODEL = "groq-llama-3.3-70b";
@@ -77,6 +92,12 @@ export function getAvailableModels(): ModelConfig[] {
   // Check OpenAI
   if (env.OPENAI_API_KEY) {
     available.push(MODEL_REGISTRY["gpt-5-nano-2025-08-07"]!);
+  }
+
+  // Check Ollama
+  if (env.OLLAMA_API_KEY) {
+    available.push(MODEL_REGISTRY["ollama-glm-5-cloud"]!);
+    available.push(MODEL_REGISTRY["ollama-kimi-k2.5-cloud"]!);
   }
 
   return available;
@@ -131,6 +152,20 @@ export function getAgent(modelId?: string) {
       llm = new ChatOpenAI({
         apiKey: env.OPENAI_API_KEY,
         model: config.modelName,
+        streaming: true,
+      });
+      break;
+
+    case "ollama":
+      if (!env.OLLAMA_API_KEY)
+        throw new Error("OLLAMA_API_KEY is not configured");
+      llm = new ChatOllama({
+        model: config.modelName,
+        baseUrl: "https://api.ollama.com",
+        headers: {
+          Authorization: `Bearer ${env.OLLAMA_API_KEY}`,
+        },
+        temperature: 0.7,
         streaming: true,
       });
       break;
