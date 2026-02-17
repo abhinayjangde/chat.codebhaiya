@@ -66,6 +66,8 @@ import type {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { FcGoogle } from "react-icons/fc";
+import { SiMeta, SiOpenai } from "react-icons/si";
 
 const STARTER_PROMPTS = [
   "Summarize the latest AI safety trends with citations.",
@@ -237,6 +239,19 @@ function formatSourceHost(href: string): string {
     return new URL(href).hostname.replace(/^www\./, "");
   } catch {
     return href;
+  }
+}
+
+function ModelLogo({ provider, className = "h-4 w-4" }: { provider: string; className?: string }) {
+  switch (provider) {
+    case "groq":
+      return <SiMeta className={className} />;
+    case "google":
+      return <FcGoogle className={className} />;
+    case "openai":
+      return <SiOpenai className={className} />;
+    default:
+      return <Bot className={className} />;
   }
 }
 
@@ -1193,6 +1208,7 @@ export function ChatApp() {
                             onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
                             className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs text-[#888] transition hover:bg-white/10 hover:text-[#ccc]"
                           >
+                            <ModelLogo provider={availableModels.find(m => m.id === selectedModel)?.provider || ""} className="h-3.5 w-3.5" />
                             {availableModels.find(m => m.id === selectedModel)?.displayName || "Model"}
                             <ChevronDown className="h-3 w-3" />
                           </button>
@@ -1203,7 +1219,7 @@ export function ChatApp() {
                                 className="fixed inset-0 z-10" 
                                 onClick={() => setModelDropdownOpen(false)}
                               />
-                              <div className="absolute bottom-full left-0 mb-2 z-20 w-48 rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-xl">
+                              <div className="absolute bottom-full left-0 mb-2 z-20 w-56 rounded-xl border border-white/10 bg-[#2a2a2a] p-1.5 shadow-2xl">
                                 {availableModels.map((model) => (
                                   <button
                                     key={model.id}
@@ -1213,12 +1229,13 @@ export function ChatApp() {
                                       setModelDropdownOpen(false);
                                     }}
                                     className={cn(
-                                      "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition hover:bg-white/5",
-                                      selectedModel === model.id ? "text-white bg-white/10" : "text-[#b4b4b4]"
+                                      "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition hover:bg-white/5 cursor-pointer",
+                                      selectedModel === model.id ? "text-white bg-white/8" : "text-[#b4b4b4]"
                                     )}
                                   >
-                                    <span>{model.displayName}</span>
-                                    {selectedModel === model.id && <Check className="h-3 w-3" />}
+                                    <ModelLogo provider={model.provider} className="h-4 w-4 shrink-0" />
+                                    <span className="flex-1">{model.displayName}</span>
+                                    {selectedModel === model.id && <Check className="h-3.5 w-3.5 text-[#888]" />}
                                   </button>
                                 ))}
                               </div>
@@ -1446,6 +1463,7 @@ export function ChatApp() {
                       onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
                       className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs text-[#888] transition hover:bg-white/10 hover:text-[#ccc]"
                     >
+                      <ModelLogo provider={availableModels.find(m => m.id === selectedModel)?.provider || ""} className="h-3.5 w-3.5" />
                       {availableModels.find(m => m.id === selectedModel)?.displayName || "Model"}
                       <ChevronDown className="h-3 w-3" />
                     </button>
@@ -1456,7 +1474,7 @@ export function ChatApp() {
                           className="fixed inset-0 z-10" 
                           onClick={() => setModelDropdownOpen(false)}
                         />
-                        <div className="absolute bottom-full right-0 mb-2 z-20 w-48 rounded-lg border border-white/10 bg-[#2a2a2a] p-1 shadow-xl">
+                        <div className="absolute bottom-full right-0 mb-2 z-20 w-56 rounded-xl border border-white/10 bg-[#2a2a2a] p-1.5 shadow-2xl">
                           {availableModels.map((model) => (
                             <button
                               key={model.id}
@@ -1466,12 +1484,13 @@ export function ChatApp() {
                                 setModelDropdownOpen(false);
                               }}
                               className={cn(
-                                "flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition hover:bg-white/5",
-                                selectedModel === model.id ? "text-white bg-white/10" : "text-[#b4b4b4]"
+                                "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition hover:bg-white/5 cursor-pointer",
+                                selectedModel === model.id ? "text-white bg-white/8" : "text-[#b4b4b4]"
                               )}
                             >
-                              <span>{model.displayName}</span>
-                              {selectedModel === model.id && <Check className="h-3 w-3" />}
+                              <ModelLogo provider={model.provider} className="h-4 w-4 shrink-0" />
+                              <span className="flex-1">{model.displayName}</span>
+                              {selectedModel === model.id && <Check className="h-3.5 w-3.5 text-[#888]" />}
                             </button>
                           ))}
                         </div>

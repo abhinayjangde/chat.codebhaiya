@@ -11,7 +11,7 @@ const envSchema = z.object({
   MONGODB_URL: z.string().trim().min(1, "MONGODB_URL is required"),
 
   OPENAI_API_KEY: z.string().trim().optional(),
-  OPENAI_MODEL: z.string().trim().min(1).default("gpt-4o-mini"),
+  OPENAI_MODEL: z.string().trim().min(1).default("gpt-5-nano-2025-08-07"),
   GROQ_API_KEY: z.string().trim().optional(),
   JWT_SECRET: z
     .string()

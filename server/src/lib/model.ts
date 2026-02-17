@@ -44,17 +44,11 @@ export const MODEL_REGISTRY: Record<string, ModelConfig> = {
   },
 
   // OpenAI Models
-  "gpt-4o-mini": {
-    id: "gpt-4o-mini",
+  "gpt-5-nano-2025-08-07": {
+    id: "gpt-5-nano-2025-08-07",
     provider: "openai",
-    modelName: "gpt-4o-mini",
-    displayName: "GPT-4o Mini",
-  },
-  "gpt-4o": {
-    id: "gpt-4o",
-    provider: "openai",
-    modelName: "gpt-4o",
-    displayName: "GPT-4o",
+    modelName: "gpt-5-nano-2025-08-07",
+    displayName: "GPT-5 Nano",
   },
 };
 
@@ -82,8 +76,7 @@ export function getAvailableModels(): ModelConfig[] {
 
   // Check OpenAI
   if (env.OPENAI_API_KEY) {
-    available.push(MODEL_REGISTRY["gpt-4o-mini"]!);
-    available.push(MODEL_REGISTRY["gpt-4o"]!);
+    available.push(MODEL_REGISTRY["gpt-5-nano-2025-08-07"]!);
   }
 
   return available;
@@ -138,7 +131,6 @@ export function getAgent(modelId?: string) {
       llm = new ChatOpenAI({
         apiKey: env.OPENAI_API_KEY,
         model: config.modelName,
-        temperature: 0.7,
         streaming: true,
       });
       break;
