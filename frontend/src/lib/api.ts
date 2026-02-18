@@ -208,6 +208,13 @@ export const apiClient = {
     });
   },
 
+  async deleteChat(chatId: string, accessToken: string): Promise<void> {
+    await requestData<void>(`/chat/${chatId}`, {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+    });
+  },
+
   async streamMessage(
     chatId: string,
     message: string,

@@ -216,6 +216,53 @@ router.post("/:chatId", async (req: Request, res: Response) => {
     }
 });
 
+// Delete a chat and all its messages
+router.delete("/:chatId", async (req: Request, res: Response) => {
+    try {
+        const chatId = Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId;
+        const userId = req.user?.userId;
+
+        // Validate chatId
+        if (!chatId || !ObjectId.isValid(chatId)) {
+            res.status(400).json({
+                success: false,
+                error: "Invalid chat ID"
+            });
+            return;
+        }
+
+        // Verify chat belongs to authenticated user
+        const chat = await Chat.findOne({
+            _id: new ObjectId(chatId),
+            userId: new ObjectId(userId)
+        });
+
+        if (!chat) {
+            res.status(404).json({
+                success: false,
+                error: "Chat not found"
+            });
+            return;
+        }
+
+        // Delete all messages for this chat
+        await Message.deleteMany({ chatId: new ObjectId(chatId) });
+
+        // Delete the chat itself
+        await Chat.findByIdAndDelete(chatId);
+
+        res.status(200).json({
+            success: true,
+            message: "Chat deleted successfully"
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: (error as Error).message
+        });
+    }
+});
+
 // Streaming endpoint with Server-Sent Events (SSE)
 router.post("/:chatId/stream", async (req: Request, res: Response) => {
     const chatId = Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId;

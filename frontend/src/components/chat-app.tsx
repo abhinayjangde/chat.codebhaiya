@@ -38,6 +38,7 @@ import {
   SendHorizontal,
   Settings,
   Share,
+  Trash2,
   Shield,
   Square,
   Sparkles,
@@ -293,6 +294,7 @@ export function ChatApp() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const [themeSubmenuOpen, setThemeSubmenuOpen] = useState(false);
+  const [chatMenuOpenId, setChatMenuOpenId] = useState<string | null>(null);
   const { theme, setTheme } = useTheme();
 
   const router = useRouter();
@@ -867,6 +869,23 @@ export function ChatApp() {
     }
   };
 
+  const handleDeleteChat = async (chatId: string) => {
+    setChatMenuOpenId(null);
+    try {
+      await runWithSession((accessToken) =>
+        apiClient.deleteChat(chatId, accessToken)
+      );
+      setChats((prev) => prev.filter((c) => c._id !== chatId));
+      if (activeChatId === chatId) {
+        setActiveChatId(null);
+        setMessages([]);
+        setChatError(null);
+      }
+    } catch (error) {
+      setChatError(getErrorMessage(error));
+    }
+  };
+
   if (!hydrated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -983,22 +1002,76 @@ export function ChatApp() {
             ) : (
               <div className="flex flex-col gap-0.5">
                 {chats.map((chat) => (
-                  <button
-                    key={chat._id}
-                    type="button"
-                    className={cn(
-                      "w-full rounded-lg px-3 py-2 text-left text-sm transition hover:cursor-pointer",
-                      chat._id === activeChatId
-                        ? "bg-(--chat-sidebar-active) text-(--chat-text)"
-                        : "text-(--chat-text-secondary) hover:bg-(--chat-sidebar-hover)"
+                  <div key={chat._id} className="group relative">
+                    <button
+                      type="button"
+                      className={cn(
+                        "w-full rounded-lg px-3 py-2 pr-8 text-left text-sm transition hover:cursor-pointer",
+                        chat._id === activeChatId
+                          ? "bg-(--chat-sidebar-active) text-(--chat-text)"
+                          : "text-(--chat-text-secondary) hover:bg-(--chat-sidebar-hover)"
+                      )}
+                      onClick={() => {
+                        setActiveChatId(chat._id);
+                        setMobileSidebarOpen(false);
+                      }}
+                    >
+                      <p className="truncate">{shortTitle(chat.title || "New chat")}</p>
+                    </button>
+
+                    {/* ⋯ menu trigger */}
+                    <button
+                      type="button"
+                      className={cn(
+                        "absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded-md text-(--chat-text-muted) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text)",
+                        chatMenuOpenId === chat._id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                      )}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setChatMenuOpenId(chatMenuOpenId === chat._id ? null : chat._id);
+                      }}
+                      aria-label="Chat options"
+                    >
+                      <MoreHorizontal className="h-4 w-4" />
+                    </button>
+
+                    {/* Dropdown menu */}
+                    {chatMenuOpenId === chat._id && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-40"
+                          onClick={() => setChatMenuOpenId(null)}
+                        />
+                        <div className="absolute right-0 top-full z-50 mt-1 w-44 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
+                          <button
+                            type="button"
+                            className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) opacity-50 cursor-not-allowed"
+                            disabled
+                          >
+                            <Share className="h-4 w-4 text-(--chat-label)" />
+                            Share
+                          </button>
+                          <button
+                            type="button"
+                            className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) opacity-50 cursor-not-allowed"
+                            disabled
+                          >
+                            <SquarePen className="h-4 w-4 text-(--chat-label)" />
+                            Rename
+                          </button>
+                          <div className="my-1 border-t border-(--chat-dropdown-border)" />
+                          <button
+                            type="button"
+                            className="flex w-full items-center gap-3 px-4 py-2 text-sm text-red-400 transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                            onClick={() => void handleDeleteChat(chat._id)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            Delete
+                          </button>
+                        </div>
+                      </>
                     )}
-                    onClick={() => {
-                      setActiveChatId(chat._id);
-                      setMobileSidebarOpen(false);
-                    }}
-                  >
-                    <p className="truncate">{shortTitle(chat.title || "New chat")}</p>
-                  </button>
+                  </div>
                 ))}
               </div>
             )}
