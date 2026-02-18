@@ -49,6 +49,10 @@ import {
   UserRound,
   Users,
   X,
+  Paperclip,
+  Cloud,
+  Telescope,
+  Gavel,
 } from "lucide-react";
 import { ApiError, apiClient } from "@/lib/api";
 import {
@@ -295,9 +299,19 @@ export function ChatApp() {
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const [themeSubmenuOpen, setThemeSubmenuOpen] = useState(false);
   const [chatMenuOpenId, setChatMenuOpenId] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const { theme, setTheme } = useTheme();
 
   const router = useRouter();
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  const filteredChats = useMemo(() => {
+    if (!searchQuery.trim()) return chats;
+    const q = searchQuery.toLowerCase();
+    return chats.filter((c) => c.title?.toLowerCase().includes(q));
+  }, [chats, searchQuery]);
 
   const streamAbortRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
@@ -976,13 +990,46 @@ export function ChatApp() {
             <Plus className="h-[18px] w-[18px] text-(--chat-text-muted)" />
             New chat
           </button>
-          <button
-            type="button"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-(--chat-text) transition hover:bg-(--chat-sidebar-text-hover) hover:cursor-pointer"
-          > 
-            <Search className="h-[18px] w-[18px] text-(--chat-text-muted)" />
-            Search chats
-          </button>
+          {searchOpen ? (
+            <div className="flex items-center gap-2 rounded-lg bg-(--chat-sidebar-active) px-3 py-1.5">
+              <Search className="h-4 w-4 shrink-0 text-(--chat-text-muted)" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") {
+                    setSearchQuery("");
+                    setSearchOpen(false);
+                  }
+                }}
+                placeholder="Search chats…"
+                autoFocus
+                className="w-full bg-transparent text-sm text-(--chat-text) outline-none placeholder:text-(--chat-text-faint)"
+              />
+              <button
+                type="button"
+                className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-(--chat-text-muted) transition hover:text-(--chat-text)"
+                onClick={() => {
+                  setSearchQuery("");
+                  setSearchOpen(false);
+                }}
+                aria-label="Close search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-(--chat-text) transition hover:bg-(--chat-sidebar-text-hover) hover:cursor-pointer"
+              onClick={() => setSearchOpen(true)}
+            >
+              <Search className="h-[18px] w-[18px] text-(--chat-text-muted)" />
+              Search chats
+            </button>
+          )}
         </nav>
 
         {/* ── Your chats section ── */}
@@ -995,13 +1042,13 @@ export function ChatApp() {
               <div className="px-3 py-2 text-sm text-(--chat-text-faint)">
                 Loading chats…
               </div>
-            ) : chats.length === 0 ? (
+            ) : filteredChats.length === 0 ? (
               <div className="px-3 py-2 text-sm text-(--chat-text-faint)">
-                No conversations yet.
+                {searchQuery.trim() ? "No matching chats." : "No conversations yet."}
               </div>
             ) : (
               <div className="flex flex-col gap-0.5">
-                {chats.map((chat) => (
+                {filteredChats.map((chat) => (
                   <div key={chat._id} className="group relative">
                     <button
                       type="button"
@@ -1312,13 +1359,101 @@ export function ChatApp() {
                     />
 
                     <div className="mt-2 flex items-center justify-between">
-                      <button
-                        type="button"
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-(--chat-composer-border) text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)"
-                        aria-label="Attach"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </button>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setPlusMenuOpen(!plusMenuOpen)}
+                          className={cn(
+                            "inline-flex h-8 w-8 items-center justify-center rounded-full border border-(--chat-composer-border) text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)",
+                            plusMenuOpen && "bg-(--chat-dropdown-hover) text-(--chat-action-icon-hover)"
+                          )}
+                          aria-label="Attach"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </button>
+
+                        {/* Plus Menu Popup */}
+                        {plusMenuOpen && (
+                          <>
+                            <div
+                              className="fixed inset-0 z-40"
+                              onClick={() => setPlusMenuOpen(false)}
+                            />
+                            <div className="absolute bottom-full left-0 mb-2 w-72 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl z-50">
+                              {/* Upload files */}
+                              <button
+                                type="button"
+                                className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover)"
+                                onClick={() => setPlusMenuOpen(false)}
+                              >
+                                <Paperclip className="h-[18px] w-[18px] text-(--chat-text-secondary)" />
+                                Upload files or images
+                              </button>
+
+                              {/* Cloud */}
+                              <button
+                                type="button"
+                                className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover)"
+                                onClick={() => setPlusMenuOpen(false)}
+                              >
+                                <span className="flex items-center gap-3">
+                                  <Cloud className="h-[18px] w-[18px] text-(--chat-text-secondary)" />
+                                  Add files from cloud
+                                </span>
+                                <ChevronRight className="h-4 w-4 text-(--chat-text-muted)" />
+                              </button>
+
+                              <div className="my-1 border-t border-(--chat-dropdown-border)" />
+
+                              {/* Deep research */}
+                              <button
+                                type="button"
+                                className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition hover:bg-(--chat-dropdown-hover)"
+                                onClick={() => setPlusMenuOpen(false)}
+                              >
+                                <Telescope className="mt-0.5 h-[18px] w-[18px] text-(--chat-text-secondary)" />
+                                <div>
+                                  <div className="text-sm font-medium text-(--chat-text)">Deep research</div>
+                                  <div className="text-xs text-(--chat-text-muted)">In-depth reports and analysis</div>
+                                </div>
+                              </button>
+
+                              {/* Model council */}
+                              <button
+                                type="button"
+                                className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition hover:bg-(--chat-dropdown-hover)"
+                                onClick={() => setPlusMenuOpen(false)}
+                              >
+                                <Gavel className="mt-0.5 h-[18px] w-[18px] text-(--chat-text-secondary)" />
+                                <div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium text-(--chat-text)">Model council</span>
+                                    <span className="rounded bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-medium text-blue-400">
+                                      Max
+                                    </span>
+                                  </div>
+                                  <div className="text-xs text-(--chat-text-muted)">Multiple AI models at once</div>
+                                </div>
+                              </button>
+
+                              <div className="my-1 border-t border-(--chat-dropdown-border)" />
+
+                              {/* More */}
+                              <button
+                                type="button"
+                                className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover)"
+                                onClick={() => setPlusMenuOpen(false)}
+                              >
+                                <span className="flex items-center gap-3">
+                                  <MoreHorizontal className="h-[18px] w-[18px] text-(--chat-text-secondary)" />
+                                  More
+                                </span>
+                                <ChevronRight className="h-4 w-4 text-(--chat-text-muted)" />
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
 
                       <div className="flex items-center gap-1.5">
                         <div className="relative">
@@ -1566,13 +1701,101 @@ export function ChatApp() {
 
               <div className="mt-2 flex items-center justify-between">
                 {/* Left — attach */}
-                <button
-                  type="button"
-                  className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-(--chat-composer-border) text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)"
-                  aria-label="Attach"
-                >
-                  <Plus className="h-4 w-4" />
-                </button>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setPlusMenuOpen(!plusMenuOpen)}
+                    className={cn(
+                      "inline-flex h-8 w-8 items-center justify-center rounded-full border border-(--chat-composer-border) text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)",
+                      plusMenuOpen && "bg-(--chat-dropdown-hover) text-(--chat-action-icon-hover)"
+                    )}
+                    aria-label="Attach"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+
+                  {/* Plus Menu Popup */}
+                  {plusMenuOpen && (
+                    <>
+                      <div
+                        className="fixed inset-0 z-40"
+                        onClick={() => setPlusMenuOpen(false)}
+                      />
+                      <div className="absolute bottom-full left-0 mb-2 w-72 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl z-50">
+                        {/* Upload files */}
+                        <button
+                          type="button"
+                          className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover)"
+                          onClick={() => setPlusMenuOpen(false)}
+                        >
+                          <Paperclip className="h-[18px] w-[18px] text-(--chat-text-secondary)" />
+                          Upload files or images
+                        </button>
+
+                        {/* Cloud */}
+                        <button
+                          type="button"
+                          className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover)"
+                          onClick={() => setPlusMenuOpen(false)}
+                        >
+                          <span className="flex items-center gap-3">
+                            <Cloud className="h-[18px] w-[18px] text-(--chat-text-secondary)" />
+                            Add files from cloud
+                          </span>
+                          <ChevronRight className="h-4 w-4 text-(--chat-text-muted)" />
+                        </button>
+
+                        <div className="my-1 border-t border-(--chat-dropdown-border)" />
+
+                        {/* Deep research */}
+                        <button
+                          type="button"
+                          className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition hover:bg-(--chat-dropdown-hover)"
+                          onClick={() => setPlusMenuOpen(false)}
+                        >
+                          <Telescope className="mt-0.5 h-[18px] w-[18px] text-(--chat-text-secondary)" />
+                          <div>
+                            <div className="text-sm font-medium text-(--chat-text)">Deep research</div>
+                            <div className="text-xs text-(--chat-text-muted)">In-depth reports and analysis</div>
+                          </div>
+                        </button>
+
+                        {/* Model council */}
+                        <button
+                          type="button"
+                          className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition hover:bg-(--chat-dropdown-hover)"
+                          onClick={() => setPlusMenuOpen(false)}
+                        >
+                          <Gavel className="mt-0.5 h-[18px] w-[18px] text-(--chat-text-secondary)" />
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium text-(--chat-text)">Model council</span>
+                              <span className="rounded bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-medium text-blue-400">
+                                Max
+                              </span>
+                            </div>
+                            <div className="text-xs text-(--chat-text-muted)">Multiple AI models at once</div>
+                          </div>
+                        </button>
+
+                        <div className="my-1 border-t border-(--chat-dropdown-border)" />
+
+                        {/* More */}
+                        <button
+                          type="button"
+                          className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover)"
+                          onClick={() => setPlusMenuOpen(false)}
+                        >
+                          <span className="flex items-center gap-3">
+                            <MoreHorizontal className="h-[18px] w-[18px] text-(--chat-text-secondary)" />
+                            More
+                          </span>
+                          <ChevronRight className="h-4 w-4 text-(--chat-text-muted)" />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
 
                   {/* Right — model, mic, send/stop */}
                 <div className="flex items-center gap-1.5">
