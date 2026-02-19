@@ -1092,7 +1092,7 @@ export function ChatApp() {
               </div>
             ) : (
               <div className="flex flex-col gap-0.5">
-                {filteredChats.map((chat) => (
+                {filteredChats.map((chat, index) => (
                   <div key={chat._id} className="group relative">
                     <button
                       type="button"
@@ -1133,7 +1133,10 @@ export function ChatApp() {
                           className="fixed inset-0 z-40"
                           onClick={() => setChatMenuOpenId(null)}
                         />
-                        <div className="absolute right-0 top-full z-50 mt-1 w-44 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
+                        <div className={cn(
+                          "absolute right-0 z-50 w-full rounded-md border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl",
+                          index >= filteredChats.length - 7 ? "bottom-full mb-1" : "top-full mt-1"
+                        )}>
                           <button
                             type="button"
                             className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) opacity-50 cursor-not-allowed"
@@ -1196,7 +1199,7 @@ export function ChatApp() {
                   className="fixed inset-0 z-40"
                   onClick={() => setSettingsMenuOpen(false)}
                 />
-                <div className="absolute bottom-full left-0 z-50 mb-1 w-56 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
+                <div className="absolute bottom-full left-0 z-50 mb-1 w-full rounded-md border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
                   {/* Top group - Theme with hover submenu */}
                   <div
                     className="relative"
@@ -1205,7 +1208,7 @@ export function ChatApp() {
                   >
                     <button
                       type="button"
-                      className="flex w-full items-center justify-between px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover)"
+                      className="flex w-full items-center justify-between px-4 py-2.5 text-sm text-(--chat-text-secondary) hover:cursor-pointer transition hover:bg-(--chat-dropdown-hover)"
                     >
                       <span className="flex items-center gap-3">
                         <SunMoon className="h-[18px] w-[18px] text-(--chat-label)" />
@@ -1216,7 +1219,7 @@ export function ChatApp() {
 
                     {/* Theme submenu */}
                     {themeSubmenuOpen && (
-                      <div className="absolute left-full top-0 z-[60] ml-1 w-40 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
+                      <div className="absolute left-full top-0 z-60 ml-1 w-40 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
                         {[
                           { id: "light", label: "Light", icon: Sun },
                           { id: "dark", label: "Dark", icon: Moon },
@@ -1225,7 +1228,7 @@ export function ChatApp() {
                           <button
                             key={opt.id}
                             type="button"
-                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover)"
+                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
                             onClick={() => {
                               setTheme(opt.id);
                               setThemeSubmenuOpen(false);
@@ -1246,7 +1249,7 @@ export function ChatApp() {
                       </div>
                     )}
                   </div>
-                  <button
+                  {/* <button
                     type="button"
                     className="flex w-full items-center justify-between px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover)"
                     onClick={() => setSettingsMenuOpen(false)}
@@ -1256,23 +1259,23 @@ export function ChatApp() {
                       Submit prompt key
                     </span>
                     <ChevronRight className="h-4 w-4 text-[#666]" />
-                  </button>
+                  </button> */}
 
                   {/* Divider */}
                   <div className="my-1.5 border-t border-(--chat-dropdown-border)" />
 
                   {/* Middle group */}
-                  <button
+                  {/* <button
                     type="button"
                     className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover)"
                     onClick={() => setSettingsMenuOpen(false)}
                   >
                     <Users className="h-[18px] w-[18px] text-(--chat-label)" />
                     View status
-                  </button>
+                  </button> */}
                   <button
                     type="button"
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover)"
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
                     onClick={() => setSettingsMenuOpen(false)}
                   >
                     <FileText className="h-[18px] w-[18px] text-(--chat-label)" />
@@ -1280,7 +1283,7 @@ export function ChatApp() {
                   </button>
                   <button
                     type="button"
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover)"
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
                     onClick={() => setSettingsMenuOpen(false)}
                   >
                     <Shield className="h-[18px] w-[18px] text-(--chat-label)" />
@@ -1288,20 +1291,20 @@ export function ChatApp() {
                   </button>
                   <button
                     type="button"
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover)"
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
                     onClick={() => setSettingsMenuOpen(false)}
                   >
                     <MessageCircle className="h-[18px] w-[18px] text-(--chat-label)" />
                     Send feedback
                   </button>
-                  <button
+                  {/* <button
                     type="button"
                     className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover)"
                     onClick={() => setSettingsMenuOpen(false)}
                   >
                     <CreditCard className="h-[18px] w-[18px] text-(--chat-label)" />
                     Billing Support
-                  </button>
+                  </button> */}
 
                   {/* Divider */}
                   <div className="my-1.5 border-t border-(--chat-dropdown-border)" />
@@ -1309,7 +1312,7 @@ export function ChatApp() {
                   {/* Logout */}
                   <button
                     type="button"
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-logout-text) transition hover:bg-(--chat-dropdown-hover)"
+                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-logout-text) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
                     onClick={() => {
                       setSettingsMenuOpen(false);
                       void handleLogout();
@@ -1325,7 +1328,7 @@ export function ChatApp() {
             <button
               type="button"
               className={cn(
-                "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-sidebar-text-hover)",
+                "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-sidebar-text-hover) hover:cursor-pointer",
                 settingsMenuOpen && "bg-white/5"
               )}
               onClick={() => setSettingsMenuOpen(!settingsMenuOpen)}
@@ -1537,7 +1540,7 @@ export function ChatApp() {
                                     }}
                                     className={cn(
                                       "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition hover:bg-(--chat-dropdown-hover) cursor-pointer",
-                                      selectedModel === model.id ? "text-(--chat-text) bg-[var(--chat-dropdown-hover)]" : "text-(--chat-text-muted)"
+                                      selectedModel === model.id ? "text-(--chat-text) bg-(--chat-dropdown-hover)" : "text-(--chat-text-muted)"
                                     )}
                                   >
                                     <ModelLogo provider={model.provider} className="h-4 w-4 shrink-0" />
@@ -1627,7 +1630,7 @@ export function ChatApp() {
                       {isUser ? (
                         /* ── User bubble: dark-blue pill, right-aligned ── */
                         <div className="max-w-[80%]">
-                          <div className="rounded-2xl bg-(--chat-user-bubble) px-5 py-2.5 text-[15px] leading-6 text-(--chat-user-bubble-text) whitespace-pre-wrap break-words">
+                          <div className="rounded-2xl bg-(--chat-user-bubble) px-5 py-2.5 text-[15px] leading-6 text-(--chat-user-bubble-text) whitespace-pre-wrap wrap-break-word">
                             {message.content}
                           </div>
                           <p className="mt-1 text-right text-[11px] text-(--chat-timestamp)">
@@ -1880,7 +1883,7 @@ export function ChatApp() {
                               }}
                               className={cn(
                                 "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition hover:bg-(--chat-dropdown-hover) cursor-pointer",
-                                selectedModel === model.id ? "text-(--chat-text) bg-[var(--chat-dropdown-hover)]" : "text-(--chat-text-muted)"
+                                selectedModel === model.id ? "text-(--chat-text) bg-(--chat-dropdown-hover)" : "text-(--chat-text-muted)"
                               )}
                             >
                               <ModelLogo provider={model.provider} className="h-4 w-4 shrink-0" />
