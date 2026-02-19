@@ -1159,7 +1159,7 @@ export function ChatApp() {
                         ref={chatOptionsRef}
                         className={cn(
                           "absolute right-0 z-50 w-full rounded-md border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl",
-                          index >= filteredChats.length - 7 ? "bottom-full mb-1" : "top-full mt-1"
+                          index > 3 && index >= filteredChats.length - 7 ? "bottom-full mb-1" : "top-full mt-1"
                         )}
                       >
                           <button
