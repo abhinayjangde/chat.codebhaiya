@@ -208,10 +208,23 @@ export const apiClient = {
     });
   },
 
+  async renameChat(
+    chatId: string,
+    title: string,
+    accessToken: string
+  ): Promise<{ title: string }> {
+    return requestData<{ title: string }>(`/chat/${chatId}`, {
+      method: "PATCH",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify({ title }),
+    });
+  },
+
   async deleteChat(chatId: string, accessToken: string): Promise<void> {
     await requestData<void>(`/chat/${chatId}`, {
       method: "DELETE",
       headers: authHeaders(accessToken),
+      body: JSON.stringify({}),
     });
   },
 

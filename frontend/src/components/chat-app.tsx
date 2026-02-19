@@ -305,6 +305,8 @@ export function ChatApp() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
+  const [renamingChatId, setRenamingChatId] = useState<string | null>(null);
+  const [renameTitle, setRenameTitle] = useState("");
   const { theme, setTheme } = useTheme();
 
   const router = useRouter();
@@ -924,10 +926,44 @@ export function ChatApp() {
         setMessages([]);
         setChatError(null);
       }
+      toast.success("Chat deleted");
     } catch (error) {
-      setChatError(getErrorMessage(error));
+        toast.error(getErrorMessage(error));
+        setChatError(getErrorMessage(error));
     }
   };
+
+  function handleRenameChat(chatId: string, currentTitle: string) {
+    setRenamingChatId(chatId);
+    setRenameTitle(currentTitle);
+    setChatMenuOpenId(null);
+  }
+
+  async function saveRename() {
+    if (!renamingChatId) return;
+    if (!renameTitle.trim()) {
+      setRenamingChatId(null);
+      return;
+    }
+
+    try {
+      const updated = await runWithSession((accessToken) =>
+        apiClient.renameChat(renamingChatId, renameTitle, accessToken)
+      );
+
+      setChats((current) =>
+        current.map((c) =>
+          c._id === renamingChatId ? { ...c, title: updated.title } : c
+        )
+      );
+      toast.success("Chat renamed");
+    } catch (error) {
+      toast.error(getErrorMessage(error));
+    } finally {
+      setRenamingChatId(null);
+      setRenameTitle("");
+    }
+  }
 
   const handleDownloadPdf = (chatId: string) => {
     setChatMenuOpenId(null);
@@ -1121,21 +1157,39 @@ export function ChatApp() {
               <div className="flex flex-col gap-0.5">
                 {filteredChats.map((chat, index) => (
                   <div key={chat._id} className="group relative">
-                    <button
-                      type="button"
-                      className={cn(
-                        "w-full rounded-lg px-3 py-2 pr-8 text-left text-sm transition hover:cursor-pointer",
-                        chat._id === activeChatId
-                          ? "bg-(--chat-sidebar-active) text-(--chat-text)"
-                          : "text-(--chat-text-secondary) hover:bg-(--chat-sidebar-hover)"
-                      )}
-                      onClick={() => {
-                        setActiveChatId(chat._id);
-                        setMobileSidebarOpen(false);
-                      }}
-                    >
-                      <p className="truncate">{shortTitle(chat.title || "New chat")}</p>
-                    </button>
+                    {renamingChatId === chat._id ? (
+                      <div className="w-full px-2 py-1">
+                        <input
+                          type="text"
+                          value={renameTitle}
+                          onChange={(e) => setRenameTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") saveRename();
+                            if (e.key === "Escape") setRenamingChatId(null);
+                          }}
+                          onBlur={() => saveRename()}
+                          autoFocus
+                          className="w-full rounded bg-(--chat-surface) px-2 py-1 text-sm text-(--chat-text) outline-none ring-1 ring-(--chat-focus-ring)"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        className={cn(
+                          "w-full rounded-lg px-3 py-2 pr-8 text-left text-sm transition hover:cursor-pointer",
+                          chat._id === activeChatId
+                            ? "bg-(--chat-sidebar-active) text-(--chat-text)"
+                            : "text-(--chat-text-secondary) hover:bg-(--chat-sidebar-hover)"
+                        )}
+                        onClick={() => {
+                          setActiveChatId(chat._id);
+                          setMobileSidebarOpen(false);
+                        }}
+                      >
+                        <p className="truncate">{shortTitle(chat.title || "New chat")}</p>
+                      </button>
+                    )}
 
                     {/* ⋯ menu trigger */}
                     <button
@@ -1172,8 +1226,11 @@ export function ChatApp() {
                           </button>
                           <button
                             type="button"
-                            className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) opacity-50 cursor-not-allowed"
-                            disabled
+                            className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRenameChat(chat._id, chat.title || "");
+                            }}
                           >
                             <SquarePen className="h-4 w-4 text-(--chat-label)" />
                             Rename

@@ -217,6 +217,54 @@ router.post("/:chatId", async (req: Request, res: Response) => {
     }
 });
 
+// Rename a chat
+router.patch("/:chatId", async (req: Request, res: Response) => {
+    try {
+        const chatId = Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId;
+        const { title } = req.body;
+        const userId = req.user?.userId;
+
+        if (!title || typeof title !== "string" || !title.trim()) {
+            res.status(400).json({
+                success: false,
+                error: "Title is required"
+            });
+            return;
+        }
+
+        // Verify chat belongs to authenticated user
+        const chat = await Chat.findOne({
+            _id: new ObjectId(chatId),
+            userId: new ObjectId(userId)
+        });
+
+        if (!chat) {
+            res.status(404).json({
+                success: false,
+                error: "Chat not found"
+            });
+            return;
+        }
+
+        await Chat.findByIdAndUpdate(chatId, {
+            title: title.trim(),
+            updatedAt: new Date()
+        });
+
+        res.status(200).json({
+            success: true,
+            message: "Chat renamed successfully",
+            data: { title: title.trim() }
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            error: (error as Error).message
+        });
+    }
+});
+
+
 // Delete a chat and all its messages
 router.delete("/:chatId", async (req: Request, res: Response) => {
     try {
