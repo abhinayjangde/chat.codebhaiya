@@ -68,7 +68,7 @@ export default function ForgotPasswordPage() {
 
             <Button
               type="submit"
-              className="h-11 w-full rounded-md border border-[#2a2a2a] bg-[#1a1a1a] text-sm font-medium text-[#ccc] transition-colors hover:bg-[#252525] hover:text-white"
+              className="h-11 w-full rounded-md border border-[#2a2a2a] bg-[#1a1a1a] text-sm font-medium text-[#ccc] transition-colors hover:bg-[#252525] hover:text-white cursor-pointer"
             >
               Continue
             </Button>

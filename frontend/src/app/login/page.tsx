@@ -10,6 +10,7 @@ import { apiClient } from "@/lib/api";
 import { writeStoredTokens, writeStoredUser } from "@/lib/storage";
 import type { UserProfile } from "@/lib/types";
 import Image from "next/image";
+import toast from "react-hot-toast";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -142,7 +143,7 @@ export default function LoginPage() {
             <Button
               type="submit"
               disabled={isLoading}
-              className="h-11 w-full rounded-md border border-[#2a2a2a] bg-[#1a1a1a] text-sm font-medium text-[#ccc] transition-colors hover:bg-[#252525] hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+              className="h-11 w-full rounded-md border border-[#2a2a2a] bg-[#1a1a1a] text-sm font-medium text-[#ccc] transition-colors hover:bg-[#252525] hover:text-white disabled:cursor-not-allowed disabled:opacity-70 cursor-pointer"
             >
               {isLoading ? (
                 <>
@@ -187,14 +188,16 @@ export default function LoginPage() {
           <div className="space-y-3">
             <Button
               variant="outline"
-              className="h-11 w-full gap-3 rounded-md border-[#2a2a2a] bg-[#1a1a1a] text-sm text-[#ccc] transition-colors hover:bg-[#252525] hover:text-white"
+              className="h-11 w-full gap-3 rounded-md border-[#2a2a2a] bg-[#1a1a1a] text-sm text-[#ccc] transition-colors hover:bg-[#252525] hover:text-white cursor-pointer"
+              onClick={() => toast("This feature is coming soon", { icon: "🚧" })}
             >
               <GoogleIcon />
               Log in with Google
             </Button>
             <Button
               variant="outline"
-              className="h-11 w-full gap-3 rounded-md border-[#2a2a2a] bg-[#1a1a1a] text-sm text-[#ccc] transition-colors hover:bg-[#252525] hover:text-white"
+              className="h-11 w-full gap-3 rounded-md border-[#2a2a2a] bg-[#1a1a1a] text-sm text-[#ccc] transition-colors hover:bg-[#252525] hover:text-white cursor-pointer"
+              onClick={() => toast("This feature is coming soon", { icon: "🚧" })}
             >
               <GitHubIcon />
               Log in with GitHub

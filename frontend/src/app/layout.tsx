@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Fraunces, Space_Grotesk } from "next/font/google";
 import { ThemeProvider } from "@/components/theme-provider";
 import "./globals.css";
+import { Toaster } from "react-hot-toast";
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
@@ -31,6 +32,7 @@ export default function RootLayout({
         className={`${spaceGrotesk.variable} ${fraunces.variable} min-h-screen antialiased`}
       >
         <ThemeProvider>{children}</ThemeProvider>
+        <Toaster position="bottom-left" toastOptions={{ duration: 3000 }} />
       </body>
     </html>
   );

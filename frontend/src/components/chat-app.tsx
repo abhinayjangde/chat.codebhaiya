@@ -55,6 +55,7 @@ import {
   Telescope,
   Gavel,
 } from "lucide-react";
+import toast from "react-hot-toast";
 import { ApiError, apiClient } from "@/lib/api";
 import {
   clearStoredSession,
@@ -315,6 +316,32 @@ export function ChatApp() {
     return chats.filter((c) => c.title?.toLowerCase().includes(q));
   }, [chats, searchQuery]);
 
+  // Refs for click-outside handling
+  const searchRef = useRef<HTMLDivElement>(null);
+  const chatOptionsRef = useRef<HTMLDivElement>(null);
+  const settingsRef = useRef<HTMLDivElement>(null);
+
+  // Handle click outside to close menus
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (searchOpen && searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        setSearchOpen(false);
+      }
+      if (chatMenuOpenId && chatOptionsRef.current && !chatOptionsRef.current.contains(event.target as Node)) {
+        setChatMenuOpenId(null);
+      }
+      if (settingsMenuOpen && settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
+        setSettingsMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [searchOpen, chatMenuOpenId, settingsMenuOpen]);
+
+  // Refs used by features
   const streamAbortRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const skipNextFetchRef = useRef(false);
@@ -1035,7 +1062,7 @@ export function ChatApp() {
             New chat
           </button>
           {searchOpen ? (
-            <div className="flex items-center gap-2 rounded-lg bg-(--chat-sidebar-active) px-3 py-1.5">
+            <div ref={searchRef} className="flex items-center gap-2 rounded-lg bg-(--chat-sidebar-active) px-3 py-1.5">
               <Search className="h-4 w-4 shrink-0 text-(--chat-text-muted)" />
               <input
                 ref={searchInputRef}
@@ -1050,7 +1077,7 @@ export function ChatApp() {
                 }}
                 placeholder="Search chats…"
                 autoFocus
-                className="w-full bg-transparent text-sm text-(--chat-text) outline-none placeholder:text-(--chat-text-faint)"
+                className="w-full bg-transparent px-3 py-1 text-sm text-(--chat-text) outline-none placeholder:text-(--chat-text-faint)"
               />
               <button
                 type="button"
@@ -1070,7 +1097,7 @@ export function ChatApp() {
               className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-(--chat-text) transition hover:bg-(--chat-sidebar-text-hover) hover:cursor-pointer"
               onClick={() => setSearchOpen(true)}
             >
-              <Search className="h-[18px] w-[18px] text-(--chat-text-muted)" />
+              <Search className="h-[18px] w-[18px]  text-(--chat-text-muted)" />
               Search chats
             </button>
           )}
@@ -1128,15 +1155,13 @@ export function ChatApp() {
 
                     {/* Dropdown menu */}
                     {chatMenuOpenId === chat._id && (
-                      <>
-                        <div
-                          className="fixed inset-0 z-40"
-                          onClick={() => setChatMenuOpenId(null)}
-                        />
-                        <div className={cn(
+                      <div
+                        ref={chatOptionsRef}
+                        className={cn(
                           "absolute right-0 z-50 w-full rounded-md border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl",
                           index >= filteredChats.length - 7 ? "bottom-full mb-1" : "top-full mt-1"
-                        )}>
+                        )}
+                      >
                           <button
                             type="button"
                             className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) opacity-50 cursor-not-allowed"
@@ -1171,8 +1196,7 @@ export function ChatApp() {
                             <Trash2 className="h-4 w-4" />
                             Delete
                           </button>
-                        </div>
-                      </>
+                      </div>
                     )}
                   </div>
                 ))}
@@ -1192,14 +1216,9 @@ export function ChatApp() {
           </button>
 
           {/* Settings with popup */}
-          <div className="relative">
+          <div className="relative" ref={settingsRef}>
             {settingsMenuOpen && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setSettingsMenuOpen(false)}
-                />
-                <div className="absolute bottom-full left-0 z-50 mb-1 w-full rounded-md border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
+              <div className="absolute bottom-full left-0 z-50 mb-1 w-full rounded-md border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
                   {/* Top group - Theme with hover submenu */}
                   <div
                     className="relative"
@@ -1276,7 +1295,10 @@ export function ChatApp() {
                   <button
                     type="button"
                     className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
-                    onClick={() => setSettingsMenuOpen(false)}
+                    onClick={() => {
+                      setSettingsMenuOpen(false);
+                      toast("We are writing it 😁", { icon: "🚧" });
+                    }}
                   >
                     <FileText className="h-[18px] w-[18px] text-(--chat-label)" />
                     Terms of service
@@ -1284,7 +1306,10 @@ export function ChatApp() {
                   <button
                     type="button"
                     className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
-                    onClick={() => setSettingsMenuOpen(false)}
+                    onClick={() => {
+                      setSettingsMenuOpen(false);
+                      toast("We are writing it 😁", { icon: "🚧" });
+                    }}
                   >
                     <Shield className="h-[18px] w-[18px] text-(--chat-label)" />
                     Privacy policy
@@ -1292,7 +1317,10 @@ export function ChatApp() {
                   <button
                     type="button"
                     className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
-                    onClick={() => setSettingsMenuOpen(false)}
+                    onClick={() => {
+                      setSettingsMenuOpen(false);
+                      toast("We are building it 👀", { icon: "🚧" });
+                    }}
                   >
                     <MessageCircle className="h-[18px] w-[18px] text-(--chat-label)" />
                     Send feedback
@@ -1322,7 +1350,6 @@ export function ChatApp() {
                     Log out
                   </button>
                 </div>
-              </>
             )}
 
             <button
