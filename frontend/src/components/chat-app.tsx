@@ -24,6 +24,7 @@ import {
   Copy,
   CreditCard,
   ExternalLink,
+  FileDown,
   FileText,
   Loader2,
   LogOut,
@@ -901,6 +902,48 @@ export function ChatApp() {
     }
   };
 
+  const handleDownloadPdf = (chatId: string) => {
+    setChatMenuOpenId(null);
+    if (!tokens) return;
+    
+    // We can't use window.open directly with Bearer token header easily
+    // So we'll fetch the blob and download it to support auth headers if needed
+    // But since we just added a simple GET endpoint, we might need to pass token in query param or cookie
+    // For now let's assume we can pass token in query param or just use fetch and create object URL
+    
+    // Actually, let's use the method we added to apiClient which includes the token as query param
+    // But wait, the backend middleware needs to support query param token or we need to use fetch
+    
+    // Let's use fetch to be safe with auth headers
+    const download = async () => {
+      try {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:9000/api"}/chat/${chatId}/pdf`, {
+            headers: {
+                Authorization: `Bearer ${tokens.accessToken}`
+            }
+        });
+        
+        if (!response.ok) throw new Error("Download failed");
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        // Filename is set by Content-Disposition header usually, but we can set a default
+        a.download = `chat-${chatId}.pdf`; 
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } catch (error) {
+        console.error("PDF download error:", error);
+        setChatError("Failed to download PDF");
+      }
+    };
+    
+    void download();
+  };
+
   if (!hydrated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -1106,6 +1149,15 @@ export function ChatApp() {
                           >
                             <SquarePen className="h-4 w-4 text-(--chat-label)" />
                             Rename
+                          </button>
+                          <div className="my-1 border-t border-(--chat-dropdown-border)" />
+                          <button
+                            type="button"
+                            className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                            onClick={() => handleDownloadPdf(chat._id)}
+                          >
+                            <FileDown className="h-4 w-4 text-(--chat-label)" />
+                            Download as PDF
                           </button>
                           <div className="my-1 border-t border-(--chat-dropdown-border)" />
                           <button

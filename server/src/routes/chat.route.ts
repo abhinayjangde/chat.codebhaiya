@@ -7,6 +7,7 @@ import { getAgent, getAvailableModels, DEFAULT_MODEL } from "../lib/model.js";
 import { authenticateToken } from "../middleware/auth.middleware.js";
 import type { SearchResult } from "../services/search.service.js";
 import { getPaginatedMessages } from "../services/message.service.js";
+import PDFDocument from "pdfkit";
 
 const router: Router = express.Router();
 
@@ -494,5 +495,90 @@ function parseSearchResults(content: string): SearchResult[] {
     
     return results;
 }
+
+// Generate PDF for a chat
+router.get("/:chatId/pdf", async (req: Request, res: Response) => {
+    try {
+        const chatId = Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId;
+        const userId = req.user?.userId;
+
+        // Verify chat exists and belongs to user
+        const chat = await Chat.findOne({ 
+            _id: new ObjectId(chatId),
+            userId: new ObjectId(userId)
+        });
+        
+        if (!chat) {
+            res.status(404).json({
+                success: false,
+                error: "Chat not found"
+            });
+            return;
+        }
+
+        const messages = await Message.find({ 
+            chatId: new ObjectId(chatId),
+            userId: new ObjectId(userId)
+        }).sort({ createdAt: 1 });
+
+        const doc = new PDFDocument({ margin: 50 });
+
+        // Set headers for PDF download
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader('Content-Disposition', `attachment; filename="${(chat.title || 'chat-export').replace(/[^a-z0-9]/gi, '_').slice(0, 50)}.pdf"`);
+
+        // Pipe PDF document to response
+        doc.pipe(res);
+
+        // Header
+        doc.fontSize(20).text(chat.title || "Chat Export", { align: 'center' });
+        doc.moveDown();
+        doc.fontSize(10).fillColor('grey').text(`Exported on ${new Date().toLocaleDateString()}`, { align: 'center' });
+        doc.moveDown(2);
+
+        // Messages
+        for (const msg of messages) {
+            if (!msg.content) continue;
+
+            // Use type assertion or check if content is string
+            let contentStr = "";
+            if (typeof msg.content === 'string') {
+                contentStr = msg.content;
+            } else {
+                contentStr = JSON.stringify(msg.content);
+            }
+
+            const isUser = msg.role === 'user';
+            
+            // Draw message container
+            const x = doc.x;
+            const y = doc.y;
+            const width = 450;
+            
+            doc.font('Helvetica-Bold').fontSize(12).fillColor(isUser ? '#2563EB' : '#16A34A').text(isUser ? 'You' : 'AI Assistant');
+            doc.font('Helvetica').fontSize(10).fillColor('gray').text(msg.createdAt ? new Date(msg.createdAt).toLocaleString() : '');
+            doc.moveDown(0.5);
+            
+            doc.font('Helvetica').fontSize(11).fillColor('black').text(contentStr, {
+                width: width,
+                align: 'left'
+            });
+            
+            doc.moveDown(1.5);
+        }
+
+        doc.end();
+
+    } catch (error) {
+        console.error("PDF Generation error:", error);
+        // If headers are already sent, we can't send JSON error
+        if (!res.headersSent) {
+            res.status(500).json({
+                success: false,
+                error: (error as Error).message
+            });
+        }
+    }
+});
 
 export default router;
