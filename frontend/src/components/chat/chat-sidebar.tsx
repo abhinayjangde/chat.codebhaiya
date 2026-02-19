@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, memo } from "react";
 import { cn } from "@/lib/utils";
 import { ChatSummary, UserProfile } from "@/lib/types";
 import { shortTitle } from "@/lib/chat-utils";
@@ -51,7 +51,7 @@ interface ChatSidebarProps {
   isBootstrapping: boolean;
 }
 
-export function ChatSidebar({
+export const ChatSidebar = memo(function ChatSidebar({
   sidebarOpen,
   setSidebarOpen,
   mobileSidebarOpen,
@@ -533,4 +533,4 @@ export function ChatSidebar({
       </aside>
     </>
   );
-}
+});

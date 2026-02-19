@@ -307,7 +307,7 @@ export function ChatApp() {
     }
   }, [hydrated, tokens, router]);
 
-  const handleAuthSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleAuthSubmit = useCallback(async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!email.trim() || !password.trim()) {
       setAuthError("Email and password are required.");
@@ -357,9 +357,9 @@ export function ChatApp() {
     } finally {
       setIsAuthLoading(false);
     }
-  };
+  }, [email, password, authMode, name]);
 
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     if (tokens) {
       try {
         await apiClient.logout(tokens.accessToken);
@@ -368,10 +368,10 @@ export function ChatApp() {
       }
     }
     clearSession();
-  };
+  }, [tokens, clearSession]);
 
-  const handleSendPrompt = async (promptOverride?: string) => {
-    if (!tokens || isSending) {
+  const handleSendPrompt = useCallback(async (promptOverride?: string) => {
+    if (!tokens || isSendingRef.current) {
       return;
     }
 
@@ -604,9 +604,9 @@ export function ChatApp() {
       isSendingRef.current = false;
       setIsSending(false);
     }
-  };
+  }, [tokens, composer, activeChatId, user, selectedModel, runWithSession, loadChats]);
 
-  const handleStopStreaming = () => {
+  const handleStopStreaming = useCallback(() => {
     streamAbortRef.current?.abort();
     streamAbortRef.current = null;
     setIsSending(false);
@@ -621,9 +621,9 @@ export function ChatApp() {
           : message
       )
     );
-  };
+  }, []);
 
-  const handleDeleteChat = async (chatId: string) => {
+  const handleDeleteChat = useCallback(async (chatId: string) => {
     try {
       await runWithSession((accessToken) =>
         apiClient.deleteChat(chatId, accessToken)
@@ -639,9 +639,9 @@ export function ChatApp() {
         toast.error(getErrorMessage(error));
         setChatError(getErrorMessage(error));
     }
-  };
+  }, [runWithSession, activeChatId]);
 
-  const handleRenameChat = async (chatId: string, title: string) => {
+  const handleRenameChat = useCallback(async (chatId: string, title: string) => {
     try {
       const updated = await runWithSession((accessToken) =>
         apiClient.renameChat(chatId, title, accessToken)
@@ -656,9 +656,9 @@ export function ChatApp() {
     } catch (error) {
       toast.error(getErrorMessage(error));
     }
-  };
+  }, [runWithSession]);
 
-  const handleDownloadPdf = (chatId: string) => {
+  const handleDownloadPdf = useCallback((chatId: string) => {
     if (!tokens) return;
     
     const download = async () => {
@@ -687,7 +687,15 @@ export function ChatApp() {
     };
     
     void download();
-  };
+  }, [tokens]);
+
+  const handleNewChat = useCallback(() => {
+    setActiveChatId(null);
+    setMessages([]);
+    setChatError(null);
+    setMobileSidebarOpen(false);
+    setIsSending(false);
+  }, []);
 
   if (!hydrated) {
     return (
@@ -729,13 +737,7 @@ export function ChatApp() {
         chats={chats}
         activeChatId={activeChatId}
         onSelectChat={setActiveChatId}
-        onNewChat={() => {
-          setActiveChatId(null);
-          setMessages([]);
-          setChatError(null);
-          setMobileSidebarOpen(false);
-          setIsSending(false);
-        }}
+        onNewChat={handleNewChat}
         onDeleteChat={handleDeleteChat}
         onRenameChat={handleRenameChat}
         onDownloadPdf={handleDownloadPdf}

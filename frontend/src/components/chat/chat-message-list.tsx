@@ -12,7 +12,7 @@ import {
   ThumbsDown,
   ThumbsUp,
 } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, memo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CodeBlock } from "@/components/ui/code-block";
@@ -26,7 +26,7 @@ interface ChatMessageListProps {
   chatError: string | null;
 }
 
-export function ChatMessageList({
+export const ChatMessageList = memo(function ChatMessageList({
   messages,
   isLoadingMessages,
   chatError,
@@ -229,4 +229,4 @@ export function ChatMessageList({
       )}
     </div>
   );
-}
+});

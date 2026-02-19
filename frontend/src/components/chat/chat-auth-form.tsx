@@ -2,7 +2,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { type FormEvent } from "react";
+import { type FormEvent, memo } from "react";
 
 interface ChatAuthFormProps {
   authMode: "login" | "register";
@@ -19,7 +19,7 @@ interface ChatAuthFormProps {
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }
 
-export function ChatAuthForm({
+export const ChatAuthForm = memo(function ChatAuthForm({
   authMode,
   setAuthMode,
   name,
@@ -121,4 +121,4 @@ export function ChatAuthForm({
       </div>
     </div>
   );
-}
+});

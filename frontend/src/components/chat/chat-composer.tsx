@@ -14,7 +14,7 @@ import {
   Square,
   Telescope,
 } from "lucide-react";
-import { type KeyboardEvent, type FormEvent, useState } from "react";
+import { type KeyboardEvent, type FormEvent, useState, memo } from "react";
 import { cn } from "@/lib/utils";
 import { AutoResizeTextarea } from "@/components/ui/auto-resize-textarea";
 import { ModelInfo } from "@/lib/types";
@@ -63,7 +63,7 @@ interface ChatComposerProps {
   onInputChange?: (val: string) => void; // Optional control handler
 }
 
-export function ChatComposer({
+export const ChatComposer = memo(function ChatComposer({
   onSend,
   onStop,
   isSending,
@@ -334,4 +334,4 @@ export function ChatComposer({
       </div>
     </form>
   );
-}
+});
