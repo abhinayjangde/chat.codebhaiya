@@ -1,10 +1,9 @@
-﻿"use client";
+﻿
+"use client";
 
 import { useRouter } from "next/navigation";
-
 import {
   type FormEvent,
-  type KeyboardEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -12,48 +11,8 @@ import {
   useState,
 } from "react";
 import {
-  ArrowUp,
-  Sun,
-  Moon,
-  Monitor,
-  AtSign,
-  Bot,
-  ChevronDown,
-  ChevronRight,
-  Check,
-  Copy,
-  CreditCard,
-  ExternalLink,
-  FileDown,
-  FileText,
   Loader2,
-  LogOut,
-  Menu,
-  MessageCircle,
-  MessageSquareText,
-  MoreHorizontal,
   PanelLeft,
-  Plus,
-  RefreshCw,
-  Search,
-  SendHorizontal,
-  Settings,
-  Share,
-  Trash2,
-  Shield,
-  Square,
-  Sparkles,
-  SquarePen,
-  SunMoon,
-  ThumbsDown,
-  ThumbsUp,
-  UserRound,
-  Users,
-  X,
-  Paperclip,
-  Cloud,
-  Telescope,
-  Gavel,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { ApiError, apiClient } from "@/lib/api";
@@ -68,207 +27,24 @@ import type {
   AuthTokens,
   ChatMessage,
   ChatSummary,
-  MessageSource,
-  StreamEvent,
-  UsedTool,
   UserProfile,
   ModelInfo,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
-import { FcGoogle } from "react-icons/fc";
-import { SiMeta, SiOpenai } from "react-icons/si";
 import { useTheme } from "next-themes";
-import Link from "next/link";
-import { AutoResizeTextarea } from "@/components/ui/auto-resize-textarea";
+import { 
+  getErrorMessage, 
+  isAbortError, 
+  normalizeSource, 
+  mergeSources, 
+  mergeUsedTools, 
+  consumeSseStream 
+} from "@/lib/chat-utils";
+import { ChatSidebar } from "@/components/chat/chat-sidebar";
+import { ChatMessageList } from "@/components/chat/chat-message-list";
+import { ChatComposer } from "@/components/chat/chat-composer";
+import { ChatAuthForm } from "@/components/chat/chat-auth-form";
 
-const STARTER_PROMPTS = [
-  "Summarize the latest AI safety trends with citations.",
-  "Draft a product launch plan for a developer tool.",
-  "Compare GPT and open-source LLM deployment options.",
-  "Explain this week in tech as a short morning briefing.",
-];
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) {
-    return error.message;
-  }
-  return "Something went wrong. Please try again.";
-}
-
-function isAbortError(error: unknown): boolean {
-  if (error instanceof DOMException && error.name === "AbortError") {
-    return true;
-  }
-
-  if (error instanceof Error) {
-    return error.message.toLowerCase().includes("abort");
-  }
-
-  return false;
-}
-
-function normalizeSource(source: MessageSource): MessageSource {
-  if (source.url || !source.link) {
-    return source;
-  }
-  return { ...source, url: source.link };
-}
-
-function mergeSources(
-  existing: MessageSource[] | undefined,
-  incoming: MessageSource[]
-): MessageSource[] {
-  const byKey = new Map<string, MessageSource>();
-
-  for (const source of [...(existing ?? []), ...incoming].map(normalizeSource)) {
-    const key = `${source.url ?? source.link ?? ""}-${source.title}-${source.position ?? ""}`;
-    byKey.set(key, source);
-  }
-
-  return Array.from(byKey.values());
-}
-
-function mergeUsedTools(existing: UsedTool[] | undefined, incoming: UsedTool): UsedTool[] {
-  const tools = [...(existing ?? [])];
-  const key = `${incoming.name}-${JSON.stringify(incoming.input ?? null)}`;
-  const index = tools.findIndex((tool) => {
-    const currentKey = `${tool.name}-${JSON.stringify(tool.input ?? null)}`;
-    return currentKey === key;
-  });
-
-  if (index === -1) {
-    tools.push(incoming);
-    return tools;
-  }
-
-  tools[index] = { ...tools[index], ...incoming };
-  return tools;
-}
-
-function formatDateLabel(value?: string): string {
-  if (!value) {
-    return "Just now";
-  }
-
-  const date = new Date(value);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const minute = 60_000;
-  const hour = 60 * minute;
-  const day = 24 * hour;
-
-  if (diffMs < hour) {
-    const mins = Math.max(1, Math.round(diffMs / minute));
-    return `${mins}m ago`;
-  }
-
-  if (diffMs < day) {
-    const hrs = Math.max(1, Math.round(diffMs / hour));
-    return `${hrs}h ago`;
-  }
-
-  return date.toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function formatTime(value?: string): string {
-  if (!value) {
-    return "now";
-  }
-
-  return new Date(value).toLocaleTimeString(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
-function parseStreamChunk(
-  chunk: string,
-  onEvent: (event: StreamEvent) => void
-): void {
-  const lines = chunk.split(/\r?\n/);
-
-  for (const line of lines) {
-    if (!line.startsWith("data:")) {
-      continue;
-    }
-
-    const payload = line.slice(5).trim();
-    if (!payload) {
-      continue;
-    }
-
-    try {
-      const parsed = JSON.parse(payload) as StreamEvent;
-      if (parsed && typeof parsed === "object" && "type" in parsed) {
-        onEvent(parsed);
-      }
-    } catch {
-      continue;
-    }
-  }
-}
-
-async function consumeSseStream(
-  stream: ReadableStream<Uint8Array>,
-  onEvent: (event: StreamEvent) => void
-): Promise<void> {
-  const reader = stream.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-
-  while (true) {
-    const { value, done } = await reader.read();
-    if (done) {
-      break;
-    }
-
-    buffer += decoder.decode(value, { stream: true });
-    const chunks = buffer.split(/\r?\n\r?\n/);
-    buffer = chunks.pop() ?? "";
-
-    for (const chunk of chunks) {
-      parseStreamChunk(chunk, onEvent);
-    }
-  }
-
-  if (buffer.trim()) {
-    parseStreamChunk(buffer, onEvent);
-  }
-}
-
-function shortTitle(title: string): string {
-  if (title.length <= 52) {
-    return title;
-  }
-  return `${title.slice(0, 52)}...`;
-}
-
-function formatSourceHost(href: string): string {
-  try {
-    return new URL(href).hostname.replace(/^www\./, "");
-  } catch {
-    return href;
-  }
-}
-
-function ModelLogo({ provider, className = "h-4 w-4" }: { provider: string; className?: string }) {
-  switch (provider) {
-    case "groq":
-      return <SiMeta className={className} />;
-    case "google":
-      return <FcGoogle className={className} />;
-    case "openai":
-      return <SiOpenai className={className} />;
-    case "ollama":
-      return <span className={className} style={{ fontSize: "inherit", lineHeight: 1 }}>🦙</span>;
-    default:
-      return <Bot className={className} />;
-  }
-}
 
 export function ChatApp() {
   const [hydrated, setHydrated] = useState(false);
@@ -290,62 +66,21 @@ export function ChatApp() {
 
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>("");
-  const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
 
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [composer, setComposer] = useState("");
+  const [composer, setComposer] = useState(""); // Shared state for composer
   const [chatError, setChatError] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
-  const [themeSubmenuOpen, setThemeSubmenuOpen] = useState(false);
-  const [chatMenuOpenId, setChatMenuOpenId] = useState<string | null>(null);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [plusMenuOpen, setPlusMenuOpen] = useState(false);
-  const [renamingChatId, setRenamingChatId] = useState<string | null>(null);
-  const [renameTitle, setRenameTitle] = useState("");
+  
   const { theme, setTheme } = useTheme();
 
   const router = useRouter();
-  const searchInputRef = useRef<HTMLInputElement | null>(null);
-
-  const filteredChats = useMemo(() => {
-    if (!searchQuery.trim()) return chats;
-    const q = searchQuery.toLowerCase();
-    return chats.filter((c) => c.title?.toLowerCase().includes(q));
-  }, [chats, searchQuery]);
-
-  // Refs for click-outside handling
-  const searchRef = useRef<HTMLDivElement>(null);
-  const chatOptionsRef = useRef<HTMLDivElement>(null);
-  const settingsRef = useRef<HTMLDivElement>(null);
-
-  // Handle click outside to close menus
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (searchOpen && searchRef.current && !searchRef.current.contains(event.target as Node)) {
-        setSearchOpen(false);
-      }
-      if (chatMenuOpenId && chatOptionsRef.current && !chatOptionsRef.current.contains(event.target as Node)) {
-        setChatMenuOpenId(null);
-      }
-      if (settingsMenuOpen && settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
-        setSettingsMenuOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, [searchOpen, chatMenuOpenId, settingsMenuOpen]);
 
   // Refs used by features
   const streamAbortRef = useRef<AbortController | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const skipNextFetchRef = useRef(false);
   const isSendingRef = useRef(false);
 
@@ -521,8 +256,6 @@ export function ChatApp() {
       return;
     }
 
-    // Skip fetch if we're currently sending or if we just finished streaming
-    // (messages are already up-to-date from the stream)
     if (isSendingRef.current) {
       return;
     }
@@ -569,22 +302,10 @@ export function ChatApp() {
   }, [tokens, activeChatId, runWithSession]);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({
-      behavior: "smooth",
-      block: "end",
-    });
-  }, [messages]);
-
-  useEffect(() => {
     if (hydrated && !tokens) {
       router.replace("/login");
     }
   }, [hydrated, tokens, router]);
-
-  const activeChat = useMemo(
-    () => chats.find((chat) => chat._id === activeChatId) ?? null,
-    [chats, activeChatId]
-  );
 
   const handleAuthSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -643,7 +364,7 @@ export function ChatApp() {
       try {
         await apiClient.logout(tokens.accessToken);
       } catch {
-        // no-op: client-side session is still cleared
+        // no-op
       }
     }
     clearSession();
@@ -738,7 +459,7 @@ export function ChatApp() {
           prompt, 
           accessToken, 
           controller.signal,
-          selectedModel // Pass selected model
+          selectedModel
         )
       );
 
@@ -902,20 +623,7 @@ export function ChatApp() {
     );
   };
 
-  const handleComposerSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    void handleSendPrompt();
-  };
-
-  const handleComposerKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-    if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      void handleSendPrompt();
-    }
-  };
-
   const handleDeleteChat = async (chatId: string) => {
-    setChatMenuOpenId(null);
     try {
       await runWithSession((accessToken) =>
         apiClient.deleteChat(chatId, accessToken)
@@ -933,51 +641,26 @@ export function ChatApp() {
     }
   };
 
-  function handleRenameChat(chatId: string, currentTitle: string) {
-    setRenamingChatId(chatId);
-    setRenameTitle(currentTitle);
-    setChatMenuOpenId(null);
-  }
-
-  async function saveRename() {
-    if (!renamingChatId) return;
-    if (!renameTitle.trim()) {
-      setRenamingChatId(null);
-      return;
-    }
-
+  const handleRenameChat = async (chatId: string, title: string) => {
     try {
       const updated = await runWithSession((accessToken) =>
-        apiClient.renameChat(renamingChatId, renameTitle, accessToken)
+        apiClient.renameChat(chatId, title, accessToken)
       );
 
       setChats((current) =>
         current.map((c) =>
-          c._id === renamingChatId ? { ...c, title: updated.title } : c
+          c._id === chatId ? { ...c, title: updated.title } : c
         )
       );
       toast.success("Chat renamed");
     } catch (error) {
       toast.error(getErrorMessage(error));
-    } finally {
-      setRenamingChatId(null);
-      setRenameTitle("");
     }
-  }
+  };
 
   const handleDownloadPdf = (chatId: string) => {
-    setChatMenuOpenId(null);
     if (!tokens) return;
     
-    // We can't use window.open directly with Bearer token header easily
-    // So we'll fetch the blob and download it to support auth headers if needed
-    // But since we just added a simple GET endpoint, we might need to pass token in query param or cookie
-    // For now let's assume we can pass token in query param or just use fetch and create object URL
-    
-    // Actually, let's use the method we added to apiClient which includes the token as query param
-    // But wait, the backend middleware needs to support query param token or we need to use fetch
-    
-    // Let's use fetch to be safe with auth headers
     const download = async () => {
       try {
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:9000/api"}/chat/${chatId}/pdf`, {
@@ -992,7 +675,6 @@ export function ChatApp() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        // Filename is set by Content-Disposition header usually, but we can set a default
         a.download = `chat-${chatId}.pdf`; 
         document.body.appendChild(a);
         a.click();
@@ -1020,429 +702,59 @@ export function ChatApp() {
 
   if (!tokens) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-(--chat-bg)">
-        <div className="inline-flex items-center gap-3 rounded-full border border-(--chat-dropdown-border) bg-(--chat-surface) px-4 py-2 text-sm text-(--chat-loading)">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Redirecting to login...
-        </div>
-      </div>
+      <ChatAuthForm
+        authMode={authMode}
+        setAuthMode={setAuthMode}
+        name={name}
+        setName={setName}
+        email={email}
+        setEmail={setEmail}
+        password={password}
+        setPassword={setPassword}
+        authError={authError}
+        setAuthError={setAuthError}
+        isAuthLoading={isAuthLoading}
+        onSubmit={handleAuthSubmit}
+      />
     );
   }
 
   return (
     <div className="relative flex h-screen overflow-hidden bg-(--chat-bg) text-(--chat-text)">
-      <div
-        className={cn(
-          "fixed inset-0 z-20 bg-(--chat-overlay) transition md:hidden",
-          mobileSidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
-        )}
-        onClick={() => setMobileSidebarOpen(false)}
+      <ChatSidebar
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        mobileSidebarOpen={mobileSidebarOpen}
+        setMobileSidebarOpen={setMobileSidebarOpen}
+        chats={chats}
+        activeChatId={activeChatId}
+        onSelectChat={setActiveChatId}
+        onNewChat={() => {
+          setActiveChatId(null);
+          setMessages([]);
+          setChatError(null);
+          setMobileSidebarOpen(false);
+          setIsSending(false);
+        }}
+        onDeleteChat={handleDeleteChat}
+        onRenameChat={handleRenameChat}
+        onDownloadPdf={handleDownloadPdf}
+        user={user}
+        onLogout={handleLogout}
+        theme={theme}
+        setTheme={setTheme}
+        isSending={isSending}
+        isLoadingChats={isLoadingChats}
+        isBootstrapping={isBootstrapping}
       />
-
-      <aside
-        className={cn(
-          "fixed inset-y-0 left-0 z-30 flex w-[260px] flex-col bg-(--chat-sidebar) transition-all duration-300 ease-in-out md:static",
-          mobileSidebarOpen ? "translate-x-0" : "-translate-x-full",
-          sidebarOpen ? "md:translate-x-0 md:w-[260px] md:opacity-100" : "md:-translate-x-full md:w-0 md:opacity-0 md:overflow-hidden"
-        )}
-      >
-        {/* ── Top bar: logo + new-chat icon ── */}
-        <div className="flex items-center justify-between px-3 pt-3 pb-1">
-          <button
-            type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-(--chat-text) transition hover:bg-(--chat-sidebar-text-hover) hover:cursor-pointer"
-            onClick={() => {
-              setActiveChatId(null);
-              setMessages([]);
-              setChatError(null);
-              setMobileSidebarOpen(false);
-            }}
-            aria-label="Home"
-          >
-            <Image
-            src="https://avatars.githubusercontent.com/u/166032907?v=4"
-            alt="Logo"
-            className="size-6 rounded-full"
-            width={100}
-            height={100}
-          />
-          </button>
-          <span className="ml-0 text-lg font-semibold">codebhaiya.ai</span>
-          <button
-            type="button"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-lg text-(--chat-text-muted) transition hover:bg-(--chat-sidebar-text-hover) hover:text-(--chat-text) hover:cursor-pointer"
-            onClick={() => {
-              setSidebarOpen(false);
-              setMobileSidebarOpen(false);
-            }}
-            aria-label="Toggle sidebar"
-          >
-            <PanelLeft className="h-[18px] w-[18px]" />
-          </button>
-        </div>
-
-        {/* ── Navigation links ── */}
-        <nav className="mt-2 flex flex-col gap-0.5 px-2">
-          <button
-            type="button"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-(--chat-text) transition hover:bg-(--chat-sidebar-text-hover) hover:cursor-pointer"
-            onClick={() => {
-              setActiveChatId(null);
-              setMessages([]);
-              setChatError(null);
-              setMobileSidebarOpen(false);
-            }}
-            disabled={isSending}
-          >
-            <Plus className="h-[18px] w-[18px] text-(--chat-text-muted)" />
-            New chat
-          </button>
-          {searchOpen ? (
-            <div ref={searchRef} className="flex items-center gap-2 rounded-lg bg-(--chat-sidebar-active) px-3 py-1.5">
-              <Search className="h-4 w-4 shrink-0 text-(--chat-text-muted)" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Escape") {
-                    setSearchQuery("");
-                    setSearchOpen(false);
-                  }
-                }}
-                placeholder="Search chats…"
-                autoFocus
-                className="w-full bg-transparent px-3 py-1 text-sm text-(--chat-text) outline-none placeholder:text-(--chat-text-faint)"
-              />
-              <button
-                type="button"
-                className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded text-(--chat-text-muted) transition hover:text-(--chat-text)"
-                onClick={() => {
-                  setSearchQuery("");
-                  setSearchOpen(false);
-                }}
-                aria-label="Close search"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-(--chat-text) transition hover:bg-(--chat-sidebar-text-hover) hover:cursor-pointer"
-              onClick={() => setSearchOpen(true)}
-            >
-              <Search className="h-[18px] w-[18px]  text-(--chat-text-muted)" />
-              Search chats
-            </button>
-          )}
-        </nav>
-
-        {/* ── Your chats section ── */}
-        <div className="mt-5 flex flex-col flex-1 min-h-0">
-          <p className="px-4 pb-2 text-[11px] font-medium text-(--chat-label)">
-            Your chats
-          </p>
-          <div className="sidebar-scroll flex-1 overflow-y-auto px-2 pb-3">
-            {isLoadingChats || isBootstrapping ? (
-              <div className="px-3 py-2 text-sm text-(--chat-text-faint)">
-                Loading chats…
-              </div>
-            ) : filteredChats.length === 0 ? (
-              <div className="px-3 py-2 text-sm text-(--chat-text-faint)">
-                {searchQuery.trim() ? "No matching chats." : "No conversations yet."}
-              </div>
-            ) : (
-              <div className="flex flex-col gap-0.5">
-                {filteredChats.map((chat, index) => (
-                  <div key={chat._id} className="group relative">
-                    {renamingChatId === chat._id ? (
-                      <div className="w-full px-2 py-1">
-                        <input
-                          type="text"
-                          value={renameTitle}
-                          onChange={(e) => setRenameTitle(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") saveRename();
-                            if (e.key === "Escape") setRenamingChatId(null);
-                          }}
-                          onBlur={() => saveRename()}
-                          autoFocus
-                          className="w-full rounded bg-(--chat-surface) px-2 py-1 text-sm text-(--chat-text) outline-none ring-1 ring-(--chat-focus-ring)"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        className={cn(
-                          "w-full rounded-lg px-3 py-2 pr-8 text-left text-sm transition hover:cursor-pointer",
-                          chat._id === activeChatId
-                            ? "bg-(--chat-sidebar-active) text-(--chat-text)"
-                            : "text-(--chat-text-secondary) hover:bg-(--chat-sidebar-hover)"
-                        )}
-                        onClick={() => {
-                          setActiveChatId(chat._id);
-                          setMobileSidebarOpen(false);
-                        }}
-                      >
-                        <p className="truncate">{shortTitle(chat.title || "New chat")}</p>
-                      </button>
-                    )}
-
-                    {/* ⋯ menu trigger */}
-                    <button
-                      type="button"
-                      className={cn(
-                        "absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded-md text-(--chat-text-muted) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text)",
-                        chatMenuOpenId === chat._id ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                      )}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setChatMenuOpenId(chatMenuOpenId === chat._id ? null : chat._id);
-                      }}
-                      aria-label="Chat options"
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </button>
-
-                    {/* Dropdown menu */}
-                    {chatMenuOpenId === chat._id && (
-                      <div
-                        ref={chatOptionsRef}
-                        className={cn(
-                          "absolute right-0 z-50 w-full rounded-md border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl",
-                          index > 3 && index >= filteredChats.length - 7 ? "bottom-full mb-1" : "top-full mt-1"
-                        )}
-                      >
-                          <button
-                            type="button"
-                            className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) opacity-50 cursor-not-allowed"
-                            disabled
-                          >
-                            <Share className="h-4 w-4 text-(--chat-label)" />
-                            Share
-                          </button>
-                          <button
-                            type="button"
-                            className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleRenameChat(chat._id, chat.title || "");
-                            }}
-                          >
-                            <SquarePen className="h-4 w-4 text-(--chat-label)" />
-                            Rename
-                          </button>
-                          <div className="my-1 border-t border-(--chat-dropdown-border)" />
-                          <button
-                            type="button"
-                            className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
-                            onClick={() => handleDownloadPdf(chat._id)}
-                          >
-                            <FileDown className="h-4 w-4 text-(--chat-label)" />
-                            Download as PDF
-                          </button>
-                          <div className="my-1 border-t border-(--chat-dropdown-border)" />
-                          <button
-                            type="button"
-                            className="flex w-full items-center gap-3 px-4 py-2 text-sm text-red-400 transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
-                            onClick={() => void handleDeleteChat(chat._id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            Delete
-                          </button>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ── Bottom section ── */}
-        <div className="mt-auto flex flex-col gap-0.5 px-2 pb-3">
-          <button
-            type="button"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-sidebar-text-hover)"
-          >
-            <ExternalLink className="h-[18px] w-[18px] text-(--chat-label)" />
-            <Link href="https://www.codebhaiya.com" target="_blank" rel="noopener noreferrer" >codebhaiya.com</Link>
-          </button>
-
-          {/* Settings with popup */}
-          <div className="relative" ref={settingsRef}>
-            {settingsMenuOpen && (
-              <div className="absolute bottom-full left-0 z-50 mb-1 w-full rounded-md border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
-                  {/* Top group - Theme with hover submenu */}
-                  <div
-                    className="relative"
-                    onMouseEnter={() => setThemeSubmenuOpen(true)}
-                    onMouseLeave={() => setThemeSubmenuOpen(false)}
-                  >
-                    <button
-                      type="button"
-                      className="flex w-full items-center justify-between px-4 py-2.5 text-sm text-(--chat-text-secondary) hover:cursor-pointer transition hover:bg-(--chat-dropdown-hover)"
-                    >
-                      <span className="flex items-center gap-3">
-                        <SunMoon className="h-[18px] w-[18px] text-(--chat-label)" />
-                        Theme
-                      </span>
-                      <ChevronRight className="h-4 w-4 text-[#666]" />
-                    </button>
-
-                    {/* Theme submenu */}
-                    {themeSubmenuOpen && (
-                      <div className="absolute left-full top-0 z-60 ml-1 w-40 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
-                        {[
-                          { id: "light", label: "Light", icon: Sun },
-                          { id: "dark", label: "Dark", icon: Moon },
-                          { id: "system", label: "System", icon: Monitor },
-                        ].map((opt) => (
-                          <button
-                            key={opt.id}
-                            type="button"
-                            className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
-                            onClick={() => {
-                              setTheme(opt.id);
-                              setThemeSubmenuOpen(false);
-                              setSettingsMenuOpen(false);
-                            }}
-                          >
-                            <span
-                              className={`h-2.5 w-2.5 rounded-full border ${
-                                theme === opt.id
-                                  ? "border-white bg-white"
-                                  : "border-[#666] bg-transparent"
-                              }`}
-                            />
-                            <opt.icon className="h-[16px] w-[16px] text-(--chat-label)" />
-                            {opt.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  {/* <button
-                    type="button"
-                    className="flex w-full items-center justify-between px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover)"
-                    onClick={() => setSettingsMenuOpen(false)}
-                  >
-                    <span className="flex items-center gap-3">
-                      <CreditCard className="h-[18px] w-[18px] text-(--chat-label)" />
-                      Submit prompt key
-                    </span>
-                    <ChevronRight className="h-4 w-4 text-[#666]" />
-                  </button> */}
-
-                  {/* Divider */}
-                  <div className="my-1.5 border-t border-(--chat-dropdown-border)" />
-
-                  {/* Middle group */}
-                  {/* <button
-                    type="button"
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover)"
-                    onClick={() => setSettingsMenuOpen(false)}
-                  >
-                    <Users className="h-[18px] w-[18px] text-(--chat-label)" />
-                    View status
-                  </button> */}
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
-                    onClick={() => {
-                      setSettingsMenuOpen(false);
-                      toast("We are writing it 😁", { icon: "🚧" });
-                    }}
-                  >
-                    <FileText className="h-[18px] w-[18px] text-(--chat-label)" />
-                    Terms of service
-                  </button>
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
-                    onClick={() => {
-                      setSettingsMenuOpen(false);
-                      toast("We are writing it 😁", { icon: "🚧" });
-                    }}
-                  >
-                    <Shield className="h-[18px] w-[18px] text-(--chat-label)" />
-                    Privacy policy
-                  </button>
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
-                    onClick={() => {
-                      setSettingsMenuOpen(false);
-                      toast("We are building it 👀", { icon: "🚧" });
-                    }}
-                  >
-                    <MessageCircle className="h-[18px] w-[18px] text-(--chat-label)" />
-                    Send feedback
-                  </button>
-                  {/* <button
-                    type="button"
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover)"
-                    onClick={() => setSettingsMenuOpen(false)}
-                  >
-                    <CreditCard className="h-[18px] w-[18px] text-(--chat-label)" />
-                    Billing Support
-                  </button> */}
-
-                  {/* Divider */}
-                  <div className="my-1.5 border-t border-(--chat-dropdown-border)" />
-
-                  {/* Logout */}
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-logout-text) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
-                    onClick={() => {
-                      setSettingsMenuOpen(false);
-                      void handleLogout();
-                    }}
-                  >
-                    <LogOut className="h-[18px] w-[18px]" />
-                    Log out
-                  </button>
-                </div>
-            )}
-
-            <button
-              type="button"
-              className={cn(
-                "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-sidebar-text-hover) hover:cursor-pointer",
-                settingsMenuOpen && "bg-white/5"
-              )}
-              onClick={() => setSettingsMenuOpen(!settingsMenuOpen)}
-            >
-              <Settings className="h-[18px] w-[18px] text-(--chat-label)" />
-              Settings
-            </button>
-          </div>
-
-          {/* User row */}
-          <button
-            type="button"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition hover:bg-(--chat-sidebar-text-hover)"
-          >
-            <Image
-              src="https://avatars.githubusercontent.com/u/166032907?v=4"
-              alt="Avatar"
-              className="h-7 w-7 shrink-0 rounded-full"
-              width={28}
-              height={28}
-            />
-            <span className="truncate text-sm text-(--chat-text-secondary)">
-              {user?.email || user?.name || "Account"}
-            </span>
-          </button>
-        </div>
-      </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Sidebar toggle — visible when sidebar is closed (desktop) or always on mobile */}
+        {/* Note: The mock said (!sidebarOpen || true), but logic implies (!sidebarOpen) or mobile. 
+            The sidebar component handles the mobile overlay, but this button is the trigger. 
+            In the original code: (!sidebarOpen || true) && (button...). 
+            I'll keep it simple: visible if sidebar closed on desktop, or always on mobile if we want. 
+            Actually, the original layout had it absolute positioned. */}
         {(!sidebarOpen || true) && (
           <button
             type="button"
@@ -1460,21 +772,15 @@ export function ChatApp() {
         )}
 
         <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-6">
-            {chatError ? (
-              <div className="mb-4 rounded-lg border border-(--chat-error-border) bg-(--chat-error-bg) px-3 py-2 text-sm text-(--chat-error-text)">
-                {chatError}
-              </div>
-            ) : null}
-
-            {isLoadingMessages ? (
-              <div className="flex items-center gap-2 rounded-lg border border-(--chat-dropdown-border) bg-(--chat-surface) px-3 py-2 text-sm text-(--chat-loading)">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Loading messages...
-              </div>
-            ) : messages.length === 0 ? (
-              <div className="flex min-h-[calc(100vh-120px)] flex-col items-center justify-center">
-                {/* Brand name */}
+          <ChatMessageList
+            messages={messages}
+            isLoadingMessages={isLoadingMessages}
+            chatError={chatError}
+          />
+          
+          {messages.length === 0 && !isLoadingMessages && (
+             <div className="flex min-h-[calc(100vh-120px)] flex-col items-center justify-center">
+                 {/* Brand name */}
                 <h2
                   className="mb-10 text-4xl font-light tracking-wide text-(--chat-brand)"
                   style={{ fontFamily: "var(--font-fraunces), serif" }}
@@ -1482,185 +788,21 @@ export function ChatApp() {
                   codebhaiya
                 </h2>
 
-                {/* Centered composer */}
-                <form
-                  className="w-full max-w-2xl"
-                  onSubmit={handleComposerSubmit}
-                >
-                  <div className="rounded-2xl border border-(--chat-composer-border) bg-(--chat-composer) px-4 pb-2.5 pt-3">
-                    <AutoResizeTextarea
-                      value={composer}
-                      onChange={(event) => setComposer(event.target.value)}
-                      onKeyDown={handleComposerKeyDown}
-                      placeholder="Ask anything..."
-                      maxHeight={140}
-                      disabled={isSending || isBootstrapping}
-                      className="w-full resize-none border-0 bg-transparent text-[15px] leading-6 text-(--chat-input-text) outline-none placeholder:text-(--chat-input-placeholder) focus-visible:ring-0 min-h-[44px] py-[10px]"
-                    />
-
-                    <div className="mt-2 flex items-center justify-between">
-                      <div className="relative">
-                        <button
-                          type="button"
-                          onClick={() => setPlusMenuOpen(!plusMenuOpen)}
-                          className={cn(
-                            "inline-flex h-8 w-8 items-center justify-center rounded-full border border-(--chat-composer-border) text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)",
-                            plusMenuOpen && "bg-(--chat-dropdown-hover) text-(--chat-action-icon-hover)"
-                          )}
-                          aria-label="Attach"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </button>
-
-                        {/* Plus Menu Popup */}
-                        {plusMenuOpen && (
-                          <>
-                            <div
-                              className="fixed inset-0 z-40"
-                              onClick={() => setPlusMenuOpen(false)}
-                            />
-                            <div className="absolute bottom-full left-0 mb-2 w-72 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl z-50">
-                              {/* Upload files */}
-                              <button
-                                type="button"
-                                className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover)"
-                                onClick={() => setPlusMenuOpen(false)}
-                              >
-                                <Paperclip className="h-[18px] w-[18px] text-(--chat-text-secondary)" />
-                                Upload files or images
-                              </button>
-
-                              {/* Cloud */}
-                              <button
-                                type="button"
-                                className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover)"
-                                onClick={() => setPlusMenuOpen(false)}
-                              >
-                                <span className="flex items-center gap-3">
-                                  <Cloud className="h-[18px] w-[18px] text-(--chat-text-secondary)" />
-                                  Add files from cloud
-                                </span>
-                                <ChevronRight className="h-4 w-4 text-(--chat-text-muted)" />
-                              </button>
-
-                              <div className="my-1 border-t border-(--chat-dropdown-border)" />
-
-                              {/* Deep research */}
-                              <button
-                                type="button"
-                                className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition hover:bg-(--chat-dropdown-hover)"
-                                onClick={() => setPlusMenuOpen(false)}
-                              >
-                                <Telescope className="mt-0.5 h-[18px] w-[18px] text-(--chat-text-secondary)" />
-                                <div>
-                                  <div className="text-sm font-medium text-(--chat-text)">Deep research</div>
-                                  <div className="text-xs text-(--chat-text-muted)">In-depth reports and analysis</div>
-                                </div>
-                              </button>
-
-                              {/* Model council */}
-                              <button
-                                type="button"
-                                className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition hover:bg-(--chat-dropdown-hover)"
-                                onClick={() => setPlusMenuOpen(false)}
-                              >
-                                <Gavel className="mt-0.5 h-[18px] w-[18px] text-(--chat-text-secondary)" />
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-sm font-medium text-(--chat-text)">Model council</span>
-                                    <span className="rounded bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-medium text-blue-400">
-                                      Max
-                                    </span>
-                                  </div>
-                                  <div className="text-xs text-(--chat-text-muted)">Multiple AI models at once</div>
-                                </div>
-                              </button>
-
-                              <div className="my-1 border-t border-(--chat-dropdown-border)" />
-
-                              {/* More */}
-                              <button
-                                type="button"
-                                className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover)"
-                                onClick={() => setPlusMenuOpen(false)}
-                              >
-                                <span className="flex items-center gap-3">
-                                  <MoreHorizontal className="h-[18px] w-[18px] text-(--chat-text-secondary)" />
-                                  More
-                                </span>
-                                <ChevronRight className="h-4 w-4 text-(--chat-text-muted)" />
-                              </button>
-                            </div>
-                          </>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1.5">
-                        <div className="relative">
-                          <button
-                            type="button"
-                            onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-                            className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)"
-                          >
-                            <ModelLogo provider={availableModels.find(m => m.id === selectedModel)?.provider || ""} className="h-3.5 w-3.5" />
-                            {availableModels.find(m => m.id === selectedModel)?.displayName || "Model"}
-                            <ChevronDown className="h-3 w-3" />
-                          </button>
-                          
-                          {modelDropdownOpen && (
-                            <>
-                              <div 
-                                className="fixed inset-0 z-10" 
-                                onClick={() => setModelDropdownOpen(false)}
-                              />
-                              <div className="absolute bottom-full left-0 mb-2 z-20 w-56 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) p-1.5 shadow-2xl">
-                                {availableModels.map((model) => (
-                                  <button
-                                    key={model.id}
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedModel(model.id);
-                                      setModelDropdownOpen(false);
-                                    }}
-                                    className={cn(
-                                      "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition hover:bg-(--chat-dropdown-hover) cursor-pointer",
-                                      selectedModel === model.id ? "text-(--chat-text) bg-(--chat-dropdown-hover)" : "text-(--chat-text-muted)"
-                                    )}
-                                  >
-                                    <ModelLogo provider={model.provider} className="h-4 w-4 shrink-0" />
-                                    <span className="flex-1">{model.displayName}</span>
-                                    {selectedModel === model.id && <Check className="h-3.5 w-3.5 text-(--chat-action-icon)" />}
-                                  </button>
-                                ))}
-                              </div>
-                            </>
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)"
-                          aria-label="Voice input"
-                        >
-                          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                            <line x1="12" x2="12" y1="19" y2="22" />
-                          </svg>
-                        </button>
-                        <button
-                          type="submit"
-                          disabled={isBootstrapping || !composer.trim()}
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-(--chat-send-bg) text-white transition hover:bg-(--chat-send-bg-hover) disabled:cursor-not-allowed disabled:opacity-40"
-                          aria-label="Send"
-                        >
-                          <ArrowUp className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </form>
+                <ChatComposer
+                  onSend={handleSendPrompt}
+                  isSending={isSending}
+                  isBootstrapping={isBootstrapping}
+                  availableModels={availableModels}
+                  selectedModel={selectedModel}
+                  onModelChange={setSelectedModel}
+                  variant="center"
+                  inputValue={composer}
+                  onInputChange={setComposer}
+                />
 
                 {/* Quick action chips */}
+                {/* Note: Chips logic was inline. I should probably move chips to Composer or just keep here. 
+                    I'll keep here for now as they interact with composer state. */}
                 <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
                   {[
                     { icon: "❤️", label: "Health" },
@@ -1682,341 +824,28 @@ export function ChatApp() {
                     </button>
                   ))}
                 </div>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {messages.map((message, index) => {
-                  const isUser = message.role === "user";
-
-                  // Strip the user query that the backend echoes at the start of AI responses
-                  let displayContent = message.content;
-                  if (!isUser && index > 0) {
-                    const prevMsg = messages[index - 1];
-                    if (
-                      prevMsg?.role === "user" &&
-                      prevMsg.content &&
-                      displayContent.startsWith(prevMsg.content)
-                    ) {
-                      displayContent = displayContent
-                        .slice(prevMsg.content.length)
-                        .trimStart();
-                    }
-                  }
-
-                  return (
-                    <div
-                      key={message._id ?? `${message.role}-${index}`}
-                      className={cn(
-                        "flex",
-                        isUser ? "justify-end" : "justify-start"
-                      )}
-                    >
-                      {isUser ? (
-                        /* ── User bubble: dark-blue pill, right-aligned ── */
-                        <div className="max-w-[80%]">
-                          <div className="rounded-2xl bg-(--chat-user-bubble) px-5 py-2.5 text-[15px] leading-6 text-(--chat-user-bubble-text) whitespace-pre-wrap wrap-break-word">
-                            {message.content}
-                          </div>
-                          <p className="mt-1 text-right text-[11px] text-(--chat-timestamp)">
-                            {formatTime(message.createdAt)}
-                          </p>
-                        </div>
-                      ) : (
-                        /* ── AI response: no bubble, full-width text ── */
-                        <div className="w-full max-w-none">
-                          {displayContent ? (
-                            <p className="whitespace-pre-wrap text-[15px] leading-8 text-(--chat-ai-text)">
-                              {displayContent}
-                            </p>
-                          ) : null}
-
-                          {message.sources && message.sources.length > 0 ? (
-                            <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                              {message.sources.map((source, sourceIndex) => {
-                                const href = source.url ?? source.link;
-                                return (
-                                  <a
-                                    key={`${source.title}-${sourceIndex}`}
-                                    href={href || "#"}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="rounded-xl border border-(--chat-dropdown-border) bg-(--chat-source-card) p-3 text-xs transition hover:bg-(--chat-source-card-hover)"
-                                  >
-                                    <p className="font-medium text-(--chat-source-title)">
-                                      {source.title || "Source"}
-                                    </p>
-                                    {source.snippet ? (
-                                      <p className="mt-1 line-clamp-3 text-(--chat-source-snippet)">
-                                        {source.snippet}
-                                      </p>
-                                    ) : null}
-                                    {href ? (
-                                      <p className="mt-2 inline-flex items-center gap-1 text-(--chat-source-link)">
-                                        <AtSign className="h-3 w-3" />
-                                        {formatSourceHost(href)}
-                                      </p>
-                                    ) : null}
-                                  </a>
-                                );
-                              })}
-                            </div>
-                          ) : null}
-
-                          {message.usedTools && message.usedTools.length > 0 ? (
-                            <div className="mt-3 flex flex-wrap gap-2">
-                              {message.usedTools.map((tool, toolIndex) => (
-                                <span
-                                  key={`${tool.name}-${toolIndex}`}
-                                  className="inline-flex items-center gap-1 rounded-full border border-(--chat-dropdown-border) bg-(--chat-tool-badge) px-2.5 py-1 text-xs text-(--chat-tool-badge-text)"
-                                >
-                                  <MessageSquareText className="h-3 w-3" />
-                                  {tool.name}
-                                </span>
-                              ))}
-                            </div>
-                          ) : null}
-
-                          {message.isStreaming ? (
-                            <div className="mt-3 inline-flex items-center gap-2 text-xs text-(--chat-loading)">
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                              thinking...
-                            </div>
-                          ) : null}
-
-                          {/* Action bar */}
-                          {!message.isStreaming && displayContent ? (
-                            <div className="mt-4 flex items-center gap-1">
-                              <p className="mr-2 text-[11px] text-(--chat-timestamp)">
-                                {formatTime(message.createdAt)}
-                              </p>
-                              {[
-                                { icon: Copy, label: "Copy" },
-                                { icon: ThumbsUp, label: "Like" },
-                                { icon: ThumbsDown, label: "Dislike" },
-                                { icon: Share, label: "Share" },
-                                { icon: RefreshCw, label: "Regenerate" },
-                                { icon: MoreHorizontal, label: "More" },
-                              ].map((action) => (
-                                <button
-                                  key={action.label}
-                                  type="button"
-                                  className="inline-flex h-7 w-7 items-center justify-center rounded-md text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)"
-                                  aria-label={action.label}
-                                  onClick={() => {
-                                    if (action.label === "Copy" && displayContent) {
-                                      void navigator.clipboard.writeText(displayContent);
-                                    }
-                                  }}
-                                >
-                                  <action.icon className="h-4 w-4" />
-                                </button>
-                              ))}
-                            </div>
-                          ) : null}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-                <div ref={messagesEndRef} />
-              </div>
-            )}
-          </div>
+             </div>
+          )}
         </main>
 
         {/* Bottom composer — only shown when messages exist */}
         {messages.length > 0 && (
-        <footer className="bg-(--chat-bg) px-3 py-3 md:px-6">
-          <form className="mx-auto w-full max-w-3xl" onSubmit={handleComposerSubmit}>
-            <div className="rounded-2xl border border-(--chat-composer-border) bg-(--chat-composer) px-4 pb-2.5 pt-3">
-              <AutoResizeTextarea
-                value={composer}
-                onChange={(event) => setComposer(event.target.value)}
-                onKeyDown={handleComposerKeyDown}
-                placeholder="Ask a follow-up"
-                maxHeight={140}
-                disabled={isSending || isBootstrapping}
-                className="w-full resize-none border-0 bg-transparent text-[15px] leading-6 text-(--chat-input-text) outline-none placeholder:text-(--chat-input-placeholder) focus-visible:ring-0 min-h-[44px] py-[10px]"
+          <footer className="bg-(--chat-bg) px-3 py-3 md:px-6">
+             <ChatComposer
+                onSend={handleSendPrompt}
+                onStop={handleStopStreaming}
+                isSending={isSending}
+                isBootstrapping={isBootstrapping}
+                availableModels={availableModels}
+                selectedModel={selectedModel}
+                onModelChange={setSelectedModel}
+                variant="footer"
+                inputValue={composer}
+                onInputChange={setComposer}
               />
-
-              <div className="mt-2 flex items-center justify-between">
-                {/* Left — attach */}
-                <div className="relative">
-                  <button
-                    type="button"
-                    onClick={() => setPlusMenuOpen(!plusMenuOpen)}
-                    className={cn(
-                      "inline-flex h-8 w-8 items-center justify-center rounded-full border border-(--chat-composer-border) text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)",
-                      plusMenuOpen && "bg-(--chat-dropdown-hover) text-(--chat-action-icon-hover)"
-                    )}
-                    aria-label="Attach"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
-
-                  {/* Plus Menu Popup */}
-                  {plusMenuOpen && (
-                    <>
-                      <div
-                        className="fixed inset-0 z-40"
-                        onClick={() => setPlusMenuOpen(false)}
-                      />
-                      <div className="absolute bottom-full left-0 mb-2 w-72 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl z-50">
-                        {/* Upload files */}
-                        <button
-                          type="button"
-                          className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover)"
-                          onClick={() => setPlusMenuOpen(false)}
-                        >
-                          <Paperclip className="h-[18px] w-[18px] text-(--chat-text-secondary)" />
-                          Upload files or images
-                        </button>
-
-                        {/* Cloud */}
-                        <button
-                          type="button"
-                          className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover)"
-                          onClick={() => setPlusMenuOpen(false)}
-                        >
-                          <span className="flex items-center gap-3">
-                            <Cloud className="h-[18px] w-[18px] text-(--chat-text-secondary)" />
-                            Add files from cloud
-                          </span>
-                          <ChevronRight className="h-4 w-4 text-(--chat-text-muted)" />
-                        </button>
-
-                        <div className="my-1 border-t border-(--chat-dropdown-border)" />
-
-                        {/* Deep research */}
-                        <button
-                          type="button"
-                          className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition hover:bg-(--chat-dropdown-hover)"
-                          onClick={() => setPlusMenuOpen(false)}
-                        >
-                          <Telescope className="mt-0.5 h-[18px] w-[18px] text-(--chat-text-secondary)" />
-                          <div>
-                            <div className="text-sm font-medium text-(--chat-text)">Deep research</div>
-                            <div className="text-xs text-(--chat-text-muted)">In-depth reports and analysis</div>
-                          </div>
-                        </button>
-
-                        {/* Model council */}
-                        <button
-                          type="button"
-                          className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition hover:bg-(--chat-dropdown-hover)"
-                          onClick={() => setPlusMenuOpen(false)}
-                        >
-                          <Gavel className="mt-0.5 h-[18px] w-[18px] text-(--chat-text-secondary)" />
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium text-(--chat-text)">Model council</span>
-                              <span className="rounded bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-medium text-blue-400">
-                                Max
-                              </span>
-                            </div>
-                            <div className="text-xs text-(--chat-text-muted)">Multiple AI models at once</div>
-                          </div>
-                        </button>
-
-                        <div className="my-1 border-t border-(--chat-dropdown-border)" />
-
-                        {/* More */}
-                        <button
-                          type="button"
-                          className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover)"
-                          onClick={() => setPlusMenuOpen(false)}
-                        >
-                          <span className="flex items-center gap-3">
-                            <MoreHorizontal className="h-[18px] w-[18px] text-(--chat-text-secondary)" />
-                            More
-                          </span>
-                          <ChevronRight className="h-4 w-4 text-(--chat-text-muted)" />
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                  {/* Right — model, mic, send/stop */}
-                <div className="flex items-center gap-1.5">
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-                      className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)"
-                    >
-                      <ModelLogo provider={availableModels.find(m => m.id === selectedModel)?.provider || ""} className="h-3.5 w-3.5" />
-                      {availableModels.find(m => m.id === selectedModel)?.displayName || "Model"}
-                      <ChevronDown className="h-3 w-3" />
-                    </button>
-                    
-                    {modelDropdownOpen && (
-                      <>
-                        <div 
-                          className="fixed inset-0 z-10" 
-                          onClick={() => setModelDropdownOpen(false)}
-                        />
-                        <div className="absolute bottom-full right-0 mb-2 z-20 w-56 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) p-1.5 shadow-2xl">
-                          {availableModels.map((model) => (
-                            <button
-                              key={model.id}
-                              type="button"
-                              onClick={() => {
-                                setSelectedModel(model.id);
-                                setModelDropdownOpen(false);
-                              }}
-                              className={cn(
-                                "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] transition hover:bg-(--chat-dropdown-hover) cursor-pointer",
-                                selectedModel === model.id ? "text-(--chat-text) bg-(--chat-dropdown-hover)" : "text-(--chat-text-muted)"
-                              )}
-                            >
-                              <ModelLogo provider={model.provider} className="h-4 w-4 shrink-0" />
-                              <span className="flex-1">{model.displayName}</span>
-                              {selectedModel === model.id && <Check className="h-3.5 w-3.5 text-(--chat-action-icon)" />}
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    className="inline-flex h-8 w-8 items-center justify-center rounded-full text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)"
-                    aria-label="Voice input"
-                  >
-                    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
-                      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                      <line x1="12" x2="12" y1="19" y2="22" />
-                    </svg>
-                  </button>
-                  {isSending ? (
-                    <button
-                      type="button"
-                      onClick={handleStopStreaming}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-(--chat-stop-bg) text-(--chat-stop-text) transition hover:bg-(--chat-stop-bg-hover)"
-                      aria-label="Stop"
-                    >
-                      <Square className="h-3.5 w-3.5 fill-current" />
-                    </button>
-                  ) : (
-                    <button
-                      type="submit"
-                      disabled={isBootstrapping || !composer.trim()}
-                      className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-(--chat-send-bg) text-white transition hover:bg-(--chat-send-bg-hover) disabled:cursor-not-allowed disabled:opacity-40"
-                      aria-label="Send"
-                    >
-                      <ArrowUp className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </form>
-        </footer>
+          </footer>
         )}
       </div>
     </div>
   );
 }
-

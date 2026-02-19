@@ -17,7 +17,7 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
-  title: "Code Bhaiya AI",
+  title: "codebhaiya.ai",
   description: "AI chat interface with live citations and conversation history",
 };
 
