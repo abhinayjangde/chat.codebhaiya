@@ -78,6 +78,7 @@ import { FcGoogle } from "react-icons/fc";
 import { SiMeta, SiOpenai } from "react-icons/si";
 import { useTheme } from "next-themes";
 import Link from "next/link";
+import { AutoResizeTextarea } from "@/components/ui/auto-resize-textarea";
 
 const STARTER_PROMPTS = [
   "Summarize the latest AI safety trends with citations.",
@@ -1348,14 +1349,14 @@ export function ChatApp() {
                   onSubmit={handleComposerSubmit}
                 >
                   <div className="rounded-2xl border border-(--chat-composer-border) bg-(--chat-composer) px-4 pb-2.5 pt-3">
-                    <textarea
+                    <AutoResizeTextarea
                       value={composer}
                       onChange={(event) => setComposer(event.target.value)}
                       onKeyDown={handleComposerKeyDown}
                       placeholder="Ask anything..."
-                      rows={1}
+                      maxHeight={140}
                       disabled={isSending || isBootstrapping}
-                      className="w-full resize-none border-0 bg-transparent text-[15px] leading-6 text-(--chat-input-text) outline-none placeholder:text-(--chat-input-placeholder)"
+                      className="w-full resize-none border-0 bg-transparent text-[15px] leading-6 text-(--chat-input-text) outline-none placeholder:text-(--chat-input-placeholder) focus-visible:ring-0 min-h-[44px] py-[10px]"
                     />
 
                     <div className="mt-2 flex items-center justify-between">
@@ -1574,7 +1575,7 @@ export function ChatApp() {
                       {isUser ? (
                         /* ── User bubble: dark-blue pill, right-aligned ── */
                         <div className="max-w-[80%]">
-                          <div className="rounded-full bg-(--chat-user-bubble) px-5 py-2.5 text-[15px] leading-6 text-(--chat-user-bubble-text)">
+                          <div className="rounded-2xl bg-(--chat-user-bubble) px-5 py-2.5 text-[15px] leading-6 text-(--chat-user-bubble-text) whitespace-pre-wrap break-words">
                             {message.content}
                           </div>
                           <p className="mt-1 text-right text-[11px] text-(--chat-timestamp)">
@@ -1689,14 +1690,14 @@ export function ChatApp() {
         <footer className="bg-(--chat-bg) px-3 py-3 md:px-6">
           <form className="mx-auto w-full max-w-3xl" onSubmit={handleComposerSubmit}>
             <div className="rounded-2xl border border-(--chat-composer-border) bg-(--chat-composer) px-4 pb-2.5 pt-3">
-              <textarea
+              <AutoResizeTextarea
                 value={composer}
                 onChange={(event) => setComposer(event.target.value)}
                 onKeyDown={handleComposerKeyDown}
                 placeholder="Ask a follow-up"
-                rows={1}
+                maxHeight={140}
                 disabled={isSending || isBootstrapping}
-                className="w-full resize-none border-0 bg-transparent text-[15px] leading-6 text-(--chat-input-text) outline-none placeholder:text-(--chat-input-placeholder)"
+                className="w-full resize-none border-0 bg-transparent text-[15px] leading-6 text-(--chat-input-text) outline-none placeholder:text-(--chat-input-placeholder) focus-visible:ring-0 min-h-[44px] py-[10px]"
               />
 
               <div className="mt-2 flex items-center justify-between">
