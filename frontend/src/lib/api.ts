@@ -172,6 +172,23 @@ export const apiClient = {
     });
   },
 
+  async deleteAccount(accessToken: string): Promise<void> {
+    const response = await fetch(`${API_BASE_URL}/auth/account`, {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const body = await parseResponseBody(response);
+      throw new ApiError(
+        pickMessage(body, `Request failed (${response.status})`),
+        response.status,
+        body
+      );
+    }
+  },
+
   async listModels(): Promise<{ models: ModelInfo[]; default: string }> {
     return requestData<{ models: ModelInfo[]; default: string }>("/chat/models", {
       method: "GET",

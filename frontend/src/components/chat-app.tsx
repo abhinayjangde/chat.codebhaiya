@@ -641,6 +641,20 @@ export function ChatApp() {
     }
   }, [runWithSession, activeChatId]);
 
+  const handleDeleteAccount = useCallback(async () => {
+    try {
+      await runWithSession((accessToken) =>
+        apiClient.deleteAccount(accessToken)
+      );
+      toast.success("Account deleted successfully");
+      clearSession();
+    } catch (error) {
+      const errorMessage = getErrorMessage(error);
+      toast.error(errorMessage);
+      throw new Error(errorMessage); // Re-throw so the UI component stops loading state
+    }
+  }, [runWithSession, clearSession]);
+
   const handleRenameChat = useCallback(async (chatId: string, title: string) => {
     try {
       const updated = await runWithSession((accessToken) =>
@@ -741,6 +755,7 @@ export function ChatApp() {
         onDeleteChat={handleDeleteChat}
         onRenameChat={handleRenameChat}
         onDownloadPdf={handleDownloadPdf}
+        onDeleteAccount={handleDeleteAccount}
         user={user}
         onLogout={handleLogout}
         theme={theme}

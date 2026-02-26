@@ -1,6 +1,8 @@
 import jwt from "jsonwebtoken";
 import type { IUser } from "../models/user.model.js";
 import { User, hashPassword } from "../models/user.model.js";
+import { Chat } from "../models/chat.model.js";
+import { Message } from "../models/message.model.js";
 import { env } from "../config/env.js";
 
 const JWT_SECRET = env.JWT_SECRET;
@@ -96,4 +98,18 @@ export async function refreshTokens(refreshToken: string): Promise<AuthTokens> {
   } catch (error) {
     throw new Error("Invalid refresh token");
   }
+}
+
+export async function deleteUserAccount(userId: string): Promise<void> {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  // Delete all messages and chats owned by this user
+  await Message.deleteMany({ userId });
+  await Chat.deleteMany({ userId });
+
+  // Delete the user
+  await User.findByIdAndDelete(userId);
 }

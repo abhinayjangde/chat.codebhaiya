@@ -3,6 +3,7 @@ import {
   registerUser,
   loginUser,
   refreshTokens,
+  deleteUserAccount,
 } from "../services/auth.service.js";
 import { authenticateToken } from "../middleware/auth.middleware.js";
 
@@ -106,6 +107,23 @@ router.post("/logout", authenticateToken, async (req: Request, res: Response) =>
     success: true,
     message: "Logged out successfully",
   });
+});
+
+router.delete("/account", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    // req.user is set by authenticateToken middleware
+    const userId = req.user!.userId;
+    await deleteUserAccount(userId);
+    res.status(200).json({
+      success: true,
+      message: "Account deleted successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: (error as Error).message,
+    });
+  }
 });
 
 router.get("/me", authenticateToken, async (req: Request, res: Response) => {

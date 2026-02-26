@@ -42,6 +42,7 @@ interface ChatSidebarProps {
   onDeleteChat: (chatId: string) => void;
   onRenameChat: (chatId: string, title: string) => void;
   onDownloadPdf: (chatId: string) => void;
+  onDeleteAccount: () => Promise<void>;
   user: UserProfile | null;
   onLogout: () => void;
   theme: string | undefined;
@@ -63,6 +64,7 @@ export const ChatSidebar = memo(function ChatSidebar({
   onDeleteChat,
   onRenameChat,
   onDownloadPdf,
+  onDeleteAccount,
   user,
   onLogout,
   theme,
@@ -71,6 +73,8 @@ export const ChatSidebar = memo(function ChatSidebar({
   isLoadingChats,
   isBootstrapping,
 }: ChatSidebarProps) {
+  const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [chatMenuOpenId, setChatMenuOpenId] = useState<string | null>(null);
@@ -131,6 +135,20 @@ export const ChatSidebar = memo(function ChatSidebar({
     }
     setRenamingChatId(null);
     setRenameTitle("");
+  };
+
+  const handleDeleteAccount = () => {
+    setIsConfirmDeleteOpen(true);
+  };
+
+  const executeDeleteAccount = async () => {
+    setIsDeletingAccount(true);
+    try {
+      await onDeleteAccount();
+      setIsConfirmDeleteOpen(false);
+    } catch (err) {
+      setIsDeletingAccount(false);
+    }
   };
 
   return (
@@ -488,7 +506,7 @@ export const ChatSidebar = memo(function ChatSidebar({
                 {/* Logout */}
                 <button
                   type="button"
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-logout-text) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
                   onClick={() => {
                     setSettingsMenuOpen(false);
                     onLogout();
@@ -496,6 +514,20 @@ export const ChatSidebar = memo(function ChatSidebar({
                 >
                   <LogOut className="h-[18px] w-[18px]" />
                   Log out
+                </button>
+
+                {/* Delete Account */}
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-400 transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  disabled={isDeletingAccount}
+                  onClick={() => {
+                    setSettingsMenuOpen(false);
+                    handleDeleteAccount();
+                  }}
+                >
+                  <Trash2 className="h-[18px] w-[18px]" />
+                  {isDeletingAccount ? "Deleting..." : "Delete account"}
                 </button>
               </div>
             )}
@@ -531,6 +563,38 @@ export const ChatSidebar = memo(function ChatSidebar({
           </button>
         </div>
       </aside>
+
+      {/* Delete Confirmation Modal */}
+      {isConfirmDeleteOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-sm rounded-xl border border-(--chat-dropdown-border) bg-(--chat-surface) p-6 shadow-2xl">
+            <h3 className="mb-2 text-lg font-semibold text-(--chat-text)">
+              Delete Account
+            </h3>
+            <p className="mb-6 text-sm text-(--chat-text-secondary) leading-relaxed">
+              Are you sure you want to delete your account? This action is irreversible and will permanently delete all your chat history.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-sidebar-hover) disabled:opacity-50"
+                onClick={() => setIsConfirmDeleteOpen(false)}
+                disabled={isDeletingAccount}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="rounded-lg bg-red-500/10 px-4 py-2 text-sm font-medium text-red-500 transition hover:bg-red-500/20 disabled:opacity-50"
+                onClick={executeDeleteAccount}
+                disabled={isDeletingAccount}
+              >
+                {isDeletingAccount ? "Deleting..." : "Delete Account"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 });
