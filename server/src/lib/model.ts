@@ -31,17 +31,11 @@ export const MODEL_REGISTRY: Record<string, ModelConfig> = {
   },
 
   // Google Models
-  "gemini-2.0-flash": {
-    id: "gemini-2.0-flash",
+  "gemini-2.5-flash": {
+    id: "gemini-2.5-flash",
     provider: "google",
-    modelName: "gemini-2.0-flash",
-    displayName: "Gemini 2.0 Flash",
-  },
-  "gemini-1.5-pro": {
-    id: "gemini-1.5-pro",
-    provider: "google",
-    modelName: "gemini-1.5-pro",
-    displayName: "Gemini 1.5 Pro",
+    modelName: "gemini-2.5-flash",
+    displayName: "Gemini 2.5 Flash",
   },
 
   // OpenAI Models
@@ -85,8 +79,7 @@ export function getAvailableModels(): ModelConfig[] {
 
   // Check Google
   if (env.GOOGLE_API_KEY) {
-    available.push(MODEL_REGISTRY["gemini-2.0-flash"]!);
-    available.push(MODEL_REGISTRY["gemini-1.5-pro"]!);
+    available.push(MODEL_REGISTRY["gemini-2.5-flash"]!);
   }
 
   // Check OpenAI
