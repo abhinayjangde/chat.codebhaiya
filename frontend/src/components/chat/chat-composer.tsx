@@ -13,8 +13,9 @@ import {
   Plus,
   Square,
   Telescope,
+  Loader2
 } from "lucide-react";
-import { type KeyboardEvent, type FormEvent, useState, memo } from "react";
+import { type KeyboardEvent, type FormEvent, useState, useRef, memo } from "react";
 import { cn } from "@/lib/utils";
 import { AutoResizeTextarea } from "@/components/ui/auto-resize-textarea";
 import { ModelInfo } from "@/lib/types";
@@ -50,14 +51,23 @@ function ModelLogo({
   }
 }
 
+export interface Attachment {
+  type: "image" | "document" | "unknown";
+  content: string; // Base64 or Text
+  mimeType: string;
+  name: string;
+  size: number;
+}
+
 interface ChatComposerProps {
-  onSend: (message: string) => void;
+  onSend: (message: string, attachments?: Attachment[]) => void;
   onStop?: () => void;
   isSending: boolean;
   isBootstrapping: boolean;
   availableModels: ModelInfo[];
   selectedModel: string;
   onModelChange: (modelId: string) => void;
+  onUploadFile?: (file: File) => Promise<Attachment>;
   variant: "center" | "footer";
   inputValue?: string;           // Optional controlled input
   onInputChange?: (val: string) => void; // Optional control handler
@@ -71,6 +81,7 @@ export const ChatComposer = memo(function ChatComposer({
   availableModels,
   selectedModel,
   onModelChange,
+  onUploadFile,
   variant,
   inputValue,
   onInputChange
@@ -82,11 +93,54 @@ export const ChatComposer = memo(function ChatComposer({
 
   const [plusMenuOpen, setPlusMenuOpen] = useState(false);
   const [modelDropdownOpen, setModelDropdownOpen] = useState(false);
+  
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    setIsUploading(true);
+    setPlusMenuOpen(false);
+    
+    if (!onUploadFile) {
+      setIsUploading(false);
+      return;
+    }
+
+    try {
+      const uploadedAttachments: Attachment[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        if (file) {
+          const result = await onUploadFile(file);
+          uploadedAttachments.push(result);
+        }
+      }
+      setAttachments(prev => [...prev, ...uploadedAttachments]);
+    } catch (error) {
+      console.error("Upload error", error);
+      // Ideally show a toast
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handleComposerSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!composer.trim() || isSending) return;
-    onSend(composer);
+    if (!composer.trim() && attachments.length === 0) return;
+    if (isSending || isUploading) return;
+    onSend(composer, attachments.length > 0 ? attachments : undefined);
+    setAttachments([]);
     if (inputValue === undefined) {
       setInternalComposer("");
     }
@@ -97,8 +151,10 @@ export const ChatComposer = memo(function ChatComposer({
   ) => {
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
-      if (!composer.trim() || isSending) return;
-      onSend(composer);
+      if (!composer.trim() && attachments.length === 0) return;
+      if (isSending || isUploading) return;
+      onSend(composer, attachments.length > 0 ? attachments : undefined);
+      setAttachments([]);
       if (inputValue === undefined) {
         setInternalComposer("");
       }
@@ -114,6 +170,27 @@ export const ChatComposer = memo(function ChatComposer({
       onSubmit={handleComposerSubmit}
     >
       <div className="rounded-2xl border border-(--chat-composer-border) bg-(--chat-composer) px-4 pb-2.5 pt-3">
+        {attachments.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-2">
+            {attachments.map((att, i) => (
+              <div key={i} className="relative flex items-center gap-2 rounded-md bg-(--chat-dropdown-hover) py-1 px-2 pr-6 border border-(--chat-dropdown-border) text-sm shadow-sm group">
+                {att.type === "image" ? (
+                  <img src={att.content} alt={att.name} className="h-6 w-6 object-cover rounded-sm" />
+                ) : (
+                  <Paperclip className="h-4 w-4 text-blue-500" />
+                )}
+                <span className="max-w-[120px] truncate text-xs text-(--chat-text)">{att.name}</span>
+                <button
+                  type="button"
+                  onClick={() => removeAttachment(i)}
+                  className="absolute right-1 top-1 bottom-1 flex items-center justify-center w-4 text-(--chat-text-muted) hover:text-(--chat-text) opacity-0 group-hover:opacity-100 transition-opacity bg-(--chat-dropdown-hover)"
+                >
+                  <Plus className="h-3 w-3 rotate-45" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <AutoResizeTextarea
           value={composer}
           onChange={(event) => setComposer(event.target.value)}
@@ -148,10 +225,18 @@ export const ChatComposer = memo(function ChatComposer({
                 />
                 <div className="absolute bottom-full left-0 mb-2 w-72 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl z-50">
                   {/* Upload files */}
+                  <input
+                    type="file"
+                    multiple
+                    className="hidden"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept="image/*,application/pdf,text/*,.c,.cpp,.js,.ts,.py,.java,.md,.csv,.log"
+                  />
                   <button
                     type="button"
                     className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover)"
-                    onClick={() => setPlusMenuOpen(false)}
+                    onClick={() => fileInputRef.current?.click()}
                   >
                     <Paperclip className="h-[18px] w-[18px] text-(--chat-text-secondary)" />
                     Upload files or images
@@ -322,11 +407,16 @@ export const ChatComposer = memo(function ChatComposer({
             ) : (
               <button
                 type="submit"
-                disabled={isBootstrapping || !composer.trim()}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-(--chat-send-bg) text-white transition hover:bg-(--chat-send-bg-hover) disabled:cursor-not-allowed disabled:opacity-40"
+                disabled={isBootstrapping || (!composer.trim() && attachments.length === 0) || isUploading}
+                className={cn(
+                  "inline-flex h-8 w-8 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40",
+                  (composer.trim() || attachments.length > 0) && !isUploading
+                    ? "bg-(--chat-send-bg) text-white hover:bg-(--chat-send-bg-hover)"
+                    : "bg-(--chat-dropdown-hover) text-(--chat-action-icon)"
+                )}
                 aria-label="Send"
               >
-                <ArrowUp className="h-4 w-4" />
+                {isUploading ? <Loader2 className="h-4 w-4 animate-spin text-(--chat-action-icon)" /> : <ArrowUp className="h-4 w-4" />}
               </button>
             )}
           </div>

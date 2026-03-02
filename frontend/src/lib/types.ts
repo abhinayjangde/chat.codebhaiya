@@ -54,6 +54,7 @@ export interface ChatMessage {
   createdAt?: string;
   sources?: MessageSource[];
   usedTools?: UsedTool[];
+  attachments?: any[];
   isStreaming?: boolean;
 }
 

@@ -140,7 +140,7 @@ router.post("/", async (req: Request, res: Response) => {
 router.post("/:chatId", async (req: Request, res: Response) => {
     try {
         const chatId = Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId;
-        const { message, model } = req.body;
+        const { message, model, attachments } = req.body;
         const userId = req.user?.userId;
 
         if (!message) {
@@ -171,12 +171,46 @@ router.post("/:chatId", async (req: Request, res: Response) => {
 
         const formatted = previousMessages
             .filter((msg) => msg.role && msg.content)
-            .map((msg) => ({
-                role: msg.role as string,
-                content: msg.content as string,
-            }));
+            .map((msg) => {
+                // If previous message has attachments, we just send text for now or re-format if needed.
+                // Simple implementation: just send the text content to keep context window reasonable.
+                return {
+                    role: msg.role as string,
+                    content: msg.content as string, // Might need to be adjusted if storing multimodal previous
+                };
+            });
 
-        formatted.push({ role: "user", content: message });
+        // Format current message with attachments
+        let finalContent: any = message;
+        
+        if (attachments && attachments.length > 0) {
+            finalContent = [];
+            
+            // Add all images
+            for (const att of attachments) {
+                if (att.type === "image") {
+                    finalContent.push({
+                        type: "image_url",
+                        image_url: { url: att.content }
+                    });
+                }
+            }
+            
+            // Add text context from documents
+            let textPrompt = message;
+            for (const att of attachments) {
+                if (att.type === "document") {
+                    textPrompt += `\n\n--- Content from attached file: ${att.name} ---\n${att.content}\n--- End of file ---\n`;
+                }
+            }
+            
+            finalContent.push({
+                type: "text",
+                text: textPrompt
+            });
+        }
+
+        formatted.push({ role: "user", content: finalContent });
 
         const agent = getAgent(model);
         const response = await agent.invoke({ messages: formatted });
@@ -185,7 +219,8 @@ router.post("/:chatId", async (req: Request, res: Response) => {
             chatId: new ObjectId(chatId),
             userId: new ObjectId(userId),
             role: "user",
-            content: message,
+            content: message, // Store original text string for UI simplicity
+            attachments: attachments || [],
         });
         
         const assistantContent = response.messages[response.messages.length - 1]?.content;
@@ -315,7 +350,7 @@ router.delete("/:chatId", async (req: Request, res: Response) => {
 // Streaming endpoint with Server-Sent Events (SSE)
 router.post("/:chatId/stream", async (req: Request, res: Response) => {
     const chatId = Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId;
-    const { message, model } = req.body;
+    const { message, model, attachments } = req.body;
     const userId = req.user?.userId;
 
     if (!message) {
@@ -358,7 +393,37 @@ router.post("/:chatId/stream", async (req: Request, res: Response) => {
                 content: msg.content as string,
             }));
 
-        formatted.push({ role: "user", content: message });
+        // Format current message with attachments
+        let finalContent: any = message;
+        
+        if (attachments && attachments.length > 0) {
+            finalContent = [];
+            
+            // Add all images
+            for (const att of attachments) {
+                if (att.type === "image") {
+                    finalContent.push({
+                        type: "image_url",
+                        image_url: { url: att.content }
+                    });
+                }
+            }
+            
+            // Add text context from documents
+            let textPrompt = message;
+            for (const att of attachments) {
+                if (att.type === "document") {
+                    textPrompt += `\n\n--- Content from attached file: ${att.name} ---\n${att.content}\n--- End of file ---\n`;
+                }
+            }
+            
+            finalContent.push({
+                type: "text",
+                text: textPrompt
+            });
+        }
+
+        formatted.push({ role: "user", content: finalContent });
 
         // Save user message
         await Message.create({
@@ -366,6 +431,7 @@ router.post("/:chatId/stream", async (req: Request, res: Response) => {
             userId: new ObjectId(userId),
             role: "user",
             content: message,
+            attachments: attachments || [],
         });
 
         // Track collected data

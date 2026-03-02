@@ -370,13 +370,22 @@ export function ChatApp() {
     clearSession();
   }, [tokens, clearSession]);
 
-  const handleSendPrompt = useCallback(async (promptOverride?: string) => {
+  const handleFileUpload = useCallback(
+    async (file: File) => {
+      return runWithSession((accessToken) =>
+        apiClient.uploadFile(file, accessToken)
+      );
+    },
+    [runWithSession]
+  );
+
+  const handleSendPrompt = useCallback(async (promptOverride?: string, attachments?: any[]) => {
     if (!tokens || isSendingRef.current) {
       return;
     }
 
     const prompt = (promptOverride ?? composer).trim();
-    if (!prompt) {
+    if (!prompt && (!attachments || attachments.length === 0)) {
       return;
     }
 
@@ -394,7 +403,7 @@ export function ChatApp() {
     try {
       if (!targetChatId) {
         const created = await runWithSession((accessToken) =>
-          apiClient.createChat(prompt, accessToken)
+          apiClient.createChat(prompt, accessToken, selectedModel, attachments)
         );
         targetChatId = String(created.chatId);
 
@@ -459,7 +468,8 @@ export function ChatApp() {
           prompt, 
           accessToken, 
           controller.signal,
-          selectedModel
+          selectedModel,
+          attachments
         )
       );
 
@@ -806,12 +816,13 @@ export function ChatApp() {
                 </h2>
 
                 <ChatComposer
-                  onSend={handleSendPrompt}
+                  onSend={(msg, atts) => handleSendPrompt(msg, atts)}
                   isSending={isSending}
                   isBootstrapping={isBootstrapping}
                   availableModels={availableModels}
                   selectedModel={selectedModel}
                   onModelChange={setSelectedModel}
+                  onUploadFile={handleFileUpload}
                   variant="center"
                   inputValue={composer}
                   onInputChange={setComposer}
@@ -849,13 +860,14 @@ export function ChatApp() {
         {messages.length > 0 && (
           <footer className="bg-(--chat-bg) px-3 py-3 md:px-6">
              <ChatComposer
-                onSend={handleSendPrompt}
+                onSend={(msg, atts) => handleSendPrompt(msg, atts)}
                 onStop={handleStopStreaming}
                 isSending={isSending}
                 isBootstrapping={isBootstrapping}
                 availableModels={availableModels}
                 selectedModel={selectedModel}
                 onModelChange={setSelectedModel}
+                onUploadFile={handleFileUpload}
                 variant="footer"
                 inputValue={composer}
                 onInputChange={setComposer}

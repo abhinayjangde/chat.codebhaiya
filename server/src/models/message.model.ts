@@ -18,7 +18,14 @@ const messageSchema = new mongoose.Schema({
         enum: ["user", "assistant"],
         required: true 
     },
-    content: { type: String, required: true },
+    content: { type: mongoose.Schema.Types.Mixed, required: true },
+    attachments: [{
+        type: { type: String, enum: ["image", "document"] },
+        content: String,
+        name: String,
+        mimeType: String,
+        size: Number
+    }],
     sources: [{
         title: String,
         url: String,

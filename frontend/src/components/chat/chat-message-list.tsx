@@ -8,6 +8,7 @@ import {
   MessageSquareText,
   MoreHorizontal,
   RefreshCw,
+  Paperclip,
   Share,
   ThumbsDown,
   ThumbsUp,
@@ -86,6 +87,20 @@ export const ChatMessageList = memo(function ChatMessageList({
                   /* ── User bubble: dark-blue pill, right-aligned ── */
                   <div className="max-w-[80%]">
                     <div className="rounded-2xl bg-(--chat-user-bubble) px-5 py-2.5 text-[15px] leading-6 text-(--chat-user-bubble-text) whitespace-pre-wrap wrap-break-word">
+                      {message.attachments && message.attachments.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-2">
+                          {message.attachments.map((att: any, i: number) => (
+                            <div key={i} className="flex items-center gap-2 rounded-md bg-white/10 py-1 px-2 border border-white/20 text-sm shadow-sm">
+                              {att.type === "image" ? (
+                                <img src={att.content} alt={att.name} className="h-8 w-8 object-cover rounded-sm" />
+                              ) : (
+                                <Paperclip className="h-4 w-4" />
+                              )}
+                              <span className="max-w-[150px] truncate text-xs">{att.name}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                       {message.content}
                     </div>
                     <p className="mt-1 text-right text-[11px] text-(--chat-timestamp)">

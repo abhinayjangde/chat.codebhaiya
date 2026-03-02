@@ -6,6 +6,7 @@ import { env } from "./config/env.js";
 import db from "./lib/db.js";
 import authRoutes from "./routes/auth.route.js";
 import chatRoutes from "./routes/chat.route.js";
+import uploadRoutes from "./routes/upload.route.js";
 
 const app = express();
 const allowedOrigins = new Set(env.corsOrigins);
@@ -41,6 +42,7 @@ app.get("/health", (_req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/upload", uploadRoutes);
 
 async function bootstrap(): Promise<void> {
   try {

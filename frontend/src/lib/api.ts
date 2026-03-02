@@ -216,12 +216,13 @@ export const apiClient = {
   async createChat(
     message: string,
     accessToken: string,
-    model?: string
+    model?: string,
+    attachments?: any[]
   ): Promise<{ title: string; chatId: string }> {
     return requestData<{ title: string; chatId: string }>("/chat", {
       method: "POST",
       headers: authHeaders(accessToken),
-      body: JSON.stringify({ message, model }),
+      body: JSON.stringify({ message, model, attachments }),
     });
   },
 
@@ -250,12 +251,13 @@ export const apiClient = {
     message: string,
     accessToken: string,
     signal?: AbortSignal,
-    model?: string
+    model?: string,
+    attachments?: any[]
   ): Promise<ReadableStream<Uint8Array>> {
     const response = await fetch(`${API_BASE_URL}/chat/${chatId}/stream`, {
       method: "POST",
       headers: authHeaders(accessToken),
-      body: JSON.stringify({ message, model }),
+      body: JSON.stringify({ message, model, attachments }),
       signal,
       cache: "no-store",
     });
@@ -274,5 +276,32 @@ export const apiClient = {
     }
 
     return response.body;
+  },
+  async uploadFile(file: File, accessToken: string): Promise<any> {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const headers: Record<string, string> = {};
+    if (accessToken) {
+      headers.Authorization = `Bearer ${accessToken}`;
+    }
+    // Note: Do not specify Content-Type here, let the browser boundary magic happen
+    // but we can pass Authorization header
+
+    const response = await fetch(`${API_BASE_URL}/upload`, {
+      method: "POST",
+      headers,
+      body: formData,
+    });
+
+    const body = await parseResponseBody(response);
+    if (!response.ok) {
+        throw new ApiError(
+          pickMessage(body, `Upload failed (${response.status})`),
+          response.status,
+          body
+        );
+    }
+    return (body as any).data;
   },
 };
