@@ -13,24 +13,27 @@ import {
   ThumbsDown,
   ThumbsUp,
 } from "lucide-react";
+import { FaBrain } from "react-icons/fa";
 import { useEffect, useRef, memo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CodeBlock } from "@/components/ui/code-block";
 import { cn } from "@/lib/utils";
-import { ChatMessage } from "@/lib/types";
+import { ChatMessage, ModelInfo } from "@/lib/types";
 import { formatSourceHost, formatTime } from "@/lib/chat-utils";
 
 interface ChatMessageListProps {
   messages: ChatMessage[];
   isLoadingMessages: boolean;
   chatError: string | null;
+  availableModels: ModelInfo[];
 }
 
 export const ChatMessageList = memo(function ChatMessageList({
   messages,
   isLoadingMessages,
   chatError,
+  availableModels,
 }: ChatMessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -204,17 +207,26 @@ export const ChatMessageList = memo(function ChatMessageList({
 
                     {/* Action bar */}
                     {!message.isStreaming && displayContent ? (
-                      <div className="mt-4 flex items-center gap-1">
-                        <p className="mr-2 text-[11px] text-(--chat-timestamp)">
-                          {formatTime(message.createdAt)}
-                        </p>
+                      <div className="mt-4 flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-(--chat-action-icon) bg-(--chat-dropdown-hover) px-2 py-1 rounded-md">
+                          <FaBrain className="h-3 w-3" />
+                          <span className="text-[11px] font-medium">
+                            {message.modelName 
+                                ? availableModels?.find(m => m.id === message.modelName)?.displayName || message.modelName
+                                : "AI Assistant"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <p className="mr-2 text-[11px] text-(--chat-timestamp)">
+                            {formatTime(message.createdAt)}
+                          </p>
                         {[
                           { icon: Copy, label: "Copy" },
                           { icon: ThumbsUp, label: "Like" },
                           { icon: ThumbsDown, label: "Dislike" },
-                          { icon: Share, label: "Share" },
-                          { icon: RefreshCw, label: "Regenerate" },
-                          { icon: MoreHorizontal, label: "More" },
+                          // { icon: Share, label: "Share" },
+                          // { icon: RefreshCw, label: "Regenerate" },
+                          // { icon: MoreHorizontal, label: "More" },
                         ].map((action) => (
                           <button
                             key={action.label}
@@ -232,6 +244,7 @@ export const ChatMessageList = memo(function ChatMessageList({
                             <action.icon className="h-4 w-4" />
                           </button>
                         ))}
+                        </div>
                       </div>
                     ) : null}
                   </div>

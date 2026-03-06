@@ -459,6 +459,7 @@ export function ChatApp() {
         sources: [],
         usedTools: [],
         isStreaming: true,
+        modelName: selectedModel || undefined,
       };
 
       setMessages((previous) => [...previous, userMessage, assistantMessage]);
@@ -810,6 +811,7 @@ export function ChatApp() {
             messages={messages}
             isLoadingMessages={isLoadingMessages}
             chatError={chatError}
+            availableModels={availableModels}
           />
           
           {messages.length === 0 && !isLoadingMessages && (

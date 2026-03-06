@@ -19,6 +19,7 @@ const messageSchema = new mongoose.Schema({
         required: true 
     },
     content: { type: mongoose.Schema.Types.Mixed, required: true },
+    modelName: { type: String },
     attachments: [{
         type: { type: String, enum: ["image", "document"] },
         content: String,

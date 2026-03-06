@@ -234,6 +234,7 @@ router.post("/:chatId", async (req: Request, res: Response) => {
             userId: new ObjectId(userId),
             role: "assistant",
             content: contentString,
+            modelName: model,
         });
 
         await Chat.findByIdAndUpdate(chatId, { 
@@ -528,6 +529,7 @@ router.post("/:chatId/stream", async (req: Request, res: Response) => {
             userId: new ObjectId(userId),
             role: "assistant",
             content: fullResponse,
+            modelName: model,
         };
         
         if (sources.length > 0) {

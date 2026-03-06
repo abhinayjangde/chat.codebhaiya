@@ -57,6 +57,7 @@ export interface ChatMessage {
   usedTools?: UsedTool[];
   attachments?: any[];
   isStreaming?: boolean;
+  modelName?: string;
 }
 
 export interface StreamToolStartEvent {
