@@ -6,6 +6,7 @@ export interface AuthTokens {
 export interface UserPreferences {
   theme?: "light" | "dark";
   defaultModel?: string;
+  language?: "english" | "hinglish";
 }
 
 export interface ModelInfo {

@@ -19,6 +19,7 @@ import {
   SquarePen,
   Sun,
   SunMoon,
+  Languages,
   Trash2,
   X,
 } from "lucide-react";
@@ -50,6 +51,8 @@ interface ChatSidebarProps {
   isSending: boolean;
   isLoadingChats: boolean;
   isBootstrapping: boolean;
+  language: "english" | "hinglish";
+  setLanguage: (lang: "english" | "hinglish") => void;
 }
 
 export const ChatSidebar = memo(function ChatSidebar({
@@ -72,6 +75,8 @@ export const ChatSidebar = memo(function ChatSidebar({
   isSending,
   isLoadingChats,
   isBootstrapping,
+  language,
+  setLanguage,
 }: ChatSidebarProps) {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
@@ -82,6 +87,7 @@ export const ChatSidebar = memo(function ChatSidebar({
   const [renameTitle, setRenameTitle] = useState("");
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const [themeSubmenuOpen, setThemeSubmenuOpen] = useState(false);
+  const [languageSubmenuOpen, setLanguageSubmenuOpen] = useState(false);
 
   const searchRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -459,6 +465,57 @@ export const ChatSidebar = memo(function ChatSidebar({
                             )}
                           />
                           <opt.icon className="h-[16px] w-[16px] text-(--chat-label)" />
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Divider */}
+                <div className="my-1.5 border-t border-(--chat-dropdown-border)" />
+
+                {/* Language selection */}
+                <div
+                  className="relative"
+                  onMouseEnter={() => setLanguageSubmenuOpen(true)}
+                  onMouseLeave={() => setLanguageSubmenuOpen(false)}
+                >
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between px-4 py-2.5 text-sm text-(--chat-text-secondary) hover:cursor-pointer transition hover:bg-(--chat-dropdown-hover)"
+                  >
+                    <span className="flex items-center gap-3">
+                      <Languages className="h-[18px] w-[18px] text-(--chat-label)" />
+                      Language
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-[#666]" />
+                  </button>
+
+                  {languageSubmenuOpen && (
+                    <div className="absolute left-full top-0 z-60 ml-1 w-40 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
+                      {[
+                        { id: "english", label: "English" },
+                        { id: "hinglish", label: "Hinglish (Hindi + Eng)" },
+                      ].map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                          onClick={() => {
+                            setLanguage(opt.id as "english" | "hinglish");
+                            setLanguageSubmenuOpen(false);
+                            setSettingsMenuOpen(false);
+                          }}
+                        >
+                          <span
+                            className={cn(
+                              "h-2.5 w-2.5 rounded-full border",
+                              language === opt.id
+                                ? "border-white bg-white"
+                                : "border-[#666] bg-transparent"
+                            )}
+                          />
                           {opt.label}
                         </button>
                       ))}

@@ -217,12 +217,13 @@ export const apiClient = {
     message: string,
     accessToken: string,
     model?: string,
-    attachments?: any[]
+    attachments?: any[],
+    language?: string
   ): Promise<{ title: string; chatId: string }> {
     return requestData<{ title: string; chatId: string }>("/chat", {
       method: "POST",
       headers: authHeaders(accessToken),
-      body: JSON.stringify({ message, model, attachments }),
+      body: JSON.stringify({ message, model, attachments, language }),
     });
   },
 
@@ -252,12 +253,13 @@ export const apiClient = {
     accessToken: string,
     signal?: AbortSignal,
     model?: string,
-    attachments?: any[]
+    attachments?: any[],
+    language?: string
   ): Promise<ReadableStream<Uint8Array>> {
     const response = await fetch(`${API_BASE_URL}/chat/${chatId}/stream`, {
       method: "POST",
       headers: authHeaders(accessToken),
-      body: JSON.stringify({ message, model, attachments }),
+      body: JSON.stringify({ message, model, attachments, language }),
       signal,
       cache: "no-store",
     });

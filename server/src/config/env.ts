@@ -26,6 +26,7 @@ const envSchema = z.object({
   CORS_ORIGINS: z.string().trim().min(1, "CORS_ORIGINS is required"),
   GOOGLE_API_KEY: z.string().trim().optional(),
   OLLAMA_API_KEY: z.string().trim().optional(),
+  SARVAM_API_KEY: z.string().trim().optional(),
   MODEL_NAME: z.string().trim().optional(),
 });
 

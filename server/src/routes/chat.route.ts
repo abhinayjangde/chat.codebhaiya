@@ -7,6 +7,7 @@ import { getAgent, getAvailableModels, DEFAULT_MODEL } from "../lib/model.js";
 import { authenticateToken } from "../middleware/auth.middleware.js";
 import type { SearchResult } from "../services/search.service.js";
 import { getPaginatedMessages } from "../services/message.service.js";
+import { generateChatTitle } from "../services/chat.service.js";
 import PDFDocument from "pdfkit";
 
 const router: Router = express.Router();
@@ -117,8 +118,10 @@ router.post("/", async (req: Request, res: Response) => {
             return;
         }
 
+        const title = await generateChatTitle(message);
+
         const chat = await Chat.create({ 
-            title: message,
+            title,
             userId: new ObjectId(userId) 
         });
         
@@ -140,7 +143,7 @@ router.post("/", async (req: Request, res: Response) => {
 router.post("/:chatId", async (req: Request, res: Response) => {
     try {
         const chatId = Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId;
-        const { message, model, attachments } = req.body;
+        const { message, model, attachments, language } = req.body;
         const userId = req.user?.userId;
 
         if (!message) {
@@ -212,7 +215,7 @@ router.post("/:chatId", async (req: Request, res: Response) => {
 
         formatted.push({ role: "user", content: finalContent });
 
-        const agent = getAgent(model);
+        const agent = getAgent(model, language);
         const response = await agent.invoke({ messages: formatted });
 
         await Message.create({
@@ -234,7 +237,6 @@ router.post("/:chatId", async (req: Request, res: Response) => {
         });
 
         await Chat.findByIdAndUpdate(chatId, { 
-            title: message,
             updatedAt: new Date()
         });
         
@@ -350,7 +352,7 @@ router.delete("/:chatId", async (req: Request, res: Response) => {
 // Streaming endpoint with Server-Sent Events (SSE)
 router.post("/:chatId/stream", async (req: Request, res: Response) => {
     const chatId = Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId;
-    const { message, model, attachments } = req.body;
+    const { message, model, attachments, language } = req.body;
     const userId = req.user?.userId;
 
     if (!message) {
@@ -440,7 +442,7 @@ router.post("/:chatId/stream", async (req: Request, res: Response) => {
         const sources: SearchResult[] = [];
 
         // Stream the response using "messages" mode for token-by-token deltas
-        const agent = getAgent(model);
+        const agent = getAgent(model, language);
         const stream = await agent.stream(
             { messages: formatted },
             { streamMode: "messages" }
@@ -539,7 +541,6 @@ router.post("/:chatId/stream", async (req: Request, res: Response) => {
 
         // Update chat
         await Chat.findByIdAndUpdate(chatId, { 
-            title: message,
             updatedAt: new Date()
         });
 

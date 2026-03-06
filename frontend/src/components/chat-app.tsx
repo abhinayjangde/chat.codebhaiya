@@ -74,6 +74,7 @@ export function ChatApp() {
   const [chatError, setChatError] = useState<string | null>(null);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [language, setLanguage] = useState<"english" | "hinglish">("english");
   
   const { theme, setTheme } = useTheme();
 
@@ -226,6 +227,9 @@ export function ChatApp() {
               current?.userId ??
               "",
           };
+          if (mergedUser.preferences?.language) {
+            setLanguage(mergedUser.preferences.language as "english" | "hinglish");
+          }
           writeStoredUser(mergedUser);
           return mergedUser;
         });
@@ -403,7 +407,7 @@ export function ChatApp() {
     try {
       if (!targetChatId) {
         const created = await runWithSession((accessToken) =>
-          apiClient.createChat(prompt, accessToken, selectedModel, attachments)
+          apiClient.createChat(prompt, accessToken, selectedModel, attachments, language)
         );
         targetChatId = String(created.chatId);
 
@@ -469,7 +473,8 @@ export function ChatApp() {
           accessToken, 
           controller.signal,
           selectedModel,
-          attachments
+          attachments,
+          language
         )
       );
 
@@ -773,6 +778,8 @@ export function ChatApp() {
         isSending={isSending}
         isLoadingChats={isLoadingChats}
         isBootstrapping={isBootstrapping}
+        language={language}
+        setLanguage={setLanguage}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">

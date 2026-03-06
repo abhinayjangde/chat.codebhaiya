@@ -97,10 +97,10 @@ export function getAvailableModels(): ModelConfig[] {
 }
 
 /**
- * Creates an agent instance for the requested model ID.
+ * Creates an agent instance for the requested model ID and language.
  * Falls back to DEFAULT_MODEL if the requested ID is invalid or unavailable.
  */
-export function getAgent(modelId?: string) {
+export function getAgent(modelId?: string, language: string = "english") {
   // 1. Resolve model config
   let config = MODEL_REGISTRY[modelId ?? DEFAULT_MODEL];
 
@@ -167,12 +167,30 @@ export function getAgent(modelId?: string) {
       throw new Error(`Unknown provider: ${config.provider}`);
   }
 
-  // 3. Create and return the agent
+  // 3. Define the system prompt based on language
+  let languageInstructions = "";
+  if (language === "hinglish") {
+    languageInstructions = `
+- You are an Indian AI Tutor from Codebhaiya. 
+- Use "Hinglish" (a natural mix of Hindi and English) for your explanations.
+- Keep technical terms (like 'Array', 'Component', 'Loop') in English but explain the logic in a mix of Hindi and English to make it very easy for Indian students to understand.
+- Use a friendly, mentoring tone typical of an elder brother (Bhaiya).
+    `;
+  } else {
+    languageInstructions = `
+- You are a helpful AI assistant from Codebhaiya.
+- Respond in clear, professional English.
+    `;
+  }
+
+  // 4. Create and return the agent
   return createAgent({
     model: llm,
     tools: [webSearchTool],
     systemPrompt: `You are a helpful AI assistant with access to web search.
 Current model: ${config.displayName}
+
+${languageInstructions}
 
 When answering questions about current events, news, or time-sensitive information, use the web_search tool to get up-to-date information.
 
