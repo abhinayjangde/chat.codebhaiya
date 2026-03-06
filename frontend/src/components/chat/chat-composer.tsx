@@ -13,8 +13,9 @@ import {
   Plus,
   Square,
   Telescope,
-  Loader2
+  Loader2,
 } from "lucide-react";
+import { FaBrain } from "react-icons/fa";
 import { type KeyboardEvent, type FormEvent, useState, useRef, memo } from "react";
 import { cn } from "@/lib/utils";
 import { AutoResizeTextarea } from "@/components/ui/auto-resize-textarea";
@@ -37,6 +38,8 @@ function ModelLogo({
       return <FcGoogle className={className} />;
     case "openai":
       return <SiOpenai className={className} />;
+    case "auto":
+      return <FaBrain className={className} />;
     case "ollama":
       return (
         <span
@@ -52,7 +55,7 @@ function ModelLogo({
 }
 
 export interface Attachment {
-  type: "image" | "document" | "unknown";
+  type: "image" | "audio" | "document" | "unknown";
   content: string; // Base64 or Text
   mimeType: string;
   name: string;
@@ -169,13 +172,15 @@ export const ChatComposer = memo(function ChatComposer({
       )}
       onSubmit={handleComposerSubmit}
     >
-      <div className="rounded-2xl border border-(--chat-composer-border) bg-(--chat-composer) px-4 pb-2.5 pt-3">
+      <div className="rounded-2xl mx-1 md:mx-0 border border-(--chat-composer-border) bg-(--chat-composer) px-4 pb-2.5 pt-3">
         {attachments.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-2">
             {attachments.map((att, i) => (
               <div key={i} className="relative flex items-center gap-2 rounded-md bg-(--chat-dropdown-hover) py-1 px-2 pr-6 border border-(--chat-dropdown-border) text-sm shadow-sm group">
                 {att.type === "image" ? (
                   <img src={att.content} alt={att.name} className="h-6 w-6 object-cover rounded-sm" />
+                ) : att.type === "audio" ? (
+                  <svg className="h-4 w-4 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
                 ) : (
                   <Paperclip className="h-4 w-4 text-blue-500" />
                 )}
@@ -231,7 +236,7 @@ export const ChatComposer = memo(function ChatComposer({
                     className="hidden"
                     ref={fileInputRef}
                     onChange={handleFileChange}
-                    accept="image/*,application/pdf,text/*,.c,.cpp,.js,.ts,.py,.java,.md,.csv,.log"
+                    accept="image/*,audio/*,application/pdf,text/*,.c,.cpp,.js,.ts,.py,.java,.md,.csv,.log"
                   />
                   <button
                     type="button"

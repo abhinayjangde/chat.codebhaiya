@@ -25,10 +25,10 @@ const extractTextFromBuffer = (buffer: Buffer): string => {
 
 router.use(authenticateToken);
 
-// Types of files we want to handle
 // 1. Images (jpeg, png, webp) -> return base64
-// 2. PDFs -> extract text using pdf-parse
-// 3. Text/Code files (txt, c, python, java, md, etc.) -> extract text as utf-8
+// 2. Audio (mp3, wav, etc.) -> return base64
+// 3. PDFs -> extract text using pdf-parse
+// 4. Text/Code files (txt, c, python, java, md, etc.) -> extract text as utf-8
 
 router.post("/", upload.single("file"), async (req: Request, res: Response): Promise<void> => {
   try {
@@ -48,12 +48,17 @@ router.post("/", upload.single("file"), async (req: Request, res: Response): Pro
       size: size,
     };
 
-    // Image handling
     if (mimetype.startsWith("image/")) {
       const base64Str = buffer.toString("base64");
       extractResult.type = "image";
       extractResult.content = `data:${mimetype};base64,${base64Str}`;
     } 
+    // Audio handling
+    else if (mimetype.startsWith("audio/")) {
+      const base64Str = buffer.toString("base64");
+      extractResult.type = "audio";
+      extractResult.content = `data:${mimetype};base64,${base64Str}`;
+    }
     // PDF handling
     else if (mimetype === "application/pdf") {
       try {
@@ -93,7 +98,7 @@ router.post("/", upload.single("file"), async (req: Request, res: Response): Pro
     else {
       res.status(400).json({
         success: false,
-        error: `Unsupported file type: ${mimetype}. Please upload a PDF, Image, or plain text/code file.`,
+        error: `Unsupported file type: ${mimetype}. Please upload an Audio file, PDF, Image, or plain text/code file.`,
       });
       return;
     }

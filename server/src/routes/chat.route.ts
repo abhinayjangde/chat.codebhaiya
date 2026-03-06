@@ -3,7 +3,7 @@ import type { Request, Response, Router } from "express";
 import { ObjectId } from "mongodb";
 import { Chat } from "../models/chat.model.js";
 import { Message } from "../models/message.model.js";
-import { getAgent, getAvailableModels, DEFAULT_MODEL } from "../lib/model.js";
+import { getAgent, getAvailableModels, DEFAULT_MODEL, autoSelectModel } from "../lib/model.js";
 import { authenticateToken } from "../middleware/auth.middleware.js";
 import type { SearchResult } from "../services/search.service.js";
 import { getPaginatedMessages } from "../services/message.service.js";
@@ -143,7 +143,8 @@ router.post("/", async (req: Request, res: Response) => {
 router.post("/:chatId", async (req: Request, res: Response) => {
     try {
         const chatId = Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId;
-        const { message, model, attachments, language } = req.body;
+        const { message, attachments, language } = req.body;
+        let { model } = req.body;
         const userId = req.user?.userId;
 
         if (!message) {
@@ -189,12 +190,18 @@ router.post("/:chatId", async (req: Request, res: Response) => {
         if (attachments && attachments.length > 0) {
             finalContent = [];
             
-            // Add all images
+            // Add all images and audio
             for (const att of attachments) {
                 if (att.type === "image") {
                     finalContent.push({
                         type: "image_url",
                         image_url: { url: att.content }
+                    });
+                } else if (att.type === "audio") {
+                    finalContent.push({
+                        type: "media",
+                        mimeType: att.mimeType,
+                        data: att.content.split(",")[1] // Strip data uri prefix
                     });
                 }
             }
@@ -214,6 +221,10 @@ router.post("/:chatId", async (req: Request, res: Response) => {
         }
 
         formatted.push({ role: "user", content: finalContent });
+
+        if (model === "auto" || !model) {
+            model = await autoSelectModel(message, attachments);
+        }
 
         const agent = getAgent(model, language);
         const response = await agent.invoke({ messages: formatted });
@@ -353,7 +364,8 @@ router.delete("/:chatId", async (req: Request, res: Response) => {
 // Streaming endpoint with Server-Sent Events (SSE)
 router.post("/:chatId/stream", async (req: Request, res: Response) => {
     const chatId = Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId;
-    const { message, model, attachments, language } = req.body;
+    const { message, attachments, language } = req.body;
+    let { model } = req.body;
     const userId = req.user?.userId;
 
     if (!message) {
@@ -402,12 +414,18 @@ router.post("/:chatId/stream", async (req: Request, res: Response) => {
         if (attachments && attachments.length > 0) {
             finalContent = [];
             
-            // Add all images
+            // Add all images and audio
             for (const att of attachments) {
                 if (att.type === "image") {
                     finalContent.push({
                         type: "image_url",
                         image_url: { url: att.content }
+                    });
+                } else if (att.type === "audio") {
+                    finalContent.push({
+                        type: "media",
+                        mimeType: att.mimeType,
+                        data: att.content.split(",")[1]
                     });
                 }
             }
@@ -441,6 +459,10 @@ router.post("/:chatId/stream", async (req: Request, res: Response) => {
         let fullResponse = "";
         const usedTools: any[] = [];
         const sources: SearchResult[] = [];
+
+        if (model === "auto" || !model) {
+            model = await autoSelectModel(message, attachments);
+        }
 
         // Stream the response using "messages" mode for token-by-token deltas
         const agent = getAgent(model, language);
