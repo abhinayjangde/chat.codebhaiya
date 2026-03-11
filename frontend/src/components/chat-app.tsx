@@ -684,6 +684,12 @@ export function ChatApp() {
     }
   }, [runWithSession, clearSession]);
 
+  const handleChangePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    await runWithSession((accessToken) =>
+      apiClient.changePassword(currentPassword, newPassword, accessToken)
+    );
+  }, [runWithSession]);
+
   const handleRenameChat = useCallback(async (chatId: string, title: string) => {
     try {
       const updated = await runWithSession((accessToken) =>
@@ -785,6 +791,7 @@ export function ChatApp() {
         onRenameChat={handleRenameChat}
         onDownloadPdf={handleDownloadPdf}
         onDeleteAccount={handleDeleteAccount}
+        onChangePassword={handleChangePassword}
         user={user}
         onLogout={handleLogout}
         theme={theme}

@@ -113,3 +113,31 @@ export async function deleteUserAccount(userId: string): Promise<void> {
   // Delete the user
   await User.findByIdAndDelete(userId);
 }
+
+export async function changePassword(
+  userId: string,
+  currentPassword: string,
+  newPassword: string
+): Promise<void> {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  // Verify current password
+  const isMatch = await (user as any).comparePassword(currentPassword);
+  if (!isMatch) {
+    throw new Error("Current password is incorrect");
+  }
+
+  // Ensure new password differs from the old one
+  const isSame = await (user as any).comparePassword(newPassword);
+  if (isSame) {
+    throw new Error("New password must be different from the current password");
+  }
+
+  // Hash and save the new password
+  user.password = await hashPassword(newPassword);
+  user.updatedAt = new Date();
+  await user.save();
+}

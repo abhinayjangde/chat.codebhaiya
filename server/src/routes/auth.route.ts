@@ -4,6 +4,7 @@ import {
   loginUser,
   refreshTokens,
   deleteUserAccount,
+  changePassword,
 } from "../services/auth.service.js";
 import { authenticateToken } from "../middleware/auth.middleware.js";
 
@@ -122,6 +123,43 @@ router.delete("/account", authenticateToken, async (req: Request, res: Response)
     res.status(500).json({
       success: false,
       error: (error as Error).message,
+    });
+  }
+});
+
+router.put("/password", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({
+        success: false,
+        error: "Current password and new password are required",
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      res.status(400).json({
+        success: false,
+        error: "New password must be at least 6 characters",
+      });
+      return;
+    }
+
+    const userId = req.user!.userId;
+    await changePassword(userId, currentPassword, newPassword);
+
+    res.status(200).json({
+      success: true,
+      message: "Password changed successfully",
+    });
+  } catch (error) {
+    const message = (error as Error).message;
+    const status = message.includes("incorrect") ? 401 : 400;
+    res.status(status).json({
+      success: false,
+      error: message,
     });
   }
 });

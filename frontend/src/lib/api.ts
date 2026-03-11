@@ -306,4 +306,16 @@ export const apiClient = {
     }
     return (body as any).data;
   },
+
+  async changePassword(
+    currentPassword: string,
+    newPassword: string,
+    accessToken: string
+  ): Promise<void> {
+    await requestData<void>("/auth/password", {
+      method: "PUT",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  },
 };

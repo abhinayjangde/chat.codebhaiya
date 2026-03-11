@@ -5,6 +5,7 @@ import {
   ChevronRight,
   FileDown,
   FileText,
+  KeyRound,
   LogOut,
   MessageCircle,
   Monitor,
@@ -26,6 +27,7 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState, memo } from "react";
+import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
 import { ChatSummary, UserProfile } from "@/lib/types";
 import { shortTitle } from "@/lib/chat-utils";
@@ -44,6 +46,7 @@ interface ChatSidebarProps {
   onRenameChat: (chatId: string, title: string) => void;
   onDownloadPdf: (chatId: string) => void;
   onDeleteAccount: () => Promise<void>;
+  onChangePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   user: UserProfile | null;
   onLogout: () => void;
   theme: string | undefined;
@@ -68,6 +71,7 @@ export const ChatSidebar = memo(function ChatSidebar({
   onRenameChat,
   onDownloadPdf,
   onDeleteAccount,
+  onChangePassword,
   user,
   onLogout,
   theme,
@@ -88,6 +92,14 @@ export const ChatSidebar = memo(function ChatSidebar({
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const [themeSubmenuOpen, setThemeSubmenuOpen] = useState(false);
   const [languageSubmenuOpen, setLanguageSubmenuOpen] = useState(false);
+
+  // Change password modal state
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [cpCurrentPassword, setCpCurrentPassword] = useState("");
+  const [cpNewPassword, setCpNewPassword] = useState("");
+  const [cpConfirmPassword, setCpConfirmPassword] = useState("");
+  const [cpError, setCpError] = useState<string | null>(null);
+  const [cpLoading, setCpLoading] = useState(false);
 
   const searchRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -557,6 +569,23 @@ export const ChatSidebar = memo(function ChatSidebar({
                   Send feedback
                 </button>
 
+                {/* Change Password */}
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                  onClick={() => {
+                    setSettingsMenuOpen(false);
+                    setIsChangePasswordOpen(true);
+                    setCpCurrentPassword("");
+                    setCpNewPassword("");
+                    setCpConfirmPassword("");
+                    setCpError(null);
+                  }}
+                >
+                  <KeyRound className="h-[18px] w-[18px] text-(--chat-label)" />
+                  Change password
+                </button>
+
                 {/* Divider */}
                 <div className="my-1.5 border-t border-(--chat-dropdown-border)" />
 
@@ -647,6 +676,100 @@ export const ChatSidebar = memo(function ChatSidebar({
                 disabled={isDeletingAccount}
               >
                 {isDeletingAccount ? "Deleting..." : "Delete Account"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {isChangePasswordOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-sm rounded-xl border border-(--chat-dropdown-border) bg-(--chat-surface) p-6 shadow-2xl">
+            <h3 className="mb-4 text-lg font-semibold text-(--chat-text)">
+              Change Password
+            </h3>
+
+            {cpError && (
+              <div className="mb-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">
+                {cpError}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3">
+              <input
+                type="password"
+                placeholder="Current password"
+                value={cpCurrentPassword}
+                onChange={(e) => setCpCurrentPassword(e.target.value)}
+                className="w-full rounded-lg border border-(--chat-dropdown-border) bg-(--chat-bg) px-3 py-2.5 text-sm text-(--chat-text) outline-none placeholder:text-(--chat-text-faint) focus:ring-1 focus:ring-(--chat-focus-ring)"
+                autoFocus
+              />
+              <input
+                type="password"
+                placeholder="New password (min 6 characters)"
+                value={cpNewPassword}
+                onChange={(e) => setCpNewPassword(e.target.value)}
+                className="w-full rounded-lg border border-(--chat-dropdown-border) bg-(--chat-bg) px-3 py-2.5 text-sm text-(--chat-text) outline-none placeholder:text-(--chat-text-faint) focus:ring-1 focus:ring-(--chat-focus-ring)"
+              />
+              <input
+                type="password"
+                placeholder="Confirm new password"
+                value={cpConfirmPassword}
+                onChange={(e) => setCpConfirmPassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !cpLoading) {
+                    e.preventDefault();
+                    document.getElementById("cp-save-btn")?.click();
+                  }
+                }}
+                className="w-full rounded-lg border border-(--chat-dropdown-border) bg-(--chat-bg) px-3 py-2.5 text-sm text-(--chat-text) outline-none placeholder:text-(--chat-text-faint) focus:ring-1 focus:ring-(--chat-focus-ring)"
+              />
+            </div>
+
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                className="rounded-lg px-4 py-2 text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-sidebar-hover) disabled:opacity-50"
+                onClick={() => setIsChangePasswordOpen(false)}
+                disabled={cpLoading}
+              >
+                Cancel
+              </button>
+              <button
+                id="cp-save-btn"
+                type="button"
+                className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-(--chat-text) transition hover:bg-white/20 disabled:opacity-50"
+                disabled={cpLoading}
+                onClick={async () => {
+                  setCpError(null);
+
+                  if (!cpCurrentPassword || !cpNewPassword || !cpConfirmPassword) {
+                    setCpError("All fields are required");
+                    return;
+                  }
+                  if (cpNewPassword.length < 6) {
+                    setCpError("New password must be at least 6 characters");
+                    return;
+                  }
+                  if (cpNewPassword !== cpConfirmPassword) {
+                    setCpError("New passwords do not match");
+                    return;
+                  }
+
+                  setCpLoading(true);
+                  try {
+                    await onChangePassword(cpCurrentPassword, cpNewPassword);
+                    toast.success("Password changed successfully");
+                    setIsChangePasswordOpen(false);
+                  } catch (err: any) {
+                    setCpError(err?.message || "Failed to change password");
+                  } finally {
+                    setCpLoading(false);
+                  }
+                }}
+              >
+                {cpLoading ? "Saving..." : "Save"}
               </button>
             </div>
           </div>
