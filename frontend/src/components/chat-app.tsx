@@ -44,6 +44,7 @@ import { ChatSidebar } from "@/components/chat/chat-sidebar";
 import { ChatMessageList } from "@/components/chat/chat-message-list";
 import { ChatComposer } from "@/components/chat/chat-composer";
 import { ChatAuthForm } from "@/components/chat/chat-auth-form";
+import { getTimeGreeting, firstName } from "@/lib/greeting";
 
 
 export function ChatApp() {
@@ -75,6 +76,7 @@ export function ChatApp() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [language, setLanguage] = useState<"english" | "hinglish">("english");
+  const [greeting, setGreeting] = useState(getTimeGreeting());
   
   const { theme, setTheme } = useTheme();
 
@@ -195,6 +197,17 @@ export function ChatApp() {
       setAvailableModels(data.models);
       setSelectedModel(data.default);
     }).catch(console.error);
+  }, []);
+
+  // Keep greeting in sync with the user's local time
+  useEffect(() => {
+    const refresh = () => setGreeting(getTimeGreeting());
+    const timer = setInterval(refresh, 60_000); // check every minute
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", refresh);
+    };
   }, []);
 
   useEffect(() => {
@@ -816,12 +829,12 @@ export function ChatApp() {
           
           {messages.length === 0 && !isLoadingMessages && (
              <div className="flex min-h-[calc(100vh-120px)] flex-col items-center justify-center">
-                 {/* Brand name */}
+                 {/* Time-based greeting */}
                 <h2
-                  className="mb-10 text-4xl font-light tracking-wide text-(--chat-brand)"
+                  className="mb-10 text-center text-4xl font-light tracking-wide text-(--chat-brand)"
                   style={{ fontFamily: "var(--font-fraunces), serif" }}
                 >
-                  codebhaiya
+                  {greeting}{user?.name ? `, ${firstName(user.name)}` : ""}
                 </h2>
 
                 <ChatComposer
