@@ -652,7 +652,7 @@ export const ChatSidebar = memo(function ChatSidebar({
 
       {/* Delete Confirmation Modal */}
       {isConfirmDeleteOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-sm rounded-xl border border-(--chat-dropdown-border) bg-(--chat-surface) p-6 shadow-2xl">
             <h3 className="mb-2 text-lg font-semibold text-(--chat-text)">
               Delete Account
@@ -684,7 +684,7 @@ export const ChatSidebar = memo(function ChatSidebar({
 
       {/* Change Password Modal */}
       {isChangePasswordOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 p-4">
           <div className="w-full max-w-sm rounded-xl border border-(--chat-dropdown-border) bg-(--chat-surface) p-6 shadow-2xl">
             <h3 className="mb-4 text-lg font-semibold text-(--chat-text)">
               Change Password
