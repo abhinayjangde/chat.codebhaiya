@@ -28,6 +28,8 @@ const envSchema = z.object({
   OLLAMA_API_KEY: z.string().trim().optional(),
   SARVAM_API_KEY: z.string().trim().optional(),
   MODEL_NAME: z.string().trim().optional(),
+  // Render sets this automatically for every deployed service
+  RENDER_EXTERNAL_URL: z.string().trim().url().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 
 import { env } from "./config/env.js";
 import db from "./lib/db.js";
+import { startKeepAlive } from "./lib/keep-alive.js";
 import authRoutes from "./routes/auth.route.js";
 import chatRoutes from "./routes/chat.route.js";
 import uploadRoutes from "./routes/upload.route.js";
@@ -49,6 +50,11 @@ async function bootstrap(): Promise<void> {
     await db();
     app.listen(env.PORT, () => {
       console.log(`Server is running on port http://localhost:${env.PORT}`);
+
+      // Start the keep-alive self-ping to prevent Render from sleeping
+      if (env.RENDER_EXTERNAL_URL) {
+        startKeepAlive(env.RENDER_EXTERNAL_URL);
+      }
     });
   } catch (error) {
     console.error("Failed to start server:", error);
