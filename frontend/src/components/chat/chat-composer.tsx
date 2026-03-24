@@ -248,7 +248,7 @@ export const ChatComposer = memo(function ChatComposer({
                   </button>
 
                   {/* Cloud */}
-                  <button
+                  {/* <button
                     type="button"
                     className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover)"
                     onClick={() => setPlusMenuOpen(false)}
@@ -258,12 +258,12 @@ export const ChatComposer = memo(function ChatComposer({
                       Add files from cloud
                     </span>
                     <ChevronRight className="h-4 w-4 text-(--chat-text-muted)" />
-                  </button>
+                  </button> */}
 
-                  <div className="my-1 border-t border-(--chat-dropdown-border)" />
+                  {/* <div className="my-1 border-t border-(--chat-dropdown-border)" /> */}
 
                   {/* Deep research */}
-                  <button
+                  {/* <button
                     type="button"
                     className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition hover:bg-(--chat-dropdown-hover)"
                     onClick={() => setPlusMenuOpen(false)}
@@ -277,10 +277,10 @@ export const ChatComposer = memo(function ChatComposer({
                         In-depth reports and analysis
                       </div>
                     </div>
-                  </button>
+                  </button> */}
 
                   {/* Model council */}
-                  <button
+                  {/* <button
                     type="button"
                     className="flex w-full items-start gap-3 px-3 py-2.5 text-left transition hover:bg-(--chat-dropdown-hover)"
                     onClick={() => setPlusMenuOpen(false)}
@@ -301,10 +301,10 @@ export const ChatComposer = memo(function ChatComposer({
                     </div>
                   </button>
 
-                  <div className="my-1 border-t border-(--chat-dropdown-border)" />
+                  <div className="my-1 border-t border-(--chat-dropdown-border)" /> */}
 
                   {/* More */}
-                  <button
+                  {/* <button
                     type="button"
                     className="flex w-full items-center justify-between px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover)"
                     onClick={() => setPlusMenuOpen(false)}
@@ -314,7 +314,7 @@ export const ChatComposer = memo(function ChatComposer({
                       More
                     </span>
                     <ChevronRight className="h-4 w-4 text-(--chat-text-muted)" />
-                  </button>
+                  </button> */}
                 </div>
               </>
             )}
