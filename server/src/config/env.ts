@@ -42,6 +42,11 @@ if (!parsed.success) {
   throw new Error(`Invalid environment configuration:\n${details}`);
 }
 
+/**
+ * Array of allowed CORS origins with whitespace trimmed and empty strings removed.
+ * The `.filter(Boolean)` removes any empty strings that may result from the split operation,
+ * ensuring only valid origin strings are included in the array.
+ */
 const corsOrigins = parsed.data.CORS_ORIGINS.split(",")
   .map((origin) => origin.trim())
   .filter(Boolean);
