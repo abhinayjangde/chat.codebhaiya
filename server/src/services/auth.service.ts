@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken";
 import type { IUser } from "../models/user.model.js";
-import { User, hashPassword } from "../models/user.model.js";
+import { User } from "../models/user.model.js";
 import { Chat } from "../models/chat.model.js";
 import { Message } from "../models/message.model.js";
 import { env } from "../config/env.js";
@@ -30,13 +30,19 @@ export async function registerUser(
     throw new Error("User already exists with this email");
   }
 
-  const hashedPassword = await hashPassword(password);
-  
-  const user = await User.create({
-    email,
-    password: hashedPassword,
-    name,
-  });
+  let user: IUser;
+  try {
+    user = await User.create({
+      email,
+      password,
+      name,
+    });
+  } catch (error) {
+    if ((error as { code?: number }).code === 11000) {
+      throw new Error("User already exists with this email");
+    }
+    throw error;
+  }
 
   const tokens = generateTokens(user);
   return { user, tokens };
@@ -46,7 +52,7 @@ export async function loginUser(
   email: string,
   password: string
 ): Promise<{ user: IUser; tokens: AuthTokens }> {
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email }).select("+password");
   if (!user) {
     throw new Error("Invalid credentials");
   }
@@ -89,7 +95,7 @@ export async function refreshTokens(refreshToken: string): Promise<AuthTokens> {
   try {
     const payload = verifyRefreshToken(refreshToken);
     const user = await User.findById(payload.userId);
-    
+
     if (!user) {
       throw new Error("User not found");
     }
@@ -119,7 +125,7 @@ export async function changePassword(
   currentPassword: string,
   newPassword: string
 ): Promise<void> {
-  const user = await User.findById(userId);
+  const user = await User.findById(userId).select("+password");
   if (!user) {
     throw new Error("User not found");
   }
@@ -136,8 +142,7 @@ export async function changePassword(
     throw new Error("New password must be different from the current password");
   }
 
-  // Hash and save the new password
-  user.password = await hashPassword(newPassword);
-  user.updatedAt = new Date();
+  // Save the new password; the pre-save hook hashes it when modified
+  user.password = newPassword;
   await user.save();
 }

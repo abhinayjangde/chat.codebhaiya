@@ -139,10 +139,10 @@ router.put("/password", authenticateToken, async (req: Request, res: Response) =
       return;
     }
 
-    if (newPassword.length < 6) {
+    if (newPassword.length < 8) {
       res.status(400).json({
         success: false,
-        error: "New password must be at least 6 characters",
+        error: "New password must be at least 8 characters",
       });
       return;
     }

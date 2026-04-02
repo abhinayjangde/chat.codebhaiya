@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import type { HydratedDocument, Model } from "mongoose";
 import bcrypt from "bcrypt";
 
 export interface IUser {
@@ -14,44 +15,64 @@ export interface IUser {
   updatedAt: Date;
 }
 
-const userSchema = new mongoose.Schema<IUser>({
-  email: {
-    type: String,
-    required: true,
-    unique: true,
-    lowercase: true,
-    trim: true,
-    index: true,
-  },
-  password: {
-    type: String,
-    required: true,
-    minlength: 6,
-  },
-  name: {
-    type: String,
-    required: true,
-    trim: true,
-  },
-  preferences: {
-    theme: {
+interface IUserMethods {
+  comparePassword(candidatePassword: string): Promise<boolean>;
+}
+
+type UserModel = Model<IUser, {}, IUserMethods>;
+type UserDocument = HydratedDocument<IUser, IUserMethods>;
+
+const SALT_ROUNDS = 12;
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+const userSchema = new mongoose.Schema<IUser, UserModel, IUserMethods>(
+  {
+    email: {
       type: String,
-      enum: ["light", "dark"],
-      default: "light",
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      index: true,
+      match: EMAIL_REGEX,
     },
-    defaultModel: {
+    password: {
       type: String,
-      default: "gpt-5-mini-2025-08-07",
+      required: true,
+      minlength: 8,
+      select: false,
+    },
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+      minlength: 2,
+      maxlength: 50,
+    },
+    preferences: {
+      theme: {
+        type: String,
+        enum: ["light", "dark"],
+        default: "light",
+      },
+      defaultModel: {
+        type: String,
+        default: "gpt-5-mini-2025-08-07",
+      },
     },
   },
-  createdAt: {
-    type: Date,
-    default: Date.now,
-  },
-  updatedAt: {
-    type: Date,
-    default: Date.now,
-  },
+  {
+    timestamps: true,
+  }
+);
+
+userSchema.pre("save", async function () {
+  const user = this as UserDocument;
+
+  if (!user.isModified("password")) return;
+
+  user.password = await hashPassword(user.password);
 });
 
 userSchema.methods.comparePassword = async function (
@@ -61,8 +82,8 @@ userSchema.methods.comparePassword = async function (
 };
 
 export async function hashPassword(password: string): Promise<string> {
-  const salt = await bcrypt.genSalt(12);
+  const salt = await bcrypt.genSalt(SALT_ROUNDS);
   return bcrypt.hash(password, salt);
 }
 
-export const User = mongoose.model<IUser>("User", userSchema);
+export const User = mongoose.model<IUser, UserModel>("User", userSchema);
