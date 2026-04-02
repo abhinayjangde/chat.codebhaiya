@@ -8,6 +8,8 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { writeStoredTokens, writeStoredUser } from "@/lib/storage";
 import type { UserProfile } from "@/lib/types";
+import Image from "next/image";
+import { AuthSidebar } from "@/components/ui/auth-sidebar";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -70,19 +72,8 @@ export default function RegisterPage() {
 
   return (
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
-      {/* ── Left: Video Panel ── */}
-      <div className="relative hidden lg:block">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 h-full w-full object-cover"
-          src="https://cloud.video.taobao.com/vod/cXTkVPZ9iQ0Zxu7bSbw1nesY7j2WVrd_WWjKWN8JJeg.mp4"
-        />
-        {/* Subtle gradient overlay for polish */}
-        <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-transparent to-[#0d0d0d]/40" />
-      </div>
+      {/* ── Left: Auth Sidebar ── */}
+      <AuthSidebar />
 
       {/* ── Right: Register Form ── */}
       <div
@@ -91,10 +82,12 @@ export default function RegisterPage() {
       >
         {/* Logo / brand mark — top-right */}
         <div className="absolute right-6 top-6">
-          <img
+          <Image
             src="https://avatars.githubusercontent.com/u/166032907?v=4"
             alt="Logo"
             className="size-8 rounded-full"
+            width={32}
+            height={32}
           />
         </div>
 

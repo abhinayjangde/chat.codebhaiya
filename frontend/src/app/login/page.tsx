@@ -11,6 +11,7 @@ import { writeStoredTokens, writeStoredUser } from "@/lib/storage";
 import type { UserProfile } from "@/lib/types";
 import Image from "next/image";
 import toast from "react-hot-toast";
+import { AuthSidebar } from "@/components/ui/auth-sidebar";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -57,19 +58,8 @@ export default function LoginPage() {
 
   return (
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-2">
-      {/* ── Left: Video Panel ── */}
-      <div className="relative hidden lg:block">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="absolute inset-0 h-full w-full object-cover"
-          src="https://cloud.video.taobao.com/vod/cXTkVPZ9iQ0Zxu7bSbw1nesY7j2WVrd_WWjKWN8JJeg.mp4"
-        />
-        {/* Subtle gradient overlay for polish */}
-        <div className="pointer-events-none absolute inset-0 bg-linear-to-r from-transparent to-[#0d0d0d]/40" />
-      </div>
+      {/* ── Left: Auth Sidebar ── */}
+      <AuthSidebar />
 
       {/* ── Right: Login Form ── */}
       <div
