@@ -26,10 +26,11 @@ const envSchema = z.object({
   CORS_ORIGINS: z.string().trim().min(1, "CORS_ORIGINS is required"),
   GOOGLE_API_KEY: z.string().trim().optional(),
   OLLAMA_API_KEY: z.string().trim().optional(),
+  OLLAMA_BASE_URL: z.string().trim().default("https://api.ollama.com"),
   SARVAM_API_KEY: z.string().trim().optional(),
   MODEL_NAME: z.string().trim().optional(),
   // Render sets this automatically for every deployed service
-  RENDER_EXTERNAL_URL: z.string().trim().url().optional(),
+  RENDER_EXTERNAL_URL: z.string().trim().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

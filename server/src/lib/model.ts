@@ -13,6 +13,7 @@ export interface ModelConfig {
   provider: "groq" | "google" | "openai" | "ollama" | "auto";
   modelName: string;
   displayName: string;
+  tier: "heavy" | "cheap" | "auto";
   capabilities: {
     vision: boolean;
     audio: boolean;
@@ -26,6 +27,7 @@ export const MODEL_REGISTRY: Record<string, ModelConfig> = {
     provider: "groq",
     modelName: "llama-3.3-70b-versatile",
     displayName: "Llama 3.3 70B (Groq)",
+    tier: "heavy",
     capabilities: { vision: false, audio: false },
   },
   "groq-llama-3.1-8b": {
@@ -33,6 +35,7 @@ export const MODEL_REGISTRY: Record<string, ModelConfig> = {
     provider: "groq",
     modelName: "llama-3.1-8b-instant",
     displayName: "Llama 3.1 8B (Groq)",
+    tier: "cheap",
     capabilities: { vision: false, audio: false },
   },
 
@@ -42,6 +45,7 @@ export const MODEL_REGISTRY: Record<string, ModelConfig> = {
     provider: "google",
     modelName: "gemini-2.5-flash",
     displayName: "Gemini 2.5 Flash",
+    tier: "heavy", // Flash works well as both, but it's the primary fallback for heavy multimodal
     capabilities: { vision: true, audio: true },
   },
 
@@ -51,6 +55,7 @@ export const MODEL_REGISTRY: Record<string, ModelConfig> = {
     provider: "openai",
     modelName: "gpt-5-nano-2025-08-07",
     displayName: "GPT-5 Nano",
+    tier: "heavy",
     capabilities: { vision: true, audio: true },
   },
 
@@ -60,6 +65,7 @@ export const MODEL_REGISTRY: Record<string, ModelConfig> = {
     provider: "ollama",
     modelName: "glm-5:cloud",
     displayName: "GLM-5 (Ollama Cloud)",
+    tier: "heavy",
     capabilities: { vision: true, audio: false },
   },
   "ollama-kimi-k2.5-cloud": {
@@ -67,6 +73,7 @@ export const MODEL_REGISTRY: Record<string, ModelConfig> = {
     provider: "ollama",
     modelName: "kimi-k2.5:cloud",
     displayName: "Kimi K2.5 (Ollama Cloud)",
+    tier: "heavy",
     capabilities: { vision: true, audio: false },
   },
 };
@@ -76,6 +83,7 @@ export const AUTO_MODEL_CONFIG: ModelConfig = {
   provider: "auto",
   modelName: "auto",
   displayName: "Auto",
+  tier: "auto",
   capabilities: { vision: true, audio: true },
 };
 
@@ -114,12 +122,20 @@ export function getAvailableModels(): ModelConfig[] {
   return available;
 }
 
+export interface Attachment {
+  type: "image" | "audio" | "document" | "unknown";
+  content: string;
+  mimeType: string;
+  name: string;
+  size: number;
+}
+
 /**
  * Automatically classifies the user message and selects the most appropriate model.
  */
-export async function autoSelectModel(message: string, attachments?: any[]): Promise<string> {
+export async function autoSelectModel(message: string, attachments?: Attachment[]): Promise<string> {
   const models = getAvailableModels().filter(m => m.id !== "auto");
-  
+
   // Requirement flags based on attachments
   let requireVision = false;
   let requireAudio = false;
@@ -146,16 +162,24 @@ export async function autoSelectModel(message: string, attachments?: any[]): Pro
     candidateModels = models;
   }
 
-  // Define heavy/cheap from candidates (arbitrary selection logic from remaining candidates)
-  // We prefer Groq for text if available, otherwise Gemini
-  const hasGroqHeavy = candidateModels.find(m => m.id === "groq-llama-3.3-70b");
-  const hasGroqCheap = candidateModels.find(m => m.id === "groq-llama-3.1-8b");
-  const hasGemini = candidateModels.find(m => m.id === "gemini-2.5-flash");
-  const hasGpt = candidateModels.find(m => m.id === "gpt-5-nano-2025-08-07");
-  const hasOllama = candidateModels.find(m => m.provider === "ollama");
+  // Define heavy/cheap from candidates dynamically based on tier
+  const heavyCandidates = candidateModels.filter(m => m.tier === "heavy");
+  const cheapCandidates = candidateModels.filter(m => m.tier === "cheap");
 
-  const heavyModel = hasGroqHeavy?.id || hasGemini?.id || hasGpt?.id || hasOllama?.id || candidateModels[0]?.id || "gemini-2.5-flash";
-  const cheapModel = hasGroqCheap?.id || hasGemini?.id || hasGpt?.id || hasOllama?.id || candidateModels[0]?.id || "gemini-2.5-flash";
+  // Prefer specific providers if available (e.g. groq for text, google for fallback)
+  const heavyModel = heavyCandidates.find(m => m.provider === "groq")?.id
+    || heavyCandidates.find(m => m.provider === "google")?.id
+    || heavyCandidates[0]?.id
+    || candidateModels[0]?.id;
+
+  const cheapModel = cheapCandidates.find(m => m.provider === "groq")?.id
+    || cheapCandidates.find(m => m.provider === "google")?.id
+    || cheapCandidates[0]?.id
+    || candidateModels[0]?.id;
+
+  if (!heavyModel || !cheapModel) {
+    throw new Error("No usable fallback models configured. Ensure at least one LLM API key is provided in env.");
+  }
 
   // If there are attachments, always choose a heavier / multimodal model
   if (attachments && attachments.length > 0) {
@@ -166,20 +190,34 @@ export async function autoSelectModel(message: string, attachments?: any[]): Pro
   if (message.length > 1000) return heavyModel;
 
   try {
-    const fastAgent = getAgent(cheapModel, "english");
-    const response = await fastAgent.invoke({
-      messages: [
-        { role: "system", content: "You are a prompt classifier. Analyze the user's prompt and output exactly one word: 'COMPLEX' if the user is asking for code generation, code review, debugging, complex math, or a detailed multi-step reasoning task. Output 'SIMPLE' if the query is a greeting, basic fact query, short conversation, or simple question. Do not output anything else." },
-        { role: "user", content: message }
-      ]
-    });
+    const config = MODEL_REGISTRY[cheapModel];
+    if (!config) throw new Error("Cheap model not found");
 
-    const classification = response.messages[response.messages.length - 1]?.content?.toString().trim().toUpperCase();
-    
+    // Create base LLM directly to avoid binding tools and full system prompt for simple classification
+    let baseLlm;
+    if (config.provider === "groq") {
+      baseLlm = new ChatGroq({ apiKey: env.GROQ_API_KEY!, model: config.modelName, temperature: 0 });
+    } else if (config.provider === "google") {
+      baseLlm = new ChatGoogleGenerativeAI({ apiKey: env.GOOGLE_API_KEY!, model: config.modelName, temperature: 0 });
+    } else if (config.provider === "openai") {
+      baseLlm = new ChatOpenAI({ apiKey: env.OPENAI_API_KEY!, model: config.modelName, temperature: 0 });
+    } else if (config.provider === "ollama") {
+      baseLlm = new ChatOllama({ model: config.modelName, baseUrl: env.OLLAMA_BASE_URL, temperature: 0 });
+    } else {
+      throw new Error("Unknown provider for cheap model");
+    }
+
+    const response = await baseLlm.invoke([
+      { role: "system", content: "You are a prompt classifier. Analyze the user's prompt and output exactly one word: 'COMPLEX' if the user is asking for code generation, code review, debugging, complex math, or a detailed multi-step reasoning task. Output 'SIMPLE' if the query is a greeting, basic fact query, short conversation, or simple question. Do not output anything else." },
+      { role: "user", content: message }
+    ]);
+
+    const classification = response.content?.toString().trim().toUpperCase();
+
     if (classification && classification.includes('COMPLEX')) {
       return heavyModel;
     }
-    
+
     return cheapModel;
   } catch (err) {
     console.error("Auto model selection classification failed, falling back to heuristic", err);
@@ -196,17 +234,19 @@ export async function autoSelectModel(message: string, attachments?: any[]): Pro
  * Falls back to DEFAULT_MODEL if the requested ID is invalid or unavailable.
  */
 export function getAgent(modelId?: string, language: string = "english") {
+  const resolvedModelId = modelId ?? DEFAULT_MODEL;
+
+  if (resolvedModelId === "auto") {
+    throw new Error("Cannot instantiate agent with 'auto' model. Run autoSelectModel first to get a specific model ID.");
+  }
+
   // 1. Resolve model config
-  let config = MODEL_REGISTRY[modelId ?? DEFAULT_MODEL];
+  let config = MODEL_REGISTRY[resolvedModelId];
 
   // Fallback if invalid ID
   if (!config) {
-    console.warn(`Model ID '${modelId}' not found, falling back to default.`);
-    config = MODEL_REGISTRY[DEFAULT_MODEL];
-  }
-
-  if (!config) {
-    throw new Error(`Default model configuration for '${DEFAULT_MODEL}' not found.`);
+    console.warn(`Model ID '${resolvedModelId}' not found. Check if the model is registered and API keys are available.`);
+    throw new Error(`Model configuration for '${resolvedModelId}' not found.`);
   }
 
   // 2. Instantiate the correct LangChain model
@@ -249,7 +289,7 @@ export function getAgent(modelId?: string, language: string = "english") {
         throw new Error("OLLAMA_API_KEY is not configured");
       llm = new ChatOllama({
         model: config.modelName,
-        baseUrl: "https://api.ollama.com",
+        baseUrl: env.OLLAMA_BASE_URL,
         headers: {
           Authorization: `Bearer ${env.OLLAMA_API_KEY}`,
         },
