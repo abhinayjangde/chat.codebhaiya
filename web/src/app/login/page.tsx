@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { Eye, EyeOff, HelpCircle, Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api";
-import { writeStoredTokens, writeStoredUser } from "@/lib/storage";
+import { readStoredTokens, writeStoredTokens, writeStoredUser } from "@/lib/storage";
 import type { UserProfile } from "@/lib/types";
 import Image from "next/image";
 import toast from "react-hot-toast";
@@ -20,6 +20,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const tokens = readStoredTokens();
+    if (tokens) {
+      router.replace("/chat");
+    }
+  }, [router]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -46,7 +53,7 @@ export default function LoginPage() {
       writeStoredTokens(authData.tokens);
       writeStoredUser(user);
 
-      router.replace("/");
+      router.replace("/chat");
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Login failed. Please try again."

@@ -123,7 +123,7 @@ export function ChatApp() {
   const runWithSession = useCallback(
     async <T,>(operation: (accessToken: string) => Promise<T>): Promise<T> => {
       if (!tokens) {
-        throw new Error("Please sign in to continue.");
+        throw new Error("Please Log in to continue.");
       }
 
       try {
@@ -138,7 +138,7 @@ export function ChatApp() {
 
         const refreshed = await refreshAccess();
         if (!refreshed) {
-          throw new Error("Session expired. Please sign in again.");
+          throw new Error("Session expired. Please log in again.");
         }
 
         return operation(refreshed.accessToken);
