@@ -75,7 +75,7 @@ export default function HomePage() {
           className="absolute -bottom-1/4 -right-1/4 w-[800px] h-[800px] bg-blue-600/10 rounded-full blur-[150px] mix-blend-screen"
         />
         {/* Scanline */}
-        <div className="absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.2)_50%)] bg-[length:100%_4px]" />
+        <div className="absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,0.2)_50%)] bg-size-[100%_4px]" />
       </div>
 
       {/* ── Navigation ── */}
@@ -104,7 +104,7 @@ export default function HomePage() {
             style={{ fontFamily: "var(--font-fraunces), serif" }}
           >
             Unleash your coding{" "}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#a78bfa] to-[#6366f1]">
+            <span className="text-transparent bg-clip-text bg-linear-to-r from-[#a78bfa] to-[#6366f1]">
               potential
             </span>
           </motion.h1>
@@ -172,11 +172,11 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.6 }}
-            className="mt-20 mx-auto max-w-4xl rounded-2xl border border-white/[0.06] bg-[#0d0d0d]/80 p-3 shadow-2xl backdrop-blur-sm"
+            className="mt-20 mx-auto max-w-4xl rounded-2xl border border-white/6 bg-[#0d0d0d]/80 p-3 shadow-2xl backdrop-blur-sm"
           >
-            <div className="rounded-xl overflow-hidden border border-white/[0.06] bg-[#0a0a0a]">
+            <div className="rounded-xl overflow-hidden border border-white/6 bg-[#0a0a0a]">
               {/* Browser chrome */}
-              <div className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-3 bg-[#0d0d0d]">
+              <div className="flex items-center gap-2 border-b border-white/6 px-4 py-3 bg-[#0d0d0d]">
                 <div className="flex gap-1.5">
                   <div className="h-2.5 w-2.5 rounded-full bg-[#333]" />
                   <div className="h-2.5 w-2.5 rounded-full bg-[#333]" />
@@ -221,7 +221,7 @@ export default function HomePage() {
       </section>
 
       {/* ── Features ── */}
-      <section id="features" className="relative z-10 py-28 border-t border-white/[0.06]">
+      <section id="features" className="relative z-10 py-28 border-t border-white/6">
         <div className="mx-auto max-w-6xl px-5">
           <motion.div
             initial="hidden"
@@ -256,7 +256,7 @@ export default function HomePage() {
                 key={i}
                 variants={fadeUp}
                 custom={i}
-                className="group rounded-2xl border border-white/[0.06] bg-[#0d0d0d] p-7 transition-all hover:border-white/10 hover:bg-[#111]"
+                className="group rounded-2xl border border-white/6 bg-[#0d0d0d] p-7 transition-all hover:border-white/10 hover:bg-[#111]"
               >
                 <div className="mb-5 inline-flex h-11 w-11 items-center justify-center rounded-xl bg-white/5 border border-white/10 text-[#a78bfa] group-hover:scale-110 group-hover:shadow-[0_0_20px_rgba(167,139,250,0.15)] transition-all">
                   <feature.icon className="h-5 w-5" />
@@ -272,7 +272,7 @@ export default function HomePage() {
       </section>
 
       {/* ── Supported Models ── */}
-      <section id="models" className="relative z-10 py-28 border-t border-white/[0.06]">
+      <section id="models" className="relative z-10 py-28 border-t border-white/6">
         <div className="mx-auto max-w-6xl px-5">
           <motion.div
             initial="hidden"
@@ -307,9 +307,9 @@ export default function HomePage() {
               {models.map((model, i) => (
                 <div
                   key={i}
-                  className="group flex items-center gap-4 p-5 rounded-2xl border border-white/[0.06] bg-[#0d0d0d] transition-all hover:border-white/10 hover:bg-[#111]"
+                  className="group flex items-center gap-4 p-5 rounded-2xl border border-white/6 bg-[#0d0d0d] transition-all hover:border-white/10 hover:bg-[#111]"
                 >
-                  <div className={`h-11 w-11 shrink-0 rounded-xl bg-gradient-to-br ${model.color} flex items-center justify-center border border-white/10`}>
+                  <div className={`h-11 w-11 shrink-0 rounded-xl bg-linear-to-br ${model.color} flex items-center justify-center border border-white/10`}>
                     <Layers className="h-5 w-5 text-[#ccc]" />
                   </div>
                   <div>
@@ -324,7 +324,7 @@ export default function HomePage() {
       </section>
 
       {/* ── How It Works ── */}
-      <section id="how-it-works" className="relative z-10 py-28 border-t border-white/[0.06]">
+      <section id="how-it-works" className="relative z-10 py-28 border-t border-white/6">
         <div className="mx-auto max-w-4xl px-5 text-center">
           <motion.div
             initial="hidden"
@@ -365,7 +365,7 @@ export default function HomePage() {
                   {item.desc}
                 </p>
                 {i !== 2 && (
-                  <div className="hidden md:block absolute top-7 left-[60%] w-full h-[1px] bg-gradient-to-r from-[#a78bfa]/30 to-transparent" />
+                  <div className="hidden md:block absolute top-7 left-[60%] w-full h-px bg-linear-to-r from-[#a78bfa]/30 to-transparent" />
                 )}
               </motion.div>
             ))}
@@ -374,7 +374,7 @@ export default function HomePage() {
       </section>
 
       {/* ── CTA Section ── */}
-      <section className="relative z-10 py-28 border-t border-white/[0.06]">
+      <section className="relative z-10 py-28 border-t border-white/6">
         <div className="mx-auto max-w-3xl px-5 text-center">
           <motion.div
             initial="hidden"
