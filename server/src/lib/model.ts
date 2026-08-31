@@ -22,11 +22,13 @@ export interface ModelConfig {
 
 export const MODEL_REGISTRY: Record<string, ModelConfig> = {
   // Groq Models
-  "groq/compound": {
-    id: "groq/compound",
+  // Use a real Groq model that supports tool calling; placeholder values like "groq/compound"
+  // are not valid model IDs and will trigger 400 errors during tool-calling requests.
+  "llama-3.3-70b-versatile": {
+    id: "llama-3.3-70b-versatile",
     provider: "groq",
-    modelName: "groq/compound",
-    displayName: "groq/compound (Groq)",
+    modelName: "llama-3.3-70b-versatile",
+    displayName: "Llama 3.3 70B Versatile (Groq)",
     tier: "heavy",
     capabilities: { vision: false, audio: false },
   },
@@ -80,7 +82,7 @@ export function getAvailableModels(): ModelConfig[] {
 
   // Check Groq
   if (env.GROQ_API_KEY) {
-    available.push(MODEL_REGISTRY["groq/compound"]!);
+    available.push(MODEL_REGISTRY["llama-3.3-70b-versatile"]!);
   }
 
   // Check Google
