@@ -22,14 +22,14 @@ export interface ModelConfig {
 
 export const MODEL_REGISTRY: Record<string, ModelConfig> = {
   // Groq Models
-  // Use a real Groq model that supports tool calling; placeholder values like "groq/compound"
-  // are not valid model IDs and will trigger 400 errors during tool-calling requests.
-  "llama-3.3-70b-versatile": {
-    id: "llama-3.3-70b-versatile",
+  // Use a widely available Groq model that is compatible with the account and API surface.
+  // The older llama-3.3-70b-versatile identifier can return 404s on some Groq accounts.
+  "llama-3.1-8b-instant": {
+    id: "llama-3.1-8b-instant",
     provider: "groq",
-    modelName: "llama-3.3-70b-versatile",
-    displayName: "Llama 3.3 70B Versatile (Groq)",
-    tier: "heavy",
+    modelName: "llama-3.1-8b-instant",
+    displayName: "Llama 3.1 8B Instant (Groq)",
+    tier: "cheap",
     capabilities: { vision: false, audio: false },
   },
 
@@ -82,7 +82,7 @@ export function getAvailableModels(): ModelConfig[] {
 
   // Check Groq
   if (env.GROQ_API_KEY) {
-    available.push(MODEL_REGISTRY["llama-3.3-70b-versatile"]!);
+    available.push(MODEL_REGISTRY["llama-3.1-8b-instant"]!);
   }
 
   // Check Google

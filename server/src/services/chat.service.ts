@@ -15,7 +15,7 @@ export async function generateChatTitle(message: string): Promise<string> {
   try {
     const llm = new ChatGroq({
       apiKey: env.GROQ_API_KEY,
-      model: "llama-3.3-70b-versatile",
+      model: "llama-3.1-8b-instant",
       temperature: 0.1,
     });
 
