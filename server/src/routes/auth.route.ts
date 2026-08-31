@@ -1,4 +1,4 @@
-import express, { type Request, type Response, type Router } from "express";
+import express, { type NextFunction, type Request, type Response, type Router } from "express";
 import {
   registerUser,
   loginUser,
@@ -7,19 +7,19 @@ import {
   changePassword,
 } from "../services/auth.service.js";
 import { authenticateToken } from "../middleware/auth.middleware.js";
+import {
+  parseBody,
+  registerSchema,
+  loginSchema,
+  refreshTokenSchema,
+  passwordChangeSchema,
+} from "../lib/validation.js";
 
 const router: Router = express.Router();
 
-router.post("/register", async (req: Request, res: Response) => {
+router.post("/register", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, password, name } = req.body;
-
-    if (!email || !password || !name) {
-      res.status(400).json({
-        error: "Email, password, and name are required",
-      });
-      return;
-    }
+    const { email, password, name } = parseBody(registerSchema, req.body);
 
     const { user, tokens } = await registerUser(email, password, name);
 
@@ -36,23 +36,13 @@ router.post("/register", async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    res.status(400).json({
-      success: false,
-      error: (error as Error).message,
-    });
+    next(error);
   }
 });
 
-router.post("/login", async (req: Request, res: Response) => {
+router.post("/login", async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      res.status(400).json({
-        error: "Email and password are required",
-      });
-      return;
-    }
+    const { email, password } = parseBody(loginSchema, req.body);
 
     const { user, tokens } = await loginUser(email, password);
 
@@ -69,23 +59,21 @@ router.post("/login", async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    res.status(401).json({
-      success: false,
-      error: (error as Error).message,
-    });
-  }
-});
-
-router.post("/refresh", async (req: Request, res: Response) => {
-  try {
-    const { refreshToken } = req.body;
-
-    if (!refreshToken) {
-      res.status(400).json({
-        error: "Refresh token is required",
+    if (error instanceof Error && error.message === "Invalid credentials") {
+      res.status(401).json({
+        success: false,
+        error: error.message,
       });
       return;
     }
+
+    next(error);
+  }
+});
+
+router.post("/refresh", async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { refreshToken } = parseBody(refreshTokenSchema, req.body);
 
     const tokens = await refreshTokens(refreshToken);
 
@@ -94,10 +82,15 @@ router.post("/refresh", async (req: Request, res: Response) => {
       data: { tokens },
     });
   } catch (error) {
-    res.status(403).json({
-      success: false,
-      error: (error as Error).message,
-    });
+    if (error instanceof Error && error.message === "Invalid refresh token") {
+      res.status(403).json({
+        success: false,
+        error: error.message,
+      });
+      return;
+    }
+
+    next(error);
   }
 });
 
@@ -110,9 +103,8 @@ router.post("/logout", authenticateToken, async (req: Request, res: Response) =>
   });
 });
 
-router.delete("/account", authenticateToken, async (req: Request, res: Response) => {
+router.delete("/account", authenticateToken, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // req.user is set by authenticateToken middleware
     const userId = req.user!.userId;
     await deleteUserAccount(userId);
     res.status(200).json({
@@ -120,33 +112,13 @@ router.delete("/account", authenticateToken, async (req: Request, res: Response)
       message: "Account deleted successfully",
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: (error as Error).message,
-    });
+    next(error);
   }
 });
 
-router.put("/password", authenticateToken, async (req: Request, res: Response) => {
+router.put("/password", authenticateToken, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { currentPassword, newPassword } = req.body;
-
-    if (!currentPassword || !newPassword) {
-      res.status(400).json({
-        success: false,
-        error: "Current password and new password are required",
-      });
-      return;
-    }
-
-    if (newPassword.length < 8) {
-      res.status(400).json({
-        success: false,
-        error: "New password must be at least 8 characters",
-      });
-      return;
-    }
-
+    const { currentPassword, newPassword } = parseBody(passwordChangeSchema, req.body);
     const userId = req.user!.userId;
     await changePassword(userId, currentPassword, newPassword);
 
@@ -155,18 +127,22 @@ router.put("/password", authenticateToken, async (req: Request, res: Response) =
       message: "Password changed successfully",
     });
   } catch (error) {
-    const message = (error as Error).message;
+    const message = error instanceof Error ? error.message : "Unknown error";
     const status = message.includes("incorrect") ? 401 : 400;
-    res.status(status).json({
-      success: false,
-      error: message,
-    });
+    if (message.includes("incorrect") || message.includes("Current password") || message.includes("New password")) {
+      res.status(status).json({
+        success: false,
+        error: message,
+      });
+      return;
+    }
+
+    next(error);
   }
 });
 
 router.get("/me", authenticateToken, async (req: Request, res: Response) => {
   try {
-    // req.user is set by authenticateToken middleware
     res.status(200).json({
       success: true,
       data: {

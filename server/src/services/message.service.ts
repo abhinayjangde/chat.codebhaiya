@@ -3,8 +3,8 @@ import { Message } from "../models/message.model.js";
 
 export interface PaginationParams {
   limit: number;
-  before?: string;
-  after?: string;
+  before?: string | undefined;
+  after?: string | undefined;
 }
 
 export interface PaginatedMessages {

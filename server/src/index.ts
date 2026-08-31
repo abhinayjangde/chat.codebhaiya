@@ -1,10 +1,11 @@
 import cors from "cors";
-import express from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import mongoose from "mongoose";
 
 import { env } from "./config/env.js";
 import db from "./lib/db.js";
 import { startKeepAlive } from "./lib/keep-alive.js";
+import { HttpError } from "./lib/validation.js";
 import authRoutes from "./routes/auth.route.js";
 import chatRoutes from "./routes/chat.route.js";
 import uploadRoutes from "./routes/upload.route.js";
@@ -44,6 +45,38 @@ app.get("/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/upload", uploadRoutes);
+
+app.use((_req: Request, res: Response) => {
+  res.status(404).json({
+    success: false,
+    error: "Route not found",
+  });
+});
+
+app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  if (error instanceof HttpError) {
+    res.status(error.statusCode).json({
+      success: false,
+      error: error.message,
+    });
+    return;
+  }
+
+  if (error instanceof Error) {
+    console.error("Unhandled server error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Internal server error",
+    });
+    return;
+  }
+
+  console.error("Unhandled non-Error exception:", error);
+  res.status(500).json({
+    success: false,
+    error: "Internal server error",
+  });
+});
 
 async function bootstrap(): Promise<void> {
   try {

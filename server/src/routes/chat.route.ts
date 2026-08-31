@@ -1,10 +1,11 @@
 import express from "express";
-import type { Request, Response, Router } from "express";
+import type { NextFunction, Request, Response, Router } from "express";
 import { ObjectId } from "mongodb";
 import { Chat } from "../models/chat.model.js";
 import { Message } from "../models/message.model.js";
 import { getAgent, getAvailableModels, DEFAULT_MODEL, autoSelectModel } from "../lib/model.js";
 import { authenticateToken } from "../middleware/auth.middleware.js";
+import { parseBody, createChatSchema, chatMessageSchema, paginationQuerySchema, renameChatSchema, chatIdParamSchema } from "../lib/validation.js";
 import type { SearchResult } from "../services/search.service.js";
 import { getPaginatedMessages } from "../services/message.service.js";
 import { generateChatTitle } from "../services/chat.service.js";
@@ -45,11 +46,9 @@ router.get("/", async (req: Request, res: Response) => {
 });
 
 // Get paginated messages for a chat
-router.get("/:chatId/messages", async (req: Request, res: Response) => {
+router.get("/:chatId/messages", async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const chatId = Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId;
-        
-        // Type guard for userId
+        const chatId = parseBody(chatIdParamSchema, Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId);
         const userId: string | undefined = req.user?.userId;
         if (typeof userId !== 'string') {
             res.status(401).json({
@@ -59,12 +58,11 @@ router.get("/:chatId/messages", async (req: Request, res: Response) => {
             return;
         }
         
-        // Parse pagination params
-        const limit = parseInt(req.query.limit as string) || 20;
-        const before = req.query.before as string | undefined;
-        const after = req.query.after as string | undefined;
+        const query = parseBody(paginationQuerySchema, req.query);
+        const limit = query.limit ?? 20;
+        const before = query.before;
+        const after = query.after;
 
-        // Verify chat exists and belongs to user
         const chat = await Chat.findOne({ 
             _id: new ObjectId(chatId),
             userId: new ObjectId(userId)
@@ -78,8 +76,6 @@ router.get("/:chatId/messages", async (req: Request, res: Response) => {
             return;
         }
 
-        // Get paginated messages
-        // @ts-expect-error TypeScript doesn't properly narrow type after early return
         const result = await getPaginatedMessages(chatId, userId, {
             limit,
             before,
@@ -98,25 +94,14 @@ router.get("/:chatId/messages", async (req: Request, res: Response) => {
             }
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: (error as Error).message
-        });
+        next(error);
     }
 });
 
-router.post("/", async (req: Request, res: Response) => {
+router.post("/", async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const { message } = req.body;
+        const { message } = parseBody(createChatSchema, req.body);
         const userId = req.user?.userId;
-        
-        if (!message) {
-            res.status(400).json({
-                success: false,
-                error: "Message is required"
-            });
-            return;
-        }
 
         const title = await generateChatTitle(message);
 
@@ -133,27 +118,15 @@ router.post("/", async (req: Request, res: Response) => {
             }
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: (error as Error).message
-        });
+        next(error);
     }
 });
 
-router.post("/:chatId", async (req: Request, res: Response) => {
+router.post("/:chatId", async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const chatId = Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId;
-        const { message, attachments, language } = req.body;
-        let { model } = req.body;
+        const chatId = parseBody(chatIdParamSchema, Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId);
+        const { message, attachments, language, model } = parseBody(chatMessageSchema, req.body);
         const userId = req.user?.userId;
-
-        if (!message) {
-            res.status(400).json({
-                success: false,
-                error: "Message is required"
-            });
-            return;
-        }
 
         const chat = await Chat.findOne({ 
             _id: new ObjectId(chatId),
@@ -167,6 +140,8 @@ router.post("/:chatId", async (req: Request, res: Response) => {
             });
             return;
         }
+
+        let selectedModel = model ?? undefined;
 
         const previousMessages = await Message.find({ 
             chatId: new ObjectId(chatId),
@@ -222,11 +197,11 @@ router.post("/:chatId", async (req: Request, res: Response) => {
 
         formatted.push({ role: "user", content: finalContent });
 
-        if (model === "auto" || !model) {
-            model = await autoSelectModel(message, attachments);
+        if (selectedModel === "auto" || !selectedModel) {
+            selectedModel = await autoSelectModel(message, attachments ?? []);
         }
 
-        const agent = getAgent(model, language);
+        const agent = getAgent(selectedModel, language ?? undefined);
         const response = await agent.invoke({ messages: formatted });
 
         await Message.create({
@@ -245,7 +220,7 @@ router.post("/:chatId", async (req: Request, res: Response) => {
             userId: new ObjectId(userId),
             role: "assistant",
             content: contentString,
-            modelName: model,
+            modelName: selectedModel,
         });
 
         await Chat.findByIdAndUpdate(chatId, { 
@@ -259,29 +234,17 @@ router.post("/:chatId", async (req: Request, res: Response) => {
             }
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: (error as Error).message
-        });
+        next(error);
     }
 });
 
 // Rename a chat
-router.patch("/:chatId", async (req: Request, res: Response) => {
+router.patch("/:chatId", async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const chatId = Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId;
-        const { title } = req.body;
+        const chatId = parseBody(chatIdParamSchema, Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId);
+        const { title } = parseBody(renameChatSchema, req.body);
         const userId = req.user?.userId;
 
-        if (!title || typeof title !== "string" || !title.trim()) {
-            res.status(400).json({
-                success: false,
-                error: "Title is required"
-            });
-            return;
-        }
-
-        // Verify chat belongs to authenticated user
         const chat = await Chat.findOne({
             _id: new ObjectId(chatId),
             userId: new ObjectId(userId)
@@ -306,30 +269,17 @@ router.patch("/:chatId", async (req: Request, res: Response) => {
             data: { title: title.trim() }
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: (error as Error).message
-        });
+        next(error);
     }
 });
 
 
 // Delete a chat and all its messages
-router.delete("/:chatId", async (req: Request, res: Response) => {
+router.delete("/:chatId", async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const chatId = Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId;
+        const chatId = parseBody(chatIdParamSchema, Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId);
         const userId = req.user?.userId;
 
-        // Validate chatId
-        if (!chatId || !ObjectId.isValid(chatId)) {
-            res.status(400).json({
-                success: false,
-                error: "Invalid chat ID"
-            });
-            return;
-        }
-
-        // Verify chat belongs to authenticated user
         const chat = await Chat.findOne({
             _id: new ObjectId(chatId),
             userId: new ObjectId(userId)
@@ -354,36 +304,30 @@ router.delete("/:chatId", async (req: Request, res: Response) => {
             message: "Chat deleted successfully"
         });
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            error: (error as Error).message
-        });
+        next(error);
     }
 });
 
 // Streaming endpoint with Server-Sent Events (SSE)
-router.post("/:chatId/stream", async (req: Request, res: Response) => {
-    const chatId = Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId;
-    const { message, attachments, language } = req.body;
-    let { model } = req.body;
-    const userId = req.user?.userId;
-
-    if (!message) {
-        res.status(400).json({
-            success: false,
-            error: "Message is required"
-        });
-        return;
-    }
-
-    // Set SSE headers
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('X-Accel-Buffering', 'no'); // Disable nginx buffering if applicable
-
+router.post("/:chatId/stream", async (req: Request, res: Response, next: NextFunction) => {
     try {
-        // Verify chat exists and belongs to user
+        const chatId = parseBody(chatIdParamSchema, Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId);
+        const { message, attachments, language, model } = parseBody(chatMessageSchema, req.body);
+        const userId = req.user?.userId;
+
+        if (!message) {
+            res.status(400).json({
+                success: false,
+                error: "Message is required"
+            });
+            return;
+        }
+
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no');
+
         const chat = await Chat.findOne({ 
             _id: new ObjectId(chatId),
             userId: new ObjectId(userId)
@@ -395,7 +339,6 @@ router.post("/:chatId/stream", async (req: Request, res: Response) => {
             return;
         }
 
-        // Get previous messages
         const previousMessages = await Message.find({ 
             chatId: new ObjectId(chatId),
             userId: new ObjectId(userId)
@@ -408,13 +351,11 @@ router.post("/:chatId/stream", async (req: Request, res: Response) => {
                 content: msg.content as string,
             }));
 
-        // Format current message with attachments
         let finalContent: any = message;
         
         if (attachments && attachments.length > 0) {
             finalContent = [];
             
-            // Add all images and audio
             for (const att of attachments) {
                 if (att.type === "image") {
                     finalContent.push({
@@ -430,7 +371,6 @@ router.post("/:chatId/stream", async (req: Request, res: Response) => {
                 }
             }
             
-            // Add text context from documents
             let textPrompt = message;
             for (const att of attachments) {
                 if (att.type === "document") {
@@ -446,7 +386,6 @@ router.post("/:chatId/stream", async (req: Request, res: Response) => {
 
         formatted.push({ role: "user", content: finalContent });
 
-        // Save user message
         await Message.create({
             chatId: new ObjectId(chatId),
             userId: new ObjectId(userId),
@@ -455,31 +394,28 @@ router.post("/:chatId/stream", async (req: Request, res: Response) => {
             attachments: attachments || [],
         });
 
-        // Track collected data
         let fullResponse = "";
         const usedTools: any[] = [];
         const sources: SearchResult[] = [];
 
-        if (model === "auto" || !model) {
-            model = await autoSelectModel(message, attachments);
+        let selectedModel = model ?? undefined;
+        if (selectedModel === "auto" || !selectedModel) {
+            selectedModel = await autoSelectModel(message, attachments ?? []);
         }
 
-        // Stream the response using "messages" mode for token-by-token deltas
-        const agent = getAgent(model, language);
+        const agent = getAgent(selectedModel, language ?? undefined);
         const stream = await agent.stream(
             { messages: formatted },
             { streamMode: "messages" }
         );
 
         for await (const chunk of stream) {
-            // streamMode "messages" yields [messageChunk, metadata] tuples
             const [messageChunk, _metadata] = chunk as [any, any];
             
             if (!messageChunk) continue;
 
             const msgType = messageChunk._getType?.() ?? messageChunk.constructor?.name ?? "";
 
-            // Handle tool call chunks from the AI
             if (msgType === "ai" || msgType === "AIMessageChunk") {
                 const toolCallChunks = messageChunk.tool_call_chunks;
                 if (toolCallChunks && Array.isArray(toolCallChunks) && toolCallChunks.length > 0) {
@@ -498,7 +434,6 @@ router.post("/:chatId/stream", async (req: Request, res: Response) => {
                     }
                 }
 
-                // Stream AI token deltas
                 const content = getMessageContent(messageChunk.content);
                 if (content) {
                     fullResponse += content;
@@ -510,13 +445,11 @@ router.post("/:chatId/stream", async (req: Request, res: Response) => {
                 }
             }
 
-            // Handle tool result messages
             if (msgType === "tool" || msgType === "ToolMessageChunk" || msgType === "ToolMessage") {
                 const toolName = messageChunk.name || "unknown";
                 const content = getMessageContent(messageChunk.content);
                 
                 if (toolName === "web_search") {
-                    // Parse search results if available
                     try {
                         const searchResults = parseSearchResults(content);
                         if (searchResults.length > 0) {
@@ -545,13 +478,12 @@ router.post("/:chatId/stream", async (req: Request, res: Response) => {
             }
         }
 
-        // Save assistant message
         const messageData: any = {
             chatId: new ObjectId(chatId),
             userId: new ObjectId(userId),
             role: "assistant",
             content: fullResponse,
-            modelName: model,
+            modelName: selectedModel,
         };
         
         if (sources.length > 0) {
@@ -563,12 +495,10 @@ router.post("/:chatId/stream", async (req: Request, res: Response) => {
         
         await Message.create(messageData);
 
-        // Update chat
         await Chat.findByIdAndUpdate(chatId, { 
             updatedAt: new Date()
         });
 
-        // Send completion event
         const doneEvent: any = { type: 'done' };
         if (sources.length > 0) {
             doneEvent.sources = sources;
@@ -636,9 +566,9 @@ function parseSearchResults(content: string): SearchResult[] {
 }
 
 // Generate PDF for a chat
-router.get("/:chatId/pdf", async (req: Request, res: Response) => {
+router.get("/:chatId/pdf", async (req: Request, res: Response, next: NextFunction) => {
     try {
-        const chatId = Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId;
+        const chatId = parseBody(chatIdParamSchema, Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId);
         const userId = req.user?.userId;
 
         // Verify chat exists and belongs to user
