@@ -10,7 +10,7 @@ import { webSearchTool } from "./tools.js";
 
 export interface ModelConfig {
   id: string;
-  provider: "groq" | "google" | "openai" | "ollama" | "auto";
+  provider: "groq" | "google" | "ollama" | "auto";
   modelName: string;
   displayName: string;
   tier: "heavy" | "cheap" | "auto";
@@ -22,20 +22,12 @@ export interface ModelConfig {
 
 export const MODEL_REGISTRY: Record<string, ModelConfig> = {
   // Groq Models
-  "groq-llama-3.3-70b": {
-    id: "groq-llama-3.3-70b",
+  "groq/compound": {
+    id: "groq/compound",
     provider: "groq",
-    modelName: "llama-3.3-70b-versatile",
-    displayName: "Llama 3.3 70B (Groq)",
+    modelName: "groq/compound",
+    displayName: "groq/compound (Groq)",
     tier: "heavy",
-    capabilities: { vision: false, audio: false },
-  },
-  "groq-llama-3.1-8b": {
-    id: "groq-llama-3.1-8b",
-    provider: "groq",
-    modelName: "llama-3.1-8b-instant",
-    displayName: "Llama 3.1 8B (Groq)",
-    tier: "cheap",
     capabilities: { vision: false, audio: false },
   },
 
@@ -48,32 +40,21 @@ export const MODEL_REGISTRY: Record<string, ModelConfig> = {
     tier: "heavy", // Flash works well as both, but it's the primary fallback for heavy multimodal
     capabilities: { vision: true, audio: true },
   },
-
-  // OpenAI Models
-  "gpt-5-nano-2025-08-07": {
-    id: "gpt-5-nano-2025-08-07",
-    provider: "openai",
-    modelName: "gpt-5-nano-2025-08-07",
-    displayName: "GPT-5 Nano",
-    tier: "heavy",
-    capabilities: { vision: true, audio: true },
-  },
-
   // Ollama Cloud Models
-  "ollama-glm-5-cloud": {
-    id: "ollama-glm-5-cloud",
+  "nemotron-3-nano:30b": {
+    id: "nemotron-3-nano:30b",
     provider: "ollama",
-    modelName: "glm-5:cloud",
-    displayName: "GLM-5 (Ollama Cloud)",
+    modelName: "nemotron-3-nano:30b",
+    displayName: "Nemotron-3 Nano",
     tier: "heavy",
     capabilities: { vision: true, audio: false },
   },
-  "ollama-kimi-k2.5-cloud": {
-    id: "ollama-kimi-k2.5-cloud",
+  "gpt-oss:20b": {
+    id: "gpt-oss:20b",
     provider: "ollama",
-    modelName: "kimi-k2.5:cloud",
-    displayName: "Kimi K2.5 (Ollama Cloud)",
-    tier: "heavy",
+    modelName: "gpt-oss:20b",
+    displayName: "GPT-OSS 20B",
+    tier: "cheap",
     capabilities: { vision: true, audio: false },
   },
 };
@@ -99,8 +80,7 @@ export function getAvailableModels(): ModelConfig[] {
 
   // Check Groq
   if (env.GROQ_API_KEY) {
-    available.push(MODEL_REGISTRY["groq-llama-3.3-70b"]!);
-    available.push(MODEL_REGISTRY["groq-llama-3.1-8b"]!);
+    available.push(MODEL_REGISTRY["groq/compound"]!);
   }
 
   // Check Google
@@ -108,15 +88,10 @@ export function getAvailableModels(): ModelConfig[] {
     available.push(MODEL_REGISTRY["gemini-2.5-flash"]!);
   }
 
-  // Check OpenAI
-  if (env.OPENAI_API_KEY) {
-    available.push(MODEL_REGISTRY["gpt-5-nano-2025-08-07"]!);
-  }
-
   // Check Ollama
   if (env.OLLAMA_API_KEY) {
-    available.push(MODEL_REGISTRY["ollama-glm-5-cloud"]!);
-    available.push(MODEL_REGISTRY["ollama-kimi-k2.5-cloud"]!);
+    available.push(MODEL_REGISTRY["nemotron-3-nano:30b"]!);
+    available.push(MODEL_REGISTRY["gpt-oss:20b"]!);
   }
 
   return available;
@@ -199,8 +174,6 @@ export async function autoSelectModel(message: string, attachments?: Attachment[
       baseLlm = new ChatGroq({ apiKey: env.GROQ_API_KEY!, model: config.modelName, temperature: 0 });
     } else if (config.provider === "google") {
       baseLlm = new ChatGoogleGenerativeAI({ apiKey: env.GOOGLE_API_KEY!, model: config.modelName, temperature: 0 });
-    } else if (config.provider === "openai") {
-      baseLlm = new ChatOpenAI({ apiKey: env.OPENAI_API_KEY!, model: config.modelName, temperature: 0 });
     } else if (config.provider === "ollama") {
       baseLlm = new ChatOllama({ model: config.modelName, baseUrl: env.OLLAMA_BASE_URL, temperature: 0 });
     } else {
@@ -270,16 +243,6 @@ export function getAgent(modelId?: string, language: string = "english") {
         apiKey: env.GOOGLE_API_KEY,
         model: config.modelName,
         temperature: 0.7,
-        streaming: true,
-      });
-      break;
-
-    case "openai":
-      if (!env.OPENAI_API_KEY)
-        throw new Error("OPENAI_API_KEY is not configured");
-      llm = new ChatOpenAI({
-        apiKey: env.OPENAI_API_KEY,
-        model: config.modelName,
         streaming: true,
       });
       break;
