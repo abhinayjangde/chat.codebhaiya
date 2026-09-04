@@ -23,14 +23,21 @@ const messageSchema = new mongoose.Schema({
     attachments: [{
         type: { type: String, enum: ["image", "document"] },
         content: String,
+        documentId: String,
         name: String,
         mimeType: String,
         size: Number
     }],
     sources: [{
+        type: { type: String, enum: ["web", "document"] },
         title: String,
         url: String,
-        snippet: String
+        snippet: String,
+        documentId: String,
+        filename: String,
+        pageNumber: Number,
+        chunkIndex: Number,
+        score: Number,
     }],
     usedTools: [{
         name: String,

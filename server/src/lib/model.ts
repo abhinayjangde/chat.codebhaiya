@@ -22,13 +22,12 @@ export interface ModelConfig {
 
 export const MODEL_REGISTRY: Record<string, ModelConfig> = {
   // Groq Models
-  // Use a widely available Groq model that is compatible with the account and API surface.
-  // The older llama-3.3-70b-versatile identifier can return 404s on some Groq accounts.
+  // The older Llama 3.1 identifier is no longer available on some Groq accounts.
   "llama-3.1-8b-instant": {
     id: "llama-3.1-8b-instant",
     provider: "groq",
-    modelName: "llama-3.1-8b-instant",
-    displayName: "Llama 3.1 8B Instant (Groq)",
+    modelName: "openai/gpt-oss-20b",
+    displayName: "GPT OSS 20B (Groq)",
     tier: "cheap",
     capabilities: { vision: false, audio: false },
   },
@@ -101,7 +100,8 @@ export function getAvailableModels(): ModelConfig[] {
 
 export interface Attachment {
   type: "image" | "audio" | "document" | "unknown";
-  content: string;
+  content?: string | undefined;
+  documentId?: string | undefined;
   mimeType: string;
   name: string;
   size: number;
@@ -149,7 +149,8 @@ export async function autoSelectModel(message: string, attachments?: Attachment[
     || heavyCandidates[0]?.id
     || candidateModels[0]?.id;
 
-  const cheapModel = cheapCandidates.find(m => m.provider === "groq")?.id
+  const cheapModel = candidateModels.find(m => m.provider === "google")?.id
+    || cheapCandidates.find(m => m.provider === "groq")?.id
     || cheapCandidates.find(m => m.provider === "google")?.id
     || cheapCandidates[0]?.id
     || candidateModels[0]?.id;

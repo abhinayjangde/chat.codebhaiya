@@ -499,6 +499,61 @@ When web search is used, the response includes:
 
 ---
 
+### Documents
+
+#### GET /documents/:documentId
+Get the processing status and metadata for a document owned by the authenticated user.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "document": {
+      "documentId": "65a1b2c3d4e5f6a7b8c9d0e1",
+      "filename": "guide.pdf",
+      "mimeType": "application/pdf",
+      "size": 102400,
+      "status": "ready",
+      "chunkCount": 12,
+      "embeddingModel": "gemini-embedding-2",
+      "createdAt": "2026-09-04T12:00:00.000Z",
+      "updatedAt": "2026-09-04T12:00:15.000Z"
+    }
+  }
+}
+```
+
+Possible statuses are `queued`, `processing`, `ready`, and `failed`. Failed documents include an `errorMessage`.
+
+#### DELETE /documents/:documentId
+Delete a document owned by the authenticated user. This removes its Qdrant vectors, S3 object, and MongoDB metadata.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Document deleted successfully",
+  "data": {
+    "documentId": "65a1b2c3d4e5f6a7b8c9d0e1"
+  }
+}
+```
+
+Both endpoints return `404` when the document does not exist or belongs to another user.
+
+---
+
 ## Data Models
 
 ### User

@@ -1,12 +1,14 @@
 {
-  "name": "experiments",
+  "name": "server",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
     "build": "tsc -p .",
     "start": "node dist/index.js",
     "dev": "tsc-watch --onSuccess \"node dist/index.js\"",
+    "worker": "node dist/workers/document.worker.js",
+    "worker:dev": "tsc-watch --onSuccess \"node dist/workers/document.worker.js\"",
     "smoke:test": "node scripts/smoke-test.mjs"
   },
   "keywords": [],
@@ -28,6 +30,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.958.0",
     "@langchain/core": "^1.1.24",
     "@langchain/google": "^0.1.0",
     "@langchain/google-genai": "^2.1.18",
@@ -35,11 +38,14 @@
     "@langchain/langgraph": "^1.1.4",
     "@langchain/ollama": "^1.2.2",
     "@langchain/openai": "^1.2.7",
+    "@qdrant/js-client-rest": "^1.15.0",
     "bcrypt": "^6.0.0",
+    "bullmq": "^5.63.0",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
+    "ioredis": "^5.8.2",
     "langchain": "^1.2.24",
     "mongodb": "^7.1.0",
     "mongoose": "^9.2.1",

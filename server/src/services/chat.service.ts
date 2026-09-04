@@ -1,4 +1,5 @@
 import { ChatGroq } from "@langchain/groq";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { env } from "../config/env.js";
 
 /**
@@ -7,17 +8,23 @@ import { env } from "../config/env.js";
  * @returns A generated title string.
  */
 export async function generateChatTitle(message: string): Promise<string> {
-  // Fallback if message is very short or Groq is not configured
-  if (message.length < 10 || !env.GROQ_API_KEY) {
+  // Short messages do not need an extra model request.
+  if (message.length < 10 || (!env.GROQ_API_KEY && !env.GOOGLE_API_KEY)) {
     return message.slice(0, 50).trim() + (message.length > 50 ? "..." : "");
   }
 
   try {
-    const llm = new ChatGroq({
-      apiKey: env.GROQ_API_KEY,
-      model: "llama-3.1-8b-instant",
-      temperature: 0.1,
-    });
+    const llm = env.GOOGLE_API_KEY
+      ? new ChatGoogleGenerativeAI({
+          apiKey: env.GOOGLE_API_KEY,
+          model: "gemini-2.5-flash",
+          temperature: 0.1,
+        })
+      : new ChatGroq({
+          apiKey: env.GROQ_API_KEY!,
+          model: "openai/gpt-oss-20b",
+          temperature: 0.1,
+        });
 
     const response = await llm.invoke([
       {

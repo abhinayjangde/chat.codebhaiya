@@ -1,4 +1,12 @@
-import type { AuthTokens, ChatMessage, ChatSummary, UserProfile, ModelInfo } from "@/lib/types";
+import type {
+  Attachment,
+  AuthTokens,
+  ChatMessage,
+  ChatSummary,
+  DocumentStatusResponse,
+  ModelInfo,
+  UserProfile,
+} from "@/lib/types";
 
 const API_BASE_URL = (
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:9000/api"
@@ -217,7 +225,7 @@ export const apiClient = {
     message: string,
     accessToken: string,
     model?: string,
-    attachments?: any[],
+    attachments?: Attachment[],
     language?: string
   ): Promise<{ title: string; chatId: string }> {
     return requestData<{ title: string; chatId: string }>("/chat", {
@@ -253,7 +261,7 @@ export const apiClient = {
     accessToken: string,
     signal?: AbortSignal,
     model?: string,
-    attachments?: any[],
+    attachments?: Attachment[],
     language?: string
   ): Promise<ReadableStream<Uint8Array>> {
     const response = await fetch(`${API_BASE_URL}/chat/${chatId}/stream`, {
@@ -279,7 +287,7 @@ export const apiClient = {
 
     return response.body;
   },
-  async uploadFile(file: File, accessToken: string): Promise<any> {
+  async uploadFile(file: File, accessToken: string): Promise<Attachment> {
     const formData = new FormData();
     formData.append("file", file);
 
@@ -304,7 +312,41 @@ export const apiClient = {
           body
         );
     }
-    return (body as any).data;
+    const data = (body as ApiEnvelope<{
+      documentId: string;
+      filename: string;
+      mimeType: string;
+      size: number;
+      status: DocumentStatusResponse["status"];
+    }>).data;
+
+    if (!data?.documentId) {
+      throw new ApiError("Upload response did not include a document ID", 500, body);
+    }
+
+    return {
+      type: file.type.startsWith("image/") ? "image" : "document",
+      documentId: data.documentId,
+      mimeType: data.mimeType,
+      name: data.filename,
+      size: data.size,
+      status: data.status,
+    };
+  },
+
+  async getDocumentStatus(
+    documentId: string,
+    accessToken: string
+  ): Promise<DocumentStatusResponse> {
+    const data = await requestData<{ document: DocumentStatusResponse }>(
+      `/documents/${documentId}`,
+      {
+        method: "GET",
+        headers: authHeaders(accessToken),
+      }
+    );
+
+    return data.document;
   },
 
   async changePassword(

@@ -83,11 +83,29 @@ export const chatMessageSchema = z
       .array(
         z.object({
           type: z.enum(["image", "audio", "document"]),
-          content: z.string().trim().min(1, "Attachment content is required"),
+          content: z.string().trim().optional(),
+          documentId: objectIdSchema.optional(),
           name: z.string().trim().min(1, "Attachment name is required"),
           mimeType: z.string().trim().min(1, "Attachment MIME type is required"),
           size: z.number().int().nonnegative().default(0),
         })
+          .superRefine((attachment, context) => {
+            if (attachment.type === "document" && !attachment.documentId) {
+              context.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Document attachment ID is required",
+                path: ["documentId"],
+              });
+            }
+
+            if (attachment.type !== "document" && !attachment.content) {
+              context.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Attachment content is required",
+                path: ["content"],
+              });
+            }
+          })
       )
       .optional(),
   })
