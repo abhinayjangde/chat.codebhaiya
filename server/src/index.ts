@@ -10,6 +10,7 @@ import authRoutes from "./routes/auth.route.js";
 import chatRoutes from "./routes/chat.route.js";
 import documentRoutes from "./routes/documents.route.js";
 import uploadRoutes from "./routes/upload.route.js";
+import { startDocumentWorker, type DocumentWorkerHandle } from "./workers/document.worker.js";
 
 const app = express();
 const allowedOrigins = new Set(env.corsOrigins);
@@ -83,6 +84,15 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
 async function bootstrap(): Promise<void> {
   try {
     await db();
+    let documentWorker: DocumentWorkerHandle;
+
+    try {
+      documentWorker = await startDocumentWorker();
+    } catch (error) {
+      console.error("Failed to start document worker:", error);
+      process.exit(1);
+    }
+
     app.listen(env.PORT, () => {
       console.log(`Server is running on port http://localhost:${env.PORT}`);
 
@@ -90,6 +100,13 @@ async function bootstrap(): Promise<void> {
       if (env.RENDER_EXTERNAL_URL) {
         startKeepAlive(env.RENDER_EXTERNAL_URL);
       }
+    });
+
+    process.once("SIGINT", () => {
+      void documentWorker.close();
+    });
+    process.once("SIGTERM", () => {
+      void documentWorker.close();
     });
   } catch (error) {
     console.error("Failed to start server:", error);
