@@ -4,6 +4,7 @@ import { User } from "../models/user.model.js";
 import { Chat } from "../models/chat.model.js";
 import { Message } from "../models/message.model.js";
 import { env } from "../config/env.js";
+import { cleanupDocumentsForUser } from "./document-cleanup.service.js";
 
 const JWT_SECRET = env.JWT_SECRET;
 const JWT_REFRESH_SECRET = env.JWT_REFRESH_SECRET;
@@ -111,6 +112,8 @@ export async function deleteUserAccount(userId: string): Promise<void> {
   if (!user) {
     throw new Error("User not found");
   }
+
+  await cleanupDocumentsForUser(userId);
 
   // Delete all messages and chats owned by this user
   await Message.deleteMany({ userId });

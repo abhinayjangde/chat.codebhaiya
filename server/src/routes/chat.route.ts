@@ -9,6 +9,7 @@ import { authenticateToken } from "../middleware/auth.middleware.js";
 import { HttpError, parseBody, createChatSchema, chatMessageSchema, paginationQuerySchema, renameChatSchema, chatIdParamSchema } from "../lib/validation.js";
 import type { SearchResult } from "../services/search.service.js";
 import { retrieveRelevantChunks, type RetrievedChunk } from "../services/retrieval.service.js";
+import { cleanupDocumentsForChat } from "../services/document-cleanup.service.js";
 import { getPaginatedMessages } from "../services/message.service.js";
 import { generateChatTitle } from "../services/chat.service.js";
 import PDFDocument from "pdfkit";
@@ -383,6 +384,11 @@ router.delete("/:chatId", async (req: Request, res: Response, next: NextFunction
         const chatId = parseBody(chatIdParamSchema, Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId);
         const userId = req.user?.userId;
 
+        if (!userId) {
+            res.status(401).json({ success: false, error: "User not authenticated" });
+            return;
+        }
+
         const chat = await Chat.findOne({
             _id: new ObjectId(chatId),
             userId: new ObjectId(userId)
@@ -395,6 +401,8 @@ router.delete("/:chatId", async (req: Request, res: Response, next: NextFunction
             });
             return;
         }
+
+        await cleanupDocumentsForChat(userId, chatId);
 
         // Delete all messages for this chat
         await Message.deleteMany({ chatId: new ObjectId(chatId) });

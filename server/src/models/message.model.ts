@@ -23,6 +23,7 @@ const messageSchema = new mongoose.Schema({
     attachments: [{
         type: { type: String, enum: ["image", "document"] },
         content: String,
+        documentId: String,
         name: String,
         mimeType: String,
         size: Number
