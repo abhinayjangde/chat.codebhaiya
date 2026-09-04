@@ -101,7 +101,8 @@ export function getAvailableModels(): ModelConfig[] {
 
 export interface Attachment {
   type: "image" | "audio" | "document" | "unknown";
-  content: string;
+  content?: string | undefined;
+  documentId?: string | undefined;
   mimeType: string;
   name: string;
   size: number;

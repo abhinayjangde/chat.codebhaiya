@@ -2,16 +2,142 @@ import express from "express";
 import type { NextFunction, Request, Response, Router } from "express";
 import { ObjectId } from "mongodb";
 import { Chat } from "../models/chat.model.js";
+import { Document } from "../models/document.model.js";
 import { Message } from "../models/message.model.js";
 import { getAgent, getAvailableModels, DEFAULT_MODEL, autoSelectModel } from "../lib/model.js";
 import { authenticateToken } from "../middleware/auth.middleware.js";
-import { parseBody, createChatSchema, chatMessageSchema, paginationQuerySchema, renameChatSchema, chatIdParamSchema } from "../lib/validation.js";
+import { HttpError, parseBody, createChatSchema, chatMessageSchema, paginationQuerySchema, renameChatSchema, chatIdParamSchema } from "../lib/validation.js";
 import type { SearchResult } from "../services/search.service.js";
+import { retrieveRelevantChunks, type RetrievedChunk } from "../services/retrieval.service.js";
 import { getPaginatedMessages } from "../services/message.service.js";
 import { generateChatTitle } from "../services/chat.service.js";
 import PDFDocument from "pdfkit";
 
 const router: Router = express.Router();
+
+interface ChatAttachment {
+    type: "image" | "audio" | "document";
+    content?: string | undefined;
+    documentId?: string | undefined;
+    mimeType: string;
+    name: string;
+    size: number;
+}
+
+interface DocumentSource {
+    type: "document";
+    title: string;
+    snippet: string;
+    documentId: string;
+    filename: string;
+    chunkIndex: number;
+    pageNumber?: number;
+    score: number;
+}
+
+const MAX_DOCUMENT_CONTEXT_CHARS = 16_000;
+
+function toDocumentSource(chunk: RetrievedChunk): DocumentSource {
+    return {
+        type: "document",
+        title: chunk.filename,
+        snippet: chunk.text,
+        documentId: chunk.documentId,
+        filename: chunk.filename,
+        chunkIndex: chunk.chunkIndex,
+        ...(chunk.pageNumber !== undefined ? { pageNumber: chunk.pageNumber } : {}),
+        score: chunk.score,
+    };
+}
+
+async function buildMessageContent(
+    message: string,
+    attachments: ChatAttachment[] | undefined,
+    userId: string
+): Promise<{ content: any; documentSources: DocumentSource[] }> {
+    const currentAttachments = attachments ?? [];
+    const documentAttachments = currentAttachments.filter(
+        (attachment) => attachment.type === "document"
+    );
+    const documentIds = [
+        ...new Set(documentAttachments.map((attachment) => attachment.documentId).filter(Boolean)),
+    ] as string[];
+
+    if (documentAttachments.some((attachment) => !attachment.documentId)) {
+        throw new HttpError(400, "Document attachment ID is required");
+    }
+
+    if (documentIds.length > 0) {
+        const ownedDocuments = await Document.find({
+            _id: { $in: documentIds },
+            userId: new ObjectId(userId),
+        })
+            .select("_id status")
+            .lean();
+
+        if (ownedDocuments.length !== documentIds.length) {
+            throw new HttpError(404, "Document not found");
+        }
+
+        const processingDocument = ownedDocuments.find(
+            (document) => document.status !== "ready"
+        );
+        if (processingDocument) {
+            throw new HttpError(409, "Document is still being processed");
+        }
+    }
+
+    const documentSources = documentIds.length > 0
+        ? (await retrieveRelevantChunks({
+            query: message,
+            userId,
+            documentIds,
+            limit: 6,
+        })).map(toDocumentSource)
+        : [];
+
+    let documentContext = documentSources
+        .map((source) => {
+            const page = source.pageNumber ? `, page ${source.pageNumber}` : "";
+            return `--- ${source.filename}${page}, chunk ${source.chunkIndex} ---\n${source.snippet}`;
+        })
+        .join("\n\n");
+
+    if (documentContext.length > MAX_DOCUMENT_CONTEXT_CHARS) {
+        documentContext = `${documentContext.slice(0, MAX_DOCUMENT_CONTEXT_CHARS)}\n[Document context truncated]`;
+    }
+
+    const hasMedia = currentAttachments.some(
+        (attachment) => attachment.type === "image" || attachment.type === "audio"
+    );
+
+    if (!hasMedia && !documentContext) {
+        return { content: message, documentSources };
+    }
+
+    const content: Array<Record<string, unknown>> = [];
+    for (const attachment of currentAttachments) {
+        if (attachment.type === "image" && attachment.content) {
+            content.push({
+                type: "image_url",
+                image_url: { url: attachment.content },
+            });
+        } else if (attachment.type === "audio" && attachment.content) {
+            content.push({
+                type: "media",
+                mimeType: attachment.mimeType,
+                data: attachment.content.split(",")[1] ?? attachment.content,
+            });
+        }
+    }
+
+    const textPrompt = documentContext
+        ? `${message}\n\nUse the following retrieved document context when answering:\n${documentContext}`
+        : message;
+    content.push({ type: "text", text: textPrompt });
+
+    return { content, documentSources };
+}
 
 // Public endpoint to get available models
 router.get("/models", (_req: Request, res: Response) => {
@@ -128,6 +254,11 @@ router.post("/:chatId", async (req: Request, res: Response, next: NextFunction) 
         const { message, attachments, language, model } = parseBody(chatMessageSchema, req.body);
         const userId = req.user?.userId;
 
+        if (!userId) {
+            res.status(401).json({ success: false, error: "User not authenticated" });
+            return;
+        }
+
         const chat = await Chat.findOne({ 
             _id: new ObjectId(chatId),
             userId: new ObjectId(userId)
@@ -148,7 +279,7 @@ router.post("/:chatId", async (req: Request, res: Response, next: NextFunction) 
             userId: new ObjectId(userId)
         });
 
-        const formatted = previousMessages
+        const formatted: Array<{ role: string; content: any }> = previousMessages
             .filter((msg) => msg.role && msg.content)
             .map((msg) => {
                 // If previous message has attachments, we just send text for now or re-format if needed.
@@ -159,41 +290,11 @@ router.post("/:chatId", async (req: Request, res: Response, next: NextFunction) 
                 };
             });
 
-        // Format current message with attachments
-        let finalContent: any = message;
-        
-        if (attachments && attachments.length > 0) {
-            finalContent = [];
-            
-            // Add all images and audio
-            for (const att of attachments) {
-                if (att.type === "image") {
-                    finalContent.push({
-                        type: "image_url",
-                        image_url: { url: att.content }
-                    });
-                } else if (att.type === "audio") {
-                    finalContent.push({
-                        type: "media",
-                        mimeType: att.mimeType,
-                        data: att.content.split(",")[1] // Strip data uri prefix
-                    });
-                }
-            }
-            
-            // Add text context from documents
-            let textPrompt = message;
-            for (const att of attachments) {
-                if (att.type === "document") {
-                    textPrompt += `\n\n--- Content from attached file: ${att.name} ---\n${att.content}\n--- End of file ---\n`;
-                }
-            }
-            
-            finalContent.push({
-                type: "text",
-                text: textPrompt
-            });
-        }
+        const { content: finalContent, documentSources } = await buildMessageContent(
+            message,
+            attachments,
+            userId
+        );
 
         formatted.push({ role: "user", content: finalContent });
 
@@ -221,6 +322,7 @@ router.post("/:chatId", async (req: Request, res: Response, next: NextFunction) 
             role: "assistant",
             content: contentString,
             modelName: selectedModel,
+            ...(documentSources.length > 0 ? { sources: documentSources } : {}),
         });
 
         await Chat.findByIdAndUpdate(chatId, { 
@@ -231,6 +333,7 @@ router.post("/:chatId", async (req: Request, res: Response, next: NextFunction) 
             success: true,
             data: {
                 reply: assistantContent,
+                ...(documentSources.length > 0 ? { sources: documentSources } : {}),
             }
         });
     } catch (error) {
@@ -315,6 +418,11 @@ router.post("/:chatId/stream", async (req: Request, res: Response, next: NextFun
         const { message, attachments, language, model } = parseBody(chatMessageSchema, req.body);
         const userId = req.user?.userId;
 
+        if (!userId) {
+            res.status(401).json({ success: false, error: "User not authenticated" });
+            return;
+        }
+
         if (!message) {
             res.status(400).json({
                 success: false,
@@ -322,11 +430,6 @@ router.post("/:chatId/stream", async (req: Request, res: Response, next: NextFun
             });
             return;
         }
-
-        res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.setHeader('Connection', 'keep-alive');
-        res.setHeader('X-Accel-Buffering', 'no');
 
         const chat = await Chat.findOne({ 
             _id: new ObjectId(chatId),
@@ -339,50 +442,28 @@ router.post("/:chatId/stream", async (req: Request, res: Response, next: NextFun
             return;
         }
 
+        const { content: finalContent, documentSources } = await buildMessageContent(
+            message,
+            attachments,
+            userId
+        );
+
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no');
+
         const previousMessages = await Message.find({ 
             chatId: new ObjectId(chatId),
             userId: new ObjectId(userId)
         });
 
-        const formatted = previousMessages
+        const formatted: Array<{ role: string; content: any }> = previousMessages
             .filter((msg) => msg.role && msg.content)
             .map((msg) => ({
                 role: msg.role as string,
                 content: msg.content as string,
             }));
-
-        let finalContent: any = message;
-        
-        if (attachments && attachments.length > 0) {
-            finalContent = [];
-            
-            for (const att of attachments) {
-                if (att.type === "image") {
-                    finalContent.push({
-                        type: "image_url",
-                        image_url: { url: att.content }
-                    });
-                } else if (att.type === "audio") {
-                    finalContent.push({
-                        type: "media",
-                        mimeType: att.mimeType,
-                        data: att.content.split(",")[1]
-                    });
-                }
-            }
-            
-            let textPrompt = message;
-            for (const att of attachments) {
-                if (att.type === "document") {
-                    textPrompt += `\n\n--- Content from attached file: ${att.name} ---\n${att.content}\n--- End of file ---\n`;
-                }
-            }
-            
-            finalContent.push({
-                type: "text",
-                text: textPrompt
-            });
-        }
 
         formatted.push({ role: "user", content: finalContent });
 
@@ -396,7 +477,7 @@ router.post("/:chatId/stream", async (req: Request, res: Response, next: NextFun
 
         let fullResponse = "";
         const usedTools: any[] = [];
-        const sources: SearchResult[] = [];
+        const sources: Array<SearchResult | DocumentSource> = [...documentSources];
 
         let selectedModel = model ?? undefined;
         if (selectedModel === "auto" || !selectedModel) {
@@ -512,6 +593,10 @@ router.post("/:chatId/stream", async (req: Request, res: Response, next: NextFun
 
     } catch (error) {
         console.error("Streaming error:", error);
+        if (!res.headersSent) {
+            next(error);
+            return;
+        }
         res.write(`data: ${JSON.stringify({ 
             type: 'error', 
             error: (error as Error).message 
