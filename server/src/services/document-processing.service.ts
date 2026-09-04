@@ -7,7 +7,14 @@ import { Document } from "../models/document.model.js";
 import { downloadDocumentFromS3 } from "./storage.service.js";
 
 const require = createRequire(import.meta.url);
-const parsePdf = require("pdf-parse") as (buffer: Buffer) => Promise<{ text: string }>;
+const parsePdf = require("pdf-parse") as (
+  buffer: Buffer,
+  options?: {
+    pagerender?: (pageData: {
+      getTextContent: () => Promise<{ items: Array<{ str?: string }> }>;
+    }) => string | Promise<string>;
+  }
+) => Promise<{ text: string }>;
 
 const CHUNK_SIZE = 4_000;
 const CHUNK_OVERLAP = 500;
@@ -15,6 +22,7 @@ const CHUNK_OVERLAP = 500;
 export interface DocumentChunk {
   text: string;
   index: number;
+  pageNumber?: number;
 }
 
 const qdrant = env.QDRANT_API_KEY
@@ -42,7 +50,7 @@ function normalizeText(text: string): string {
     .trim();
 }
 
-export function chunkText(text: string): DocumentChunk[] {
+function chunkNormalizedText(text: string, pageNumber?: number): DocumentChunk[] {
   const normalizedText = normalizeText(text);
   if (!normalizedText) {
     return [];
@@ -56,7 +64,11 @@ export function chunkText(text: string): DocumentChunk[] {
     const chunk = normalizedText.slice(start, end).trim();
 
     if (chunk) {
-      chunks.push({ text: chunk, index: chunks.length });
+      chunks.push({
+        text: chunk,
+        index: chunks.length,
+        ...(pageNumber ? { pageNumber } : {}),
+      });
     }
 
     if (end >= normalizedText.length) {
@@ -67,6 +79,16 @@ export function chunkText(text: string): DocumentChunk[] {
   }
 
   return chunks;
+}
+
+export function chunkText(text: string, pages?: string[]): DocumentChunk[] {
+  if (pages && pages.length > 0) {
+    return pages
+      .flatMap((page, index) => chunkNormalizedText(page, index + 1))
+      .map((chunk, index) => ({ ...chunk, index }));
+  }
+
+  return chunkNormalizedText(text);
 }
 
 function pointId(documentId: string, chunkIndex: number): string {
@@ -93,17 +115,38 @@ async function ensureCollection(vectorSize: number): Promise<void> {
   });
 }
 
-async function extractText(mimeType: string, buffer: Buffer): Promise<string> {
+interface ExtractedDocument {
+  text: string;
+  pages?: string[];
+}
+
+async function extractText(
+  mimeType: string,
+  buffer: Buffer
+): Promise<ExtractedDocument> {
   if (mimeType === "application/pdf") {
-    const parsed = await parsePdf(buffer);
-    return parsed.text;
+    const pages: string[] = [];
+    const parsed = await parsePdf(buffer, {
+      pagerender: async (pageData: {
+        getTextContent: () => Promise<{ items: Array<{ str?: string }> }>;
+      }) => {
+        const content = await pageData.getTextContent();
+        const pageText = content.items
+          .map((item) => item.str ?? "")
+          .join(" ");
+        pages.push(pageText);
+        return pageText;
+      },
+    });
+
+    return { text: parsed.text, pages };
   }
 
   if (mimeType.startsWith("text/") || mimeType.startsWith("application/")) {
-    return buffer.toString("utf-8");
+    return { text: buffer.toString("utf-8") };
   }
 
-  return "";
+  return { text: "" };
 }
 
 export async function processDocument(documentId: string): Promise<void> {
@@ -133,8 +176,8 @@ export async function processDocument(documentId: string): Promise<void> {
       return;
     }
 
-    const text = await extractText(document.mimeType, file);
-    const chunks = chunkText(text);
+    const extracted = await extractText(document.mimeType, file);
+    const chunks = chunkText(extracted.text, extracted.pages);
 
     if (chunks.length === 0) {
       throw new Error("The uploaded document contains no extractable text");
@@ -161,6 +204,7 @@ export async function processDocument(documentId: string): Promise<void> {
           filename: document.filename,
           mimeType: document.mimeType,
           chunkIndex: chunk.index,
+          ...(chunk.pageNumber ? { pageNumber: chunk.pageNumber } : {}),
           text: chunk.text,
         },
       })),

@@ -15,6 +15,7 @@ export interface RetrievedChunk {
   filename: string;
   mimeType: string;
   chunkIndex: number;
+  pageNumber?: number;
   text: string;
   score: number;
 }
@@ -84,6 +85,7 @@ export async function retrieveRelevantChunks(input: {
     const filename = payload.filename;
     const mimeType = payload.mimeType;
     const chunkIndex = payload.chunkIndex;
+    const pageNumber = payload.pageNumber;
     const text = payload.text;
 
     if (
@@ -102,6 +104,7 @@ export async function retrieveRelevantChunks(input: {
         filename,
         mimeType,
         chunkIndex,
+        ...(typeof pageNumber === "number" ? { pageNumber } : {}),
         text,
         score: point.score,
       },

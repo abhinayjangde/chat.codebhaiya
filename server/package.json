@@ -7,6 +7,8 @@
     "build": "tsc -p .",
     "start": "node dist/index.js",
     "dev": "tsc-watch --onSuccess \"node dist/index.js\"",
+    "worker": "node dist/workers/document.worker.js",
+    "worker:dev": "tsc-watch --onSuccess \"node dist/workers/document.worker.js\"",
     "smoke:test": "node scripts/smoke-test.mjs"
   },
   "keywords": [],
