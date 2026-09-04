@@ -8,6 +8,7 @@ import { startKeepAlive } from "./lib/keep-alive.js";
 import { HttpError } from "./lib/validation.js";
 import authRoutes from "./routes/auth.route.js";
 import chatRoutes from "./routes/chat.route.js";
+import documentRoutes from "./routes/documents.route.js";
 import uploadRoutes from "./routes/upload.route.js";
 
 const app = express();
@@ -44,6 +45,7 @@ app.get("/health", (_req, res) => {
 
 app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
+app.use("/api/documents", documentRoutes);
 app.use("/api/upload", uploadRoutes);
 
 app.use((_req: Request, res: Response) => {

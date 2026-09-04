@@ -1,8 +1,8 @@
 {
-  "name": "experiments",
+  "name": "server",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
     "build": "tsc -p .",
     "start": "node dist/index.js",

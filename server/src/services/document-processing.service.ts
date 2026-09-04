@@ -115,6 +115,32 @@ async function ensureCollection(vectorSize: number): Promise<void> {
   });
 }
 
+export async function deleteDocumentVectors(
+  userId: string,
+  documentId: string
+): Promise<void> {
+  const exists = await qdrant.collectionExists(env.QDRANT_COLLECTION);
+  if (!exists) {
+    return;
+  }
+
+  await qdrant.delete(env.QDRANT_COLLECTION, {
+    wait: true,
+    filter: {
+      must: [
+        {
+          key: "userId",
+          match: { value: userId },
+        },
+        {
+          key: "documentId",
+          match: { value: documentId },
+        },
+      ],
+    },
+  });
+}
+
 interface ExtractedDocument {
   text: string;
   pages?: string[];
