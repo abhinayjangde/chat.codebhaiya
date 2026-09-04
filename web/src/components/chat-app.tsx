@@ -25,6 +25,7 @@ import {
 } from "@/lib/storage";
 import type {
   AuthTokens,
+  Attachment,
   ChatMessage,
   ChatSummary,
   UserProfile,
@@ -45,6 +46,15 @@ import { ChatMessageList } from "@/components/chat/chat-message-list";
 import { ChatComposer } from "@/components/chat/chat-composer";
 import { ChatAuthForm } from "@/components/chat/chat-auth-form";
 import { getTimeGreeting, firstName } from "@/lib/greeting";
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error ?? new Error("Unable to read image"));
+    reader.readAsDataURL(file);
+  });
+}
 
 
 export function ChatApp() {
@@ -388,15 +398,39 @@ export function ChatApp() {
   }, [tokens, clearSession]);
 
   const handleFileUpload = useCallback(
-    async (file: File) => {
-      return runWithSession((accessToken) =>
+    async (file: File): Promise<Attachment> => {
+      const uploaded = await runWithSession((accessToken) =>
         apiClient.uploadFile(file, accessToken)
       );
+
+      if (uploaded.type === "image") {
+        return {
+          ...uploaded,
+          content: await readFileAsDataUrl(file),
+          status: "ready",
+        };
+      }
+
+      return uploaded;
     },
     [runWithSession]
   );
 
-  const handleSendPrompt = useCallback(async (promptOverride?: string, attachments?: any[]) => {
+  const handleDocumentStatus = useCallback(
+    async (documentId: string): Promise<Pick<Attachment, "status" | "errorMessage">> => {
+      const document = await runWithSession((accessToken) =>
+        apiClient.getDocumentStatus(documentId, accessToken)
+      );
+
+      return {
+        status: document.status,
+        ...(document.errorMessage ? { errorMessage: document.errorMessage } : {}),
+      };
+    },
+    [runWithSession]
+  );
+
+  const handleSendPrompt = useCallback(async (promptOverride?: string, attachments?: Attachment[]) => {
     if (!tokens || isSendingRef.current) {
       return;
     }
@@ -462,6 +496,7 @@ export function ChatApp() {
         role: "user",
         content: prompt,
         createdAt: nowIso,
+        attachments,
       };
 
       const assistantMessage: ChatMessage = {
@@ -852,6 +887,7 @@ export function ChatApp() {
                   selectedModel={selectedModel}
                   onModelChange={setSelectedModel}
                   onUploadFile={handleFileUpload}
+                    onDocumentStatus={handleDocumentStatus}
                   variant="center"
                   inputValue={composer}
                   onInputChange={setComposer}
@@ -897,6 +933,7 @@ export function ChatApp() {
                 selectedModel={selectedModel}
                 onModelChange={setSelectedModel}
                 onUploadFile={handleFileUpload}
+                    onDocumentStatus={handleDocumentStatus}
                 variant="footer"
                 inputValue={composer}
                 onInputChange={setComposer}

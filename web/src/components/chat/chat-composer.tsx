@@ -23,6 +23,7 @@ import { ModelInfo } from "@/lib/types";
 import { Bot } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import { SiMeta, SiOpenai } from "react-icons/si";
+import type { Attachment } from "@/lib/types";
 
 function ModelLogo({
   provider,
@@ -54,13 +55,7 @@ function ModelLogo({
   }
 }
 
-export interface Attachment {
-  type: "image" | "audio" | "document" | "unknown";
-  content: string; // Base64 or Text
-  mimeType: string;
-  name: string;
-  size: number;
-}
+export type { Attachment };
 
 interface ChatComposerProps {
   onSend: (message: string, attachments?: Attachment[]) => void;
@@ -71,6 +66,7 @@ interface ChatComposerProps {
   selectedModel: string;
   onModelChange: (modelId: string) => void;
   onUploadFile?: (file: File) => Promise<Attachment>;
+  onDocumentStatus?: (documentId: string) => Promise<Pick<Attachment, "status" | "errorMessage">>;
   variant: "center" | "footer";
   inputValue?: string;           // Optional controlled input
   onInputChange?: (val: string) => void; // Optional control handler
@@ -85,6 +81,7 @@ export const ChatComposer = memo(function ChatComposer({
   selectedModel,
   onModelChange,
   onUploadFile,
+  onDocumentStatus,
   variant,
   inputValue,
   onInputChange
@@ -99,13 +96,38 @@ export const ChatComposer = memo(function ChatComposer({
   
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const pollDocumentStatus = async (documentId: string) => {
+    if (!onDocumentStatus) {
+      return;
+    }
+
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      await new Promise((resolve) => window.setTimeout(resolve, 1_000));
+      const status = await onDocumentStatus(documentId);
+
+      setAttachments((current) =>
+        current.map((attachment) =>
+          attachment.documentId === documentId
+            ? { ...attachment, ...status }
+            : attachment
+        )
+      );
+
+      if (status.status === "ready" || status.status === "failed") {
+        return;
+      }
+    }
+  };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0) return;
 
     setIsUploading(true);
+    setUploadError(null);
     setPlusMenuOpen(false);
     
     if (!onUploadFile) {
@@ -120,6 +142,16 @@ export const ChatComposer = memo(function ChatComposer({
         if (file) {
           const result = await onUploadFile(file);
           uploadedAttachments.push(result);
+
+          if (
+            result.documentId &&
+            result.type === "document" &&
+            result.status !== "ready"
+          ) {
+            void pollDocumentStatus(result.documentId).catch((error) => {
+              setUploadError(error instanceof Error ? error.message : "Unable to check document status");
+            });
+          }
         }
       }
       setAttachments(prev => [...prev, ...uploadedAttachments]);
@@ -142,6 +174,14 @@ export const ChatComposer = memo(function ChatComposer({
     event.preventDefault();
     if (!composer.trim() && attachments.length === 0) return;
     if (isSending || isUploading) return;
+    if (attachments.some((attachment) => attachment.type === "document" && attachment.status !== "ready")) {
+      setUploadError("Wait for document processing to finish before sending.");
+      return;
+    }
+    if (attachments.some((attachment) => attachment.status === "failed")) {
+      setUploadError("Remove the failed document and upload it again.");
+      return;
+    }
     onSend(composer, attachments.length > 0 ? attachments : undefined);
     setAttachments([]);
     if (inputValue === undefined) {
@@ -156,6 +196,14 @@ export const ChatComposer = memo(function ChatComposer({
       event.preventDefault();
       if (!composer.trim() && attachments.length === 0) return;
       if (isSending || isUploading) return;
+      if (attachments.some((attachment) => attachment.type === "document" && attachment.status !== "ready")) {
+        setUploadError("Wait for document processing to finish before sending.");
+        return;
+      }
+      if (attachments.some((attachment) => attachment.status === "failed")) {
+        setUploadError("Remove the failed document and upload it again.");
+        return;
+      }
       onSend(composer, attachments.length > 0 ? attachments : undefined);
       setAttachments([]);
       if (inputValue === undefined) {
@@ -173,18 +221,26 @@ export const ChatComposer = memo(function ChatComposer({
       onSubmit={handleComposerSubmit}
     >
       <div className="rounded-2xl mx-1 md:mx-0 border border-(--chat-composer-border) bg-(--chat-composer) px-4 pb-2.5 pt-3">
+        {uploadError && (
+          <p className="mb-2 text-xs text-red-500" role="status">{uploadError}</p>
+        )}
         {attachments.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-2">
             {attachments.map((att, i) => (
               <div key={i} className="relative flex items-center gap-2 rounded-md bg-(--chat-dropdown-hover) py-1 px-2 pr-6 border border-(--chat-dropdown-border) text-sm shadow-sm group">
                 {att.type === "image" ? (
-                  <img src={att.content} alt={att.name} className="h-6 w-6 object-cover rounded-sm" />
+                  att.content ? <img src={att.content} alt={att.name} className="h-6 w-6 object-cover rounded-sm" /> : <Paperclip className="h-4 w-4 text-blue-500" />
                 ) : att.type === "audio" ? (
                   <svg className="h-4 w-4 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" /></svg>
                 ) : (
                   <Paperclip className="h-4 w-4 text-blue-500" />
                 )}
                 <span className="max-w-[120px] truncate text-xs text-(--chat-text)">{att.name}</span>
+                {att.type === "document" && att.status !== "ready" && (
+                  <span className={cn("text-[10px]", att.status === "failed" ? "text-red-500" : "text-(--chat-text-muted)")}>
+                    {att.status === "failed" ? "failed" : att.status === "processing" ? "processing" : "queued"}
+                  </span>
+                )}
                 <button
                   type="button"
                   onClick={() => removeAttachment(i)}

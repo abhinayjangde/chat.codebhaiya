@@ -33,11 +33,43 @@ export interface ChatSummary {
 }
 
 export interface MessageSource {
+  type?: "web" | "document";
   title: string;
   url?: string;
   link?: string;
   snippet?: string;
   position?: number;
+  documentId?: string;
+  filename?: string;
+  pageNumber?: number;
+  chunkIndex?: number;
+  score?: number;
+}
+
+export type DocumentStatus = "queued" | "processing" | "ready" | "failed";
+
+export interface Attachment {
+  type: "image" | "audio" | "document" | "unknown";
+  content?: string;
+  documentId?: string;
+  mimeType: string;
+  name: string;
+  size: number;
+  status?: DocumentStatus;
+  errorMessage?: string;
+}
+
+export interface DocumentStatusResponse {
+  documentId: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  status: DocumentStatus;
+  errorMessage?: string;
+  chunkCount: number;
+  embeddingModel?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface UsedTool {
@@ -55,7 +87,7 @@ export interface ChatMessage {
   createdAt?: string;
   sources?: MessageSource[];
   usedTools?: UsedTool[];
-  attachments?: any[];
+  attachments?: Attachment[];
   isStreaming?: boolean;
   modelName?: string;
 }
