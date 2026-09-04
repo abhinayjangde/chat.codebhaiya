@@ -26,8 +26,8 @@ export interface DocumentChunk {
 }
 
 const qdrant = env.QDRANT_API_KEY
-  ? new QdrantClient({ url: env.QDRANT_URL, apiKey: env.QDRANT_API_KEY })
-  : new QdrantClient({ url: env.QDRANT_URL });
+  ? new QdrantClient({ url: env.QDRANT_URL, port: null, apiKey: env.QDRANT_API_KEY })
+  : new QdrantClient({ url: env.QDRANT_URL, port: null });
 
 function getEmbeddings(): GoogleGenerativeAIEmbeddings {
   if (!env.GOOGLE_API_KEY) {
@@ -103,16 +103,44 @@ function pointId(documentId: string, chunkIndex: number): string {
 
 async function ensureCollection(vectorSize: number): Promise<void> {
   const exists = await qdrant.collectionExists(env.QDRANT_COLLECTION);
-  if (exists) {
+  if (!exists) {
+    await qdrant.createCollection(env.QDRANT_COLLECTION, {
+      vectors: {
+        size: vectorSize,
+        distance: "Cosine",
+      },
+    });
+  }
+}
+
+export async function ensureQdrantPayloadIndexes(): Promise<void> {
+  if (!(await qdrant.collectionExists(env.QDRANT_COLLECTION))) {
     return;
   }
 
-  await qdrant.createCollection(env.QDRANT_COLLECTION, {
-    vectors: {
-      size: vectorSize,
-      distance: "Cosine",
-    },
-  });
+  const collection = await qdrant.getCollection(env.QDRANT_COLLECTION) as {
+    payload_schema?: Record<string, unknown>;
+  };
+  const payloadSchema = collection.payload_schema ?? {};
+
+  for (const fieldName of ["userId", "documentId"]) {
+    if (fieldName in payloadSchema) {
+      continue;
+    }
+
+    try {
+      await qdrant.createPayloadIndex(env.QDRANT_COLLECTION, {
+        field_name: fieldName,
+        field_schema: "keyword",
+        wait: true,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.toLowerCase().includes("already exists")) {
+        throw error;
+      }
+    }
+  }
 }
 
 export async function deleteDocumentVectors(
@@ -218,6 +246,7 @@ export async function processDocument(documentId: string): Promise<void> {
     }
 
     await ensureCollection(firstVector.length);
+    await ensureQdrantPayloadIndexes();
 
     await qdrant.upsert(env.QDRANT_COLLECTION, {
       wait: true,

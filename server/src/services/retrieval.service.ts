@@ -3,12 +3,13 @@ import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import mongoose from "mongoose";
 import { env } from "../config/env.js";
 import { Document } from "../models/document.model.js";
+import { ensureQdrantPayloadIndexes } from "./document-processing.service.js";
 
 const DEFAULT_RESULT_LIMIT = 6;
 
 const qdrant = env.QDRANT_API_KEY
-  ? new QdrantClient({ url: env.QDRANT_URL, apiKey: env.QDRANT_API_KEY })
-  : new QdrantClient({ url: env.QDRANT_URL });
+  ? new QdrantClient({ url: env.QDRANT_URL, port: null, apiKey: env.QDRANT_API_KEY })
+  : new QdrantClient({ url: env.QDRANT_URL, port: null });
 
 export interface RetrievedChunk {
   documentId: string;
@@ -55,6 +56,13 @@ export async function retrieveRelevantChunks(input: {
   if (ownedDocumentIds.length === 0) {
     return [];
   }
+
+  if (!(await qdrant.collectionExists(env.QDRANT_COLLECTION))) {
+    console.warn(`Qdrant collection '${env.QDRANT_COLLECTION}' does not exist yet`);
+    return [];
+  }
+
+  await ensureQdrantPayloadIndexes();
 
   const queryVector = await getEmbeddings().embedQuery(input.query.trim());
   const result = await qdrant.query(env.QDRANT_COLLECTION, {
