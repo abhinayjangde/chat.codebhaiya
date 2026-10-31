@@ -5,6 +5,7 @@ import {
   refreshTokens,
   deleteUserAccount,
   changePassword,
+  revokeSession,
 } from "../services/auth.service.js";
 import { authenticateToken } from "../middleware/auth.middleware.js";
 import {
@@ -95,8 +96,7 @@ router.post("/refresh", async (req: Request, res: Response, next: NextFunction) 
 });
 
 router.post("/logout", authenticateToken, async (req: Request, res: Response) => {
-  // In a more complex system, you would invalidate the refresh token here
-  // For now, we just return success and let the client discard tokens
+  await revokeSession(req.user!.sessionId, req.user!.userId);
   res.status(200).json({
     success: true,
     message: "Logged out successfully",

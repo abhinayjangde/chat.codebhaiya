@@ -1,8 +1,10 @@
+import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
 import type { IUser } from "../models/user.model.js";
 import { User } from "../models/user.model.js";
 import { Chat } from "../models/chat.model.js";
 import { Message } from "../models/message.model.js";
+import { AuthSession } from "../models/auth-session.model.js";
 import { env } from "../config/env.js";
 import { cleanupDocumentsForUser } from "./document-cleanup.service.js";
 
@@ -14,6 +16,7 @@ const JWT_REFRESH_EXPIRY = env.JWT_REFRESH_EXPIRY;
 export interface TokenPayload {
   userId: string;
   email: string;
+  sessionId: string;
 }
 
 export interface AuthTokens {
@@ -45,7 +48,7 @@ export async function registerUser(
     throw error;
   }
 
-  const tokens = generateTokens(user);
+  const tokens = await issueTokens(user);
   return { user, tokens };
 }
 
@@ -63,14 +66,28 @@ export async function loginUser(
     throw new Error("Invalid credentials");
   }
 
-  const tokens = generateTokens(user);
+  const tokens = await issueTokens(user);
   return { user, tokens };
 }
 
-export function generateTokens(user: IUser): AuthTokens {
+function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function getTokenExpiryDate(token: string): Date {
+  const decoded = jwt.decode(token);
+  if (!decoded || typeof decoded !== "object" || typeof decoded.exp !== "number") {
+    throw new Error("Generated token has no expiration");
+  }
+
+  return new Date(decoded.exp * 1_000);
+}
+
+function generateTokens(user: IUser, sessionId: string): AuthTokens {
   const payload: TokenPayload = {
     userId: user._id.toString(),
     email: user.email,
+    sessionId,
   };
 
   const accessToken = jwt.sign(payload, JWT_SECRET, {
@@ -85,11 +102,62 @@ export function generateTokens(user: IUser): AuthTokens {
 }
 
 export function verifyAccessToken(token: string): TokenPayload {
-  return jwt.verify(token, JWT_SECRET) as TokenPayload;
+  const payload = jwt.verify(token, JWT_SECRET) as Partial<TokenPayload>;
+  if (
+    typeof payload.userId !== "string" ||
+    typeof payload.email !== "string" ||
+    typeof payload.sessionId !== "string"
+  ) {
+    throw new Error("Invalid access token payload");
+  }
+
+  return payload as TokenPayload;
 }
 
 export function verifyRefreshToken(token: string): TokenPayload {
-  return jwt.verify(token, JWT_REFRESH_SECRET) as TokenPayload;
+  const payload = jwt.verify(token, JWT_REFRESH_SECRET) as Partial<TokenPayload>;
+  if (
+    typeof payload.userId !== "string" ||
+    typeof payload.email !== "string" ||
+    typeof payload.sessionId !== "string"
+  ) {
+    throw new Error("Invalid refresh token payload");
+  }
+
+  return payload as TokenPayload;
+}
+
+async function issueTokens(
+  user: IUser,
+  sessionId: string = crypto.randomUUID()
+): Promise<AuthTokens> {
+  const tokens = generateTokens(user, sessionId);
+
+  await AuthSession.findOneAndUpdate(
+    { sessionId },
+    {
+      userId: user._id,
+      refreshTokenHash: hashToken(tokens.refreshToken),
+      expiresAt: getTokenExpiryDate(tokens.refreshToken),
+      $unset: { revokedAt: 1 },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  return tokens;
+}
+
+export async function isSessionActive(sessionId: string, userId: string): Promise<boolean> {
+  const session = await AuthSession.findOne({
+    sessionId,
+    userId,
+    revokedAt: { $exists: false },
+    expiresAt: { $gt: new Date() },
+  })
+    .select("_id")
+    .lean();
+
+  return Boolean(session);
 }
 
 export async function refreshTokens(refreshToken: string): Promise<AuthTokens> {
@@ -101,10 +169,33 @@ export async function refreshTokens(refreshToken: string): Promise<AuthTokens> {
       throw new Error("User not found");
     }
 
-    return generateTokens(user);
+    const session = await AuthSession.findOneAndUpdate(
+      {
+        sessionId: payload.sessionId,
+        userId: user._id,
+        refreshTokenHash: hashToken(refreshToken),
+        revokedAt: { $exists: false },
+        expiresAt: { $gt: new Date() },
+      },
+      { $set: { revokedAt: new Date() } },
+      { new: false }
+    );
+
+    if (!session) {
+      throw new Error("Refresh token has been revoked");
+    }
+
+    return issueTokens(user, payload.sessionId);
   } catch (error) {
     throw new Error("Invalid refresh token");
   }
+}
+
+export async function revokeSession(sessionId: string, userId: string): Promise<void> {
+  await AuthSession.updateOne(
+    { sessionId, userId, revokedAt: { $exists: false } },
+    { $set: { revokedAt: new Date() } }
+  );
 }
 
 export async function deleteUserAccount(userId: string): Promise<void> {

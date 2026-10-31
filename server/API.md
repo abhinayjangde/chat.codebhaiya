@@ -16,6 +16,8 @@ Authorization: Bearer <access_token>
 ### Token Lifecycle
 - **Access Token**: Valid for 15 minutes
 - **Refresh Token**: Valid for 7 days
+- Refresh tokens are rotated on every refresh request and the previous token is revoked.
+- Logout revokes the current session, invalidating its refresh token and access token.
 
 ---
 
@@ -131,7 +133,7 @@ Refresh access token using refresh token.
 ```
 
 #### POST /auth/logout
-Logout current user (client should discard tokens).
+Logout the current session and revoke its tokens.
 
 **Headers:**
 ```http
