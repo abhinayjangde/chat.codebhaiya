@@ -102,10 +102,20 @@ function pickMessage(body: unknown, fallback: string): string {
 }
 
 async function requestData<T>(path: string, init: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    cache: "no-store",
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...init,
+      cache: "no-store",
+    });
+  } catch (error) {
+    const reason = error instanceof Error ? `: ${error.message}` : "";
+    throw new ApiError(
+      `Unable to reach the API at ${API_BASE_URL}. Check that the server is running and CORS is configured${reason}`,
+      0,
+      error
+    );
+  }
 
   const body = await parseResponseBody(response);
 
@@ -276,12 +286,20 @@ export const apiClient = {
     model?: string,
     attachments?: Attachment[],
     language?: string,
-    collectionId?: string
+    collectionId?: string,
+    replacement?: { editMessageId?: string; regenerateMessageId?: string }
   ): Promise<ReadableStream<Uint8Array>> {
     const response = await fetch(`${API_BASE_URL}/chat/${chatId}/stream`, {
       method: "POST",
       headers: authHeaders(accessToken),
-      body: JSON.stringify({ message, model, attachments, language, collectionId }),
+      body: JSON.stringify({
+        message,
+        model,
+        attachments,
+        language,
+        collectionId,
+        ...replacement,
+      }),
       signal,
       cache: "no-store",
     });

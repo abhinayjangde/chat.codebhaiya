@@ -14,11 +14,14 @@ import { startDocumentWorker, type DocumentWorkerHandle } from "./workers/docume
 
 const app = express();
 const allowedOrigins = new Set(env.corsOrigins);
+const isDevelopmentOrigin = (origin: string) =>
+  env.NODE_ENV !== "production" &&
+  /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 
 app.use(
   cors({
     origin(origin, callback) {
-      if (!origin || allowedOrigins.has(origin)) {
+      if (!origin || allowedOrigins.has(origin) || isDevelopmentOrigin(origin)) {
         callback(null, true);
         return;
       }

@@ -89,6 +89,7 @@ export function ChatApp() {
   const streamAbortRef = useRef<AbortController | null>(null);
   const skipNextFetchRef = useRef(false);
   const isSendingRef = useRef(false);
+  const replacementRef = useRef<{ editMessageId?: string; regenerateMessageId?: string } | undefined>(undefined);
 
   const clearSession = useCallback(() => {
     streamAbortRef.current?.abort();
@@ -420,11 +421,16 @@ export function ChatApp() {
     [runWithSession]
   );
 
-  const handleSendPrompt = useCallback(async (promptOverride?: string, attachments?: Attachment[]) => {
+  const handleSendPrompt = useCallback(async (
+    promptOverride?: string,
+    attachments?: Attachment[],
+    replacement?: { editMessageId?: string; regenerateMessageId?: string }
+  ) => {
     if (!tokens || isSendingRef.current) {
       return;
     }
 
+    const activeReplacement = replacement ?? replacementRef.current;
     const prompt = (promptOverride ?? composer).trim();
     if (!prompt && (!attachments || attachments.length === 0)) {
       return;
@@ -500,7 +506,11 @@ export function ChatApp() {
         modelName: selectedModel || undefined,
       };
 
-      setMessages((previous) => [...previous, userMessage, assistantMessage]);
+      setMessages((previous) =>
+        activeReplacement?.regenerateMessageId
+          ? [...previous, assistantMessage]
+          : [...previous, userMessage, assistantMessage]
+      );
 
       const controller = new AbortController();
       streamAbortRef.current = controller;
@@ -514,7 +524,8 @@ export function ChatApp() {
           selectedModel,
           attachments,
           language,
-          collectionId ?? undefined
+          collectionId ?? undefined,
+          activeReplacement
         )
       );
 
@@ -655,11 +666,31 @@ export function ChatApp() {
       );
     } finally {
       streamAbortRef.current = null;
+      replacementRef.current = undefined;
       skipNextFetchRef.current = true;
       isSendingRef.current = false;
       setIsSending(false);
     }
   }, [tokens, composer, activeChatId, user, selectedModel, language, collectionId, runWithSession, loadChats]);
+
+  const handleEditMessage = useCallback((message: ChatMessage) => {
+    if (isSendingRef.current || !message._id) {
+      return;
+    }
+    replacementRef.current = { editMessageId: message._id };
+    setComposer(message.content);
+    setMessages((current) => current.slice(0, current.findIndex((entry) => entry._id === message._id)));
+  }, []);
+
+  const handleRegenerateMessage = useCallback((message: ChatMessage, userMessage: ChatMessage) => {
+    if (isSendingRef.current || !message._id || !userMessage._id) {
+      return;
+    }
+    replacementRef.current = { regenerateMessageId: message._id };
+    setMessages((current) => current.filter((entry) => entry._id !== message._id));
+    void handleSendPrompt(userMessage.content, userMessage.attachments, replacementRef.current);
+    replacementRef.current = undefined;
+  }, [handleSendPrompt]);
 
   const handleStopStreaming = useCallback(() => {
     streamAbortRef.current?.abort();
@@ -886,6 +917,8 @@ export function ChatApp() {
               isLoadingMessages={isLoadingMessages}
               chatError={chatError}
               availableModels={availableModels}
+              onEditMessage={handleEditMessage}
+              onRegenerateMessage={handleRegenerateMessage}
             />
           
           {messages.length === 0 && !isLoadingMessages && (

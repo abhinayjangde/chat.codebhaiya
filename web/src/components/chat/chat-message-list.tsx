@@ -28,6 +28,8 @@ interface ChatMessageListProps {
   isLoadingMessages: boolean;
   chatError: string | null;
   availableModels: ModelInfo[];
+  onEditMessage: (message: ChatMessage) => void;
+  onRegenerateMessage: (message: ChatMessage, userMessage: ChatMessage) => void;
 }
 
 export const ChatMessageList = memo(function ChatMessageList({
@@ -35,6 +37,8 @@ export const ChatMessageList = memo(function ChatMessageList({
   isLoadingMessages,
   chatError,
   availableModels,
+  onEditMessage,
+  onRegenerateMessage,
 }: ChatMessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -110,6 +114,15 @@ export const ChatMessageList = memo(function ChatMessageList({
                     <p className="mt-1 text-right text-[11px] text-(--chat-timestamp)">
                       {formatTime(message.createdAt)}
                     </p>
+                    <div className="mt-1 flex justify-end gap-1">
+                      <button
+                        type="button"
+                        className="rounded-md px-2 py-1 text-[11px] text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)"
+                        onClick={() => onEditMessage(message)}
+                      >
+                        Edit
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   /* ── AI response: no bubble, full-width text ── */
@@ -250,7 +263,7 @@ export const ChatMessageList = memo(function ChatMessageList({
                           { icon: ThumbsUp, label: "Like" },
                           { icon: ThumbsDown, label: "Dislike" },
                           // { icon: Share, label: "Share" },
-                          // { icon: RefreshCw, label: "Regenerate" },
+                          { icon: RefreshCw, label: "Regenerate" },
                           // { icon: MoreHorizontal, label: "More" },
                         ].map((action) => (
                           <button
@@ -263,6 +276,15 @@ export const ChatMessageList = memo(function ChatMessageList({
                                 void navigator.clipboard.writeText(
                                   displayContent
                                 );
+                              }
+                              if (action.label === "Regenerate") {
+                                const previousUser = messages
+                                  .slice(0, index)
+                                  .reverse()
+                                  .find((entry) => entry.role === "user");
+                                if (previousUser) {
+                                  onRegenerateMessage(message, previousUser);
+                                }
                               }
                             }}
                           >

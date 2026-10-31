@@ -294,7 +294,13 @@ router.post("/", async (req: Request, res: Response, next: NextFunction) => {
 router.post("/:chatId", async (req: Request, res: Response, next: NextFunction) => {
     try {
         const chatId = parseBody(chatIdParamSchema, Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId);
-        const { message, attachments, language, model, collectionId } = parseBody(chatMessageSchema, req.body);
+        const {
+            message,
+            attachments,
+            language,
+            model,
+            collectionId,
+        } = parseBody(chatMessageSchema, req.body);
         const userId = req.user?.userId;
 
         if (!userId) {
@@ -470,7 +476,15 @@ router.delete("/:chatId", async (req: Request, res: Response, next: NextFunction
 router.post("/:chatId/stream", async (req: Request, res: Response, next: NextFunction) => {
     try {
         const chatId = parseBody(chatIdParamSchema, Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId);
-        const { message, attachments, language, model, collectionId } = parseBody(chatMessageSchema, req.body);
+        const {
+            message,
+            attachments,
+            language,
+            model,
+            collectionId,
+            editMessageId,
+            regenerateMessageId,
+        } = parseBody(chatMessageSchema, req.body);
         const userId = req.user?.userId;
 
         if (!userId) {
@@ -489,6 +503,21 @@ router.post("/:chatId/stream", async (req: Request, res: Response, next: NextFun
             return;
         }
 
+        const replacementMessageId = editMessageId ?? regenerateMessageId;
+        const replacementMessage = replacementMessageId
+            ? await Message.findOne({
+                _id: new ObjectId(replacementMessageId),
+                chatId: new ObjectId(chatId),
+                userId: new ObjectId(userId),
+            })
+            : null;
+
+        if (replacementMessageId && !replacementMessage) {
+            res.write(`data: ${JSON.stringify({ type: "error", error: "Message to replace was not found" })}\n\n`);
+            res.end();
+            return;
+        }
+
         const { content: finalContent, documentSources } = await buildMessageContent(
             message,
             attachments,
@@ -501,10 +530,24 @@ router.post("/:chatId/stream", async (req: Request, res: Response, next: NextFun
         res.setHeader('Connection', 'keep-alive');
         res.setHeader('X-Accel-Buffering', 'no');
 
-        const previousMessages = await Message.find({ 
+        let previousMessages = await Message.find({
             chatId: new ObjectId(chatId),
             userId: new ObjectId(userId)
         }).sort({ createdAt: 1, _id: 1 });
+        let messagesToReplace: typeof previousMessages = [];
+
+        if (replacementMessage) {
+            const replacementIndex = previousMessages.findIndex(
+                (entry) => entry._id.toString() === replacementMessage._id.toString()
+            );
+            if (replacementIndex === -1) {
+                res.write(`data: ${JSON.stringify({ type: "error", error: "Message to replace was not found" })}\n\n`);
+                res.end();
+                return;
+            }
+            messagesToReplace = previousMessages.slice(replacementIndex);
+            previousMessages = previousMessages.slice(0, replacementIndex);
+        }
 
         const formatted: Array<{ role: string; content: any }> = previousMessages
             .filter((msg) => msg.role && msg.content)
@@ -514,14 +557,6 @@ router.post("/:chatId/stream", async (req: Request, res: Response, next: NextFun
             }));
 
         formatted.push({ role: "user", content: finalContent });
-
-        await Message.create({
-            chatId: new ObjectId(chatId),
-            userId: new ObjectId(userId),
-            role: "user",
-            content: message,
-            attachments: getPersistedAttachments(attachments),
-        });
 
         let fullResponse = "";
         const usedTools: any[] = [];
@@ -627,6 +662,22 @@ router.post("/:chatId/stream", async (req: Request, res: Response, next: NextFun
             messageData.usedTools = usedTools;
         }
         
+        if (replacementMessage) {
+            await Message.deleteMany({
+                _id: { $in: messagesToReplace.map((entry) => entry._id) },
+            });
+        }
+
+        if (!regenerateMessageId) {
+            await Message.create({
+                chatId: new ObjectId(chatId),
+                userId: new ObjectId(userId),
+                role: "user",
+                content: message,
+                attachments: getPersistedAttachments(attachments),
+            });
+        }
+
         await Message.create(messageData);
 
         await Chat.findByIdAndUpdate(chatId, { 

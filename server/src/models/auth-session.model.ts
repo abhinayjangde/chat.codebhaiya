@@ -32,7 +32,6 @@ const authSessionSchema = new mongoose.Schema<IAuthSession>(
     expiresAt: {
       type: Date,
       required: true,
-      index: true,
     },
     revokedAt: {
       type: Date,
