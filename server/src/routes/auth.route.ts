@@ -14,7 +14,9 @@ import {
   loginSchema,
   refreshTokenSchema,
   passwordChangeSchema,
+  preferencesSchema,
 } from "../lib/validation.js";
+import { User } from "../models/user.model.js";
 
 const router: Router = express.Router();
 
@@ -143,10 +145,24 @@ router.put("/password", authenticateToken, async (req: Request, res: Response, n
 
 router.get("/me", authenticateToken, async (req: Request, res: Response) => {
   try {
+    const user = await User.findById(req.user!.userId)
+      .select("_id email name preferences")
+      .lean();
+
+    if (!user) {
+      res.status(404).json({ success: false, error: "User not found" });
+      return;
+    }
+
     res.status(200).json({
       success: true,
       data: {
-        user: req.user,
+        user: {
+          id: user._id,
+          email: user.email,
+          name: user.name,
+          preferences: user.preferences,
+        },
       },
     });
   } catch (error) {
@@ -154,6 +170,38 @@ router.get("/me", authenticateToken, async (req: Request, res: Response) => {
       success: false,
       error: (error as Error).message,
     });
+  }
+});
+
+router.put("/preferences", authenticateToken, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { systemInstructions } = parseBody(preferencesSchema, req.body);
+    const user = await User.findByIdAndUpdate(
+      req.user!.userId,
+      { $set: { "preferences.systemInstructions": systemInstructions } },
+      { new: true, runValidators: true }
+    )
+      .select("_id email name preferences")
+      .lean();
+
+    if (!user) {
+      res.status(404).json({ success: false, error: "User not found" });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        user: {
+          id: user._id,
+          email: user.email,
+          name: user.name,
+          preferences: user.preferences,
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
   }
 });
 

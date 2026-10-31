@@ -14,6 +14,7 @@ import { getPaginatedMessages } from "../services/message.service.js";
 import { generateChatTitle } from "../services/chat.service.js";
 import { downloadDocumentFromS3 } from "../services/storage.service.js";
 import PDFDocument from "pdfkit";
+import { User } from "../models/user.model.js";
 
 const router: Router = express.Router();
 
@@ -331,7 +332,12 @@ router.post("/:chatId", async (req: Request, res: Response, next: NextFunction) 
             selectedModel = await autoSelectModel(message, attachments ?? []);
         }
 
-        const agent = getAgent(selectedModel, language ?? undefined);
+        const user = await User.findById(userId).select("preferences.systemInstructions").lean();
+        const agent = getAgent(
+            selectedModel,
+            language ?? undefined,
+            user?.preferences?.systemInstructions
+        );
         const response = await agent.invoke({ messages: formatted });
         await Message.create({
             chatId: new ObjectId(chatId),
@@ -511,7 +517,12 @@ router.post("/:chatId/stream", async (req: Request, res: Response, next: NextFun
             selectedModel = await autoSelectModel(message, attachments ?? []);
         }
 
-        const agent = getAgent(selectedModel, language ?? undefined);
+        const user = await User.findById(userId).select("preferences.systemInstructions").lean();
+        const agent = getAgent(
+            selectedModel,
+            language ?? undefined,
+            user?.preferences?.systemInstructions
+        );
         const stream = await agent.stream(
             { messages: formatted },
             { streamMode: "messages" }

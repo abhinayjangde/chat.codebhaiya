@@ -68,6 +68,15 @@ export const passwordChangeSchema = z
   })
   .passthrough();
 
+export const preferencesSchema = z
+  .object({
+    systemInstructions: z
+      .string()
+      .trim()
+      .max(4_000, "Custom instructions must be 4,000 characters or fewer"),
+  })
+  .passthrough();
+
 const attachmentSchema = z
   .object({
     type: z.enum(["image", "audio", "document"]),

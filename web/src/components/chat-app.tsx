@@ -707,6 +707,21 @@ export function ChatApp() {
     );
   }, [runWithSession]);
 
+  const handleSaveSystemInstructions = useCallback(async (instructions: string) => {
+    const data = await runWithSession((accessToken) =>
+      apiClient.updatePreferences(instructions, accessToken)
+    );
+    setUser((current) => {
+      const updatedUser = {
+        ...current,
+        ...data.user,
+        id: data.user.id ?? data.user.userId ?? current?.id ?? current?.userId ?? "",
+      };
+      writeStoredUser(updatedUser);
+      return updatedUser;
+    });
+  }, [runWithSession]);
+
   const handleRenameChat = useCallback(async (chatId: string, title: string) => {
     try {
       const updated = await runWithSession((accessToken) =>
@@ -809,6 +824,7 @@ export function ChatApp() {
         onDownloadPdf={handleDownloadPdf}
         onDeleteAccount={handleDeleteAccount}
         onChangePassword={handleChangePassword}
+        onSaveSystemInstructions={handleSaveSystemInstructions}
         user={user}
         onLogout={handleLogout}
         theme={theme}

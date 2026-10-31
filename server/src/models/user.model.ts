@@ -10,6 +10,8 @@ export interface IUser {
   preferences: {
     theme: "light" | "dark";
     defaultModel: string;
+    language?: "english" | "hinglish";
+    systemInstructions?: string;
   };
   createdAt: Date;
   updatedAt: Date;
@@ -59,6 +61,17 @@ const userSchema = new mongoose.Schema<IUser, UserModel, IUserMethods>(
       defaultModel: {
         type: String,
         default: "gpt-5-mini-2025-08-07",
+      },
+      language: {
+        type: String,
+        enum: ["english", "hinglish"],
+        default: "english",
+      },
+      systemInstructions: {
+        type: String,
+        trim: true,
+        maxlength: 4_000,
+        default: "",
       },
     },
   },

@@ -209,7 +209,11 @@ export async function autoSelectModel(message: string, attachments?: Attachment[
  * Creates an agent instance for the requested model ID and language.
  * Falls back to DEFAULT_MODEL if the requested ID is invalid or unavailable.
  */
-export function getAgent(modelId?: string, language: string = "english") {
+export function getAgent(
+  modelId?: string,
+  language: string = "english",
+  customInstructions?: string
+) {
   const resolvedModelId = modelId ?? DEFAULT_MODEL;
 
   if (resolvedModelId === "auto") {
@@ -285,6 +289,10 @@ export function getAgent(modelId?: string, language: string = "english") {
   }
 
   // 4. Create and return the agent
+  const customInstructionsBlock = customInstructions?.trim()
+    ? `\n\nUser's custom instructions:\n${customInstructions.trim()}`
+    : "";
+
   return createAgent({
     model: llm,
     tools: [webSearchTool],
@@ -299,6 +307,6 @@ Guidelines:
 - Always cite your sources using [1], [2], etc. format when using web search results
 - Be concise but thorough in your responses
 - If you're unsure about current information, use the web search tool
-- Format search results clearly with proper citations`,
+- Format search results clearly with proper citations${customInstructionsBlock}`,
   });
 }

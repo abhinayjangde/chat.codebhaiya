@@ -7,6 +7,7 @@ export interface UserPreferences {
   theme?: "light" | "dark";
   defaultModel?: string;
   language?: "english" | "hinglish";
+  systemInstructions?: string;
 }
 
 export interface ModelInfo {

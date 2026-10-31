@@ -169,6 +169,41 @@ Authorization: Bearer <access_token>
 }
 ```
 
+#### PUT /auth/preferences
+Update authenticated user preferences.
+
+**Headers:**
+```http
+Authorization: ******
+Content-Type: application/json
+```
+
+**Request body:**
+```json
+{
+  "systemInstructions": "Explain code step by step and use TypeScript examples."
+}
+```
+
+`systemInstructions` is optional in behavior but required in the request schema; send an empty string to clear it. It may contain up to 4,000 characters and applies to future model responses.
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "65a1b2c3d4e5f6g7h8i9j0k1",
+      "email": "user@example.com",
+      "name": "User",
+      "preferences": {
+        "systemInstructions": "Explain code step by step and use TypeScript examples."
+      }
+    }
+  }
+}
+```
+
 ---
 
 ### Models
@@ -568,6 +603,8 @@ Both endpoints return `404` when the document does not exist or belongs to anoth
   preferences: {
     theme: "light" | "dark";
     defaultModel: string;
+    language: "english" | "hinglish";
+    systemInstructions: string;
   };
   createdAt: Date;
   updatedAt: Date;

@@ -180,6 +180,17 @@ export const apiClient = {
     });
   },
 
+  async updatePreferences(
+    systemInstructions: string,
+    accessToken: string
+  ): Promise<{ user: UserProfile }> {
+    return requestData<{ user: UserProfile }>("/auth/preferences", {
+      method: "PUT",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify({ systemInstructions }),
+    });
+  },
+
   async deleteAccount(accessToken: string): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/auth/account`, {
       method: "DELETE",
