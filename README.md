@@ -32,7 +32,7 @@ The platform intelligently **auto-selects the best AI model** for each query, su
 | 🤖 **Multi-Model AI** | Groq (Llama), Google Gemini, OpenAI GPT, Ollama Cloud |
 | ⚡ **Auto Model Selection** | Automatically picks the right model based on query complexity |
 | 🌐 **Web Search Grounding** | AI can search the web for up-to-date information |
-| 📎 **Multimodal Uploads** | Images, audio, PDFs, and code files (up to 10 MB) |
+| 📎 **Multimodal Uploads** | Images, audio, PDFs, and code files (up to 50 MB) |
 | 📄 **PDF Export** | Export any chat conversation as a styled PDF |
 | 🇮🇳 **Hinglish Mode** | AI responds in a friendly mix of Hindi and English |
 | 🔐 **JWT Auth** | Secure access/refresh token pair with 15-min access expiry |
@@ -257,12 +257,12 @@ Authentication uses `Bearer <access_token>` in the `Authorization` header.
 
 ## 📁 File Uploads
 
-The `/api/upload` endpoint handles multimodal attachments with a **10 MB** size limit.
+The `/api/upload` endpoint handles multimodal attachments with a **50 MB** size limit.
 
 | File Type | Handling |
 |---|---|
-| Images (`jpg`, `png`, `webp`) | Converted to base64 and sent as `image_url` to the model |
-| Audio (`mp3`, `wav`, etc.) | Converted to base64 and sent as audio media to the model |
+| Images (`jpg`, `png`, `webp`) | Stored in object storage and sent to the model when referenced |
+| Audio (`mp3`, `wav`, etc.) | Stored in object storage and sent to the model when referenced |
 | PDFs | Text extracted with `pdf-parse` and appended as document context |
 | Code / Text (`.py`, `.ts`, `.js`, `.c`, `.md`, `.csv`, `.log`, etc.) | Read as UTF-8 and appended as document context |
 
