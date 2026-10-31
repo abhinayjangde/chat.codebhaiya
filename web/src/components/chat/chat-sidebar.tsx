@@ -707,7 +707,7 @@ export const ChatSidebar = memo(function ChatSidebar({
               />
               <input
                 type="password"
-                placeholder="New password (min 6 characters)"
+                placeholder="New password (min 8 characters)"
                 value={cpNewPassword}
                 onChange={(e) => setCpNewPassword(e.target.value)}
                 className="w-full rounded-lg border border-(--chat-dropdown-border) bg-(--chat-bg) px-3 py-2.5 text-sm text-(--chat-text) outline-none placeholder:text-(--chat-text-faint) focus:ring-1 focus:ring-(--chat-focus-ring)"
@@ -748,8 +748,8 @@ export const ChatSidebar = memo(function ChatSidebar({
                     setCpError("All fields are required");
                     return;
                   }
-                  if (cpNewPassword.length < 6) {
-                    setCpError("New password must be at least 6 characters");
+                  if (cpNewPassword.length < 8) {
+                    setCpError("New password must be at least 8 characters");
                     return;
                   }
                   if (cpNewPassword !== cpConfirmPassword) {
@@ -762,8 +762,12 @@ export const ChatSidebar = memo(function ChatSidebar({
                     await onChangePassword(cpCurrentPassword, cpNewPassword);
                     toast.success("Password changed successfully");
                     setIsChangePasswordOpen(false);
-                  } catch (err: any) {
-                    setCpError(err?.message || "Failed to change password");
+                  } catch (err: unknown) {
+                    setCpError(
+                      err instanceof Error
+                        ? err.message
+                        : "Failed to change password"
+                    );
                   } finally {
                     setCpLoading(false);
                   }
