@@ -25,7 +25,7 @@ const envSchema = z.object({
   JWT_REFRESH_EXPIRY: z.string().trim().min(1).default("7d"),
   CORS_ORIGINS: z.string().trim().min(1, "CORS_ORIGINS is required"),
   GOOGLE_API_KEY: z.string().trim().optional(),
-  GOOGLE_EMBEDDING_MODEL: z.string().trim().default("text-embedding-004"),
+  GOOGLE_EMBEDDING_MODEL: z.string().trim().default("gemini-embedding-2"),
   AWS_REGION: z.string().trim().default("us-east-1"),
   AWS_S3_BUCKET: z.string().trim().optional(),
   AWS_S3_ENDPOINT: z.string().trim().url().optional(),
