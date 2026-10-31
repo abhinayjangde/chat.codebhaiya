@@ -12,6 +12,7 @@ import { retrieveRelevantChunks, type RetrievedChunk } from "../services/retriev
 import { cleanupDocumentsForChat } from "../services/document-cleanup.service.js";
 import { getPaginatedMessages } from "../services/message.service.js";
 import { generateChatTitle } from "../services/chat.service.js";
+import { downloadDocumentFromS3 } from "../services/storage.service.js";
 import PDFDocument from "pdfkit";
 
 const router: Router = express.Router();
@@ -23,6 +24,12 @@ interface ChatAttachment {
     mimeType: string;
     name: string;
     size: number;
+}
+
+function getPersistedAttachments(
+    attachments: ChatAttachment[] | undefined
+): Omit<ChatAttachment, "content">[] {
+    return (attachments ?? []).map(({ content: _content, ...attachment }) => attachment);
 }
 
 interface DocumentSource {
@@ -65,21 +72,23 @@ async function buildMessageContent(
         (attachment) => attachment.type === "document"
     );
     const documentIds = [
-        ...new Set(documentAttachments.map((attachment) => attachment.documentId).filter(Boolean)),
+        ...new Set(currentAttachments.map((attachment) => attachment.documentId).filter(Boolean)),
     ] as string[];
 
     if (documentAttachments.some((attachment) => !attachment.documentId)) {
         throw new HttpError(400, "Document attachment ID is required");
     }
 
-    if (documentIds.length > 0) {
-        const ownedDocuments = await Document.find({
+    const ownedDocuments = documentIds.length > 0
+        ? await Document.find({
             _id: { $in: documentIds },
             userId: new ObjectId(userId),
         })
-            .select("_id status")
-            .lean();
+            .select("_id status mimeType s3Key")
+            .lean()
+        : [];
 
+    if (documentIds.length > 0) {
         if (ownedDocuments.length !== documentIds.length) {
             throw new HttpError(404, "Document not found");
         }
@@ -120,18 +129,31 @@ async function buildMessageContent(
         return { content: effectiveMessage, documentSources };
     }
 
+    const ownedMediaDocuments = new Map(
+        ownedDocuments.map((document) => [document._id.toString(), document])
+    );
+
     const content: Array<Record<string, unknown>> = [];
     for (const attachment of currentAttachments) {
-        if (attachment.type === "image" && attachment.content) {
+        const document = attachment.documentId
+            ? ownedMediaDocuments.get(attachment.documentId)
+            : undefined;
+        const mediaContent = attachment.content ?? (
+            document
+                ? `data:${document.mimeType};base64:${(await downloadDocumentFromS3(document.s3Key)).toString("base64")}`
+                : undefined
+        );
+
+        if (attachment.type === "image" && mediaContent) {
             content.push({
                 type: "image_url",
-                image_url: { url: attachment.content },
+                image_url: { url: mediaContent },
             });
-        } else if (attachment.type === "audio" && attachment.content) {
+        } else if (attachment.type === "audio" && mediaContent) {
             content.push({
                 type: "media",
                 mimeType: attachment.mimeType,
-                data: attachment.content.split(",")[1] ?? attachment.content,
+                data: mediaContent.split(",")[1] ?? mediaContent,
             });
         }
     }
@@ -311,13 +333,12 @@ router.post("/:chatId", async (req: Request, res: Response, next: NextFunction) 
 
         const agent = getAgent(selectedModel, language ?? undefined);
         const response = await agent.invoke({ messages: formatted });
-
         await Message.create({
             chatId: new ObjectId(chatId),
             userId: new ObjectId(userId),
             role: "user",
             content: message, // Store original text string for UI simplicity
-            attachments: attachments || [],
+            attachments: getPersistedAttachments(attachments),
         });
         
         const assistantContent = response.messages[response.messages.length - 1]?.content;
@@ -478,7 +499,7 @@ router.post("/:chatId/stream", async (req: Request, res: Response, next: NextFun
             userId: new ObjectId(userId),
             role: "user",
             content: message,
-            attachments: attachments || [],
+            attachments: getPersistedAttachments(attachments),
         });
 
         let fullResponse = "";

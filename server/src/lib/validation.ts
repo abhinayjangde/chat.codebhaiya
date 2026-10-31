@@ -86,11 +86,11 @@ const attachmentSchema = z
       });
     }
 
-    if (attachment.type !== "document" && !attachment.content) {
+    if (attachment.type !== "document" && !attachment.documentId && !attachment.content) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        message: "Attachment content is required",
-        path: ["content"],
+        message: "Attachment document ID is required",
+        path: ["documentId"],
       });
     }
   });

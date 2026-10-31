@@ -47,16 +47,6 @@ import { ChatComposer } from "@/components/chat/chat-composer";
 import { ChatAuthForm } from "@/components/chat/chat-auth-form";
 import { getTimeGreeting, firstName } from "@/lib/greeting";
 
-function readFileAsDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result));
-    reader.onerror = () => reject(reader.error ?? new Error("Unable to read image"));
-    reader.readAsDataURL(file);
-  });
-}
-
-
 export function ChatApp() {
   const [hydrated, setHydrated] = useState(false);
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
@@ -402,14 +392,6 @@ export function ChatApp() {
       const uploaded = await runWithSession((accessToken) =>
         apiClient.uploadFile(file, accessToken)
       );
-
-      if (uploaded.type === "image") {
-        return {
-          ...uploaded,
-          content: await readFileAsDataUrl(file),
-          status: "ready",
-        };
-      }
 
       return uploaded;
     },
