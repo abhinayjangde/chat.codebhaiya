@@ -47,7 +47,8 @@ export async function getPaginatedMessages(
   // Fetch messages
   const messages = await Message
     .find(query)
-    .sort({ createdAt: -1 })  // Newest first
+    // Use the same key as the cursor filter so records cannot move between pages.
+    .sort({ _id: -1 })  // Newest first
     .limit(maxLimit + 1);     // +1 to check hasMore
 
   const hasMore = messages.length > maxLimit;

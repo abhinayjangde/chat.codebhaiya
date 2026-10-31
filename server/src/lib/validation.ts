@@ -132,8 +132,11 @@ export const chatMessageSchema = z
 export const paginationQuerySchema = z
   .object({
     limit: z.coerce.number().int().min(1).max(200).default(20).optional(),
-    before: z.string().trim().optional(),
-    after: z.string().trim().optional(),
+    before: objectIdSchema.optional(),
+    after: objectIdSchema.optional(),
+  })
+  .refine(({ before, after }) => !(before && after), {
+    message: "Use either before or after, not both",
   })
   .passthrough();
 
