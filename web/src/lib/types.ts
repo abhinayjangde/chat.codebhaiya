@@ -71,6 +71,21 @@ export interface DocumentStatusResponse {
   embeddingModel?: string;
   createdAt: string;
   updatedAt: string;
+  folder?: string;
+  tags?: string[];
+  collectionIds?: string[];
+  version?: number;
+  parentDocumentId?: string;
+}
+
+export interface DocumentCollection {
+  _id: string;
+  userId: string;
+  name: string;
+  description?: string;
+  documentIds: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface UsedTool {

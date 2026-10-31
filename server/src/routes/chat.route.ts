@@ -8,7 +8,7 @@ import { getAgent, getAvailableModels, DEFAULT_MODEL, autoSelectModel } from "..
 import { authenticateToken } from "../middleware/auth.middleware.js";
 import { HttpError, parseBody, createChatSchema, chatMessageSchema, paginationQuerySchema, renameChatSchema, chatIdParamSchema } from "../lib/validation.js";
 import type { SearchResult } from "../services/search.service.js";
-import { retrieveRelevantChunks, type RetrievedChunk } from "../services/retrieval.service.js";
+import { listReadyDocumentIdsForCollection, retrieveRelevantChunks, type RetrievedChunk } from "../services/retrieval.service.js";
 import { cleanupDocumentsForChat } from "../services/document-cleanup.service.js";
 import { getPaginatedMessages } from "../services/message.service.js";
 import { generateChatTitle } from "../services/chat.service.js";
@@ -62,7 +62,8 @@ function toDocumentSource(chunk: RetrievedChunk): DocumentSource {
 async function buildMessageContent(
     message: string,
     attachments: ChatAttachment[] | undefined,
-    userId: string
+    userId: string,
+    collectionId?: string
 ): Promise<{ content: any; documentSources: DocumentSource[] }> {
     const currentAttachments = attachments ?? [];
     const attachmentPrompt = currentAttachments.length > 0
@@ -72,9 +73,13 @@ async function buildMessageContent(
     const documentAttachments = currentAttachments.filter(
         (attachment) => attachment.type === "document"
     );
-    const documentIds = [
+    const attachedDocumentIds = [
         ...new Set(currentAttachments.map((attachment) => attachment.documentId).filter(Boolean)),
     ] as string[];
+    const collectionDocumentIds = collectionId
+        ? await listReadyDocumentIdsForCollection(collectionId, userId)
+        : [];
+    const documentIds = [...new Set([...attachedDocumentIds, ...collectionDocumentIds])];
 
     if (documentAttachments.some((attachment) => !attachment.documentId)) {
         throw new HttpError(400, "Document attachment ID is required");
@@ -281,7 +286,7 @@ router.post("/", async (req: Request, res: Response, next: NextFunction) => {
 router.post("/:chatId", async (req: Request, res: Response, next: NextFunction) => {
     try {
         const chatId = parseBody(chatIdParamSchema, Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId);
-        const { message, attachments, language, model } = parseBody(chatMessageSchema, req.body);
+        const { message, attachments, language, model, collectionId } = parseBody(chatMessageSchema, req.body);
         const userId = req.user?.userId;
 
         if (!userId) {
@@ -323,7 +328,8 @@ router.post("/:chatId", async (req: Request, res: Response, next: NextFunction) 
         const { content: finalContent, documentSources } = await buildMessageContent(
             message,
             attachments,
-            userId
+            userId,
+            collectionId
         );
 
         formatted.push({ role: "user", content: finalContent });
@@ -456,7 +462,7 @@ router.delete("/:chatId", async (req: Request, res: Response, next: NextFunction
 router.post("/:chatId/stream", async (req: Request, res: Response, next: NextFunction) => {
     try {
         const chatId = parseBody(chatIdParamSchema, Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId);
-        const { message, attachments, language, model } = parseBody(chatMessageSchema, req.body);
+        const { message, attachments, language, model, collectionId } = parseBody(chatMessageSchema, req.body);
         const userId = req.user?.userId;
 
         if (!userId) {
@@ -478,7 +484,8 @@ router.post("/:chatId/stream", async (req: Request, res: Response, next: NextFun
         const { content: finalContent, documentSources } = await buildMessageContent(
             message,
             attachments,
-            userId
+            userId,
+            collectionId
         );
 
         res.setHeader('Content-Type', 'text/event-stream');

@@ -4,6 +4,7 @@ import type {
   ChatMessage,
   ChatSummary,
   DocumentStatusResponse,
+  DocumentCollection,
   ModelInfo,
   UserProfile,
 } from "@/lib/types";
@@ -237,12 +238,13 @@ export const apiClient = {
     accessToken: string,
     model?: string,
     attachments?: Attachment[],
-    language?: string
+    language?: string,
+    collectionId?: string
   ): Promise<{ title: string; chatId: string }> {
     return requestData<{ title: string; chatId: string }>("/chat", {
       method: "POST",
       headers: authHeaders(accessToken),
-      body: JSON.stringify({ message, model, attachments, language }),
+      body: JSON.stringify({ message, model, attachments, language, collectionId }),
     });
   },
 
@@ -273,12 +275,13 @@ export const apiClient = {
     signal?: AbortSignal,
     model?: string,
     attachments?: Attachment[],
-    language?: string
+    language?: string,
+    collectionId?: string
   ): Promise<ReadableStream<Uint8Array>> {
     const response = await fetch(`${API_BASE_URL}/chat/${chatId}/stream`, {
       method: "POST",
       headers: authHeaders(accessToken),
-      body: JSON.stringify({ message, model, attachments, language }),
+      body: JSON.stringify({ message, model, attachments, language, collectionId }),
       signal,
       cache: "no-store",
     });
@@ -358,6 +361,84 @@ export const apiClient = {
     );
 
     return data.document;
+  },
+
+  async listDocuments(accessToken: string): Promise<{ documents: DocumentStatusResponse[] }> {
+    return requestData<{ documents: DocumentStatusResponse[] }>("/documents", {
+      method: "GET",
+      headers: authHeaders(accessToken),
+    });
+  },
+
+  async updateDocumentMetadata(
+    documentId: string,
+    metadata: { folder: string; tags: string[] },
+    accessToken: string
+  ): Promise<{ document: DocumentStatusResponse }> {
+    return requestData<{ document: DocumentStatusResponse }>(`/documents/${documentId}`, {
+      method: "PATCH",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify(metadata),
+    });
+  },
+
+  async uploadDocumentVersion(
+    documentId: string,
+    file: File,
+    accessToken: string
+  ): Promise<{ document: DocumentStatusResponse }> {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await fetch(`${API_BASE_URL}/documents/${documentId}/version`, {
+      method: "POST",
+      headers: accessToken ? { Authorization: "Bearer " + accessToken } : {},
+      body: formData,
+      cache: "no-store",
+    });
+    const body = await parseResponseBody(response);
+    if (!response.ok) {
+      throw new ApiError(pickMessage(body, `Version upload failed (${response.status})`), response.status, body);
+    }
+    return ((body as ApiEnvelope<{ document: DocumentStatusResponse }>).data ?? {}) as { document: DocumentStatusResponse };
+  },
+
+  async listCollections(accessToken: string): Promise<{ collections: DocumentCollection[] }> {
+    return requestData<{ collections: DocumentCollection[] }>("/documents/collections", {
+      method: "GET",
+      headers: authHeaders(accessToken),
+    });
+  },
+
+  async createCollection(name: string, description: string, accessToken: string): Promise<{ collection: DocumentCollection }> {
+    return requestData<{ collection: DocumentCollection }>("/documents/collections", {
+      method: "POST",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify({ name, description }),
+    });
+  },
+
+  async setCollectionDocuments(collectionId: string, documentIds: string[], accessToken: string): Promise<{ collection: DocumentCollection }> {
+    return requestData<{ collection: DocumentCollection }>(`/documents/collections/${collectionId}/documents`, {
+      method: "PUT",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify({ documentIds }),
+    });
+  },
+
+  async summarizeDocument(documentId: string, accessToken: string): Promise<{ summary: string }> {
+    return requestData<{ summary: string }>(`/documents/${documentId}/summary`, {
+      method: "POST",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify({}),
+    });
+  },
+
+  async generateDocumentQuestions(documentId: string, accessToken: string): Promise<{ questions: string }> {
+    return requestData<{ questions: string }>(`/documents/${documentId}/questions`, {
+      method: "POST",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify({}),
+    });
   },
 
   async changePassword(

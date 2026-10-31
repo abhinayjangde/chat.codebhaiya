@@ -45,6 +45,7 @@ import { ChatSidebar } from "@/components/chat/chat-sidebar";
 import { ChatMessageList } from "@/components/chat/chat-message-list";
 import { ChatComposer } from "@/components/chat/chat-composer";
 import { ChatAuthForm } from "@/components/chat/chat-auth-form";
+import { DocumentLibrary } from "@/components/documents/document-library";
 import { getTimeGreeting, firstName } from "@/lib/greeting";
 
 export function ChatApp() {
@@ -76,6 +77,8 @@ export function ChatApp() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [language, setLanguage] = useState<"english" | "hinglish">("english");
+  const [collectionId, setCollectionId] = useState<string | null>(null);
+  const [showDocuments, setShowDocuments] = useState(false);
   const [greeting, setGreeting] = useState(getTimeGreeting());
   
   const { theme, setTheme } = useTheme();
@@ -188,6 +191,11 @@ export function ChatApp() {
     }
     if (storedUser) {
       setUser(storedUser);
+    }
+    const storedCollectionId = window.localStorage.getItem("chat.codebhaiya.collection");
+    if (storedCollectionId) {
+      setCollectionId(storedCollectionId);
+      window.localStorage.removeItem("chat.codebhaiya.collection");
     }
   }, []);
 
@@ -436,7 +444,7 @@ export function ChatApp() {
     try {
       if (!targetChatId) {
         const created = await runWithSession((accessToken) =>
-          apiClient.createChat(prompt, accessToken, selectedModel, attachments, language)
+          apiClient.createChat(prompt, accessToken, selectedModel, attachments, language, collectionId ?? undefined)
         );
         targetChatId = String(created.chatId);
 
@@ -505,7 +513,8 @@ export function ChatApp() {
           controller.signal,
           selectedModel,
           attachments,
-          language
+          language,
+          collectionId ?? undefined
         )
       );
 
@@ -650,7 +659,7 @@ export function ChatApp() {
       isSendingRef.current = false;
       setIsSending(false);
     }
-  }, [tokens, composer, activeChatId, user, selectedModel, language, runWithSession, loadChats]);
+  }, [tokens, composer, activeChatId, user, selectedModel, language, collectionId, runWithSession, loadChats]);
 
   const handleStopStreaming = useCallback(() => {
     streamAbortRef.current?.abort();
@@ -771,11 +780,16 @@ export function ChatApp() {
   }, [tokens]);
 
   const handleNewChat = useCallback(() => {
+    setShowDocuments(false);
     setActiveChatId(null);
     setMessages([]);
     setChatError(null);
     setMobileSidebarOpen(false);
     setIsSending(false);
+  }, []);
+
+  const handleOpenDocuments = useCallback(() => {
+    setShowDocuments(true);
   }, []);
 
   if (!hydrated) {
@@ -817,8 +831,12 @@ export function ChatApp() {
         setMobileSidebarOpen={setMobileSidebarOpen}
         chats={chats}
         activeChatId={activeChatId}
-        onSelectChat={setActiveChatId}
+        onSelectChat={(chatId) => {
+          setShowDocuments(false);
+          setActiveChatId(chatId);
+        }}
         onNewChat={handleNewChat}
+        onOpenDocuments={handleOpenDocuments}
         onDeleteChat={handleDeleteChat}
         onRenameChat={handleRenameChat}
         onDownloadPdf={handleDownloadPdf}
@@ -859,13 +877,16 @@ export function ChatApp() {
           </button>
         )}
 
-        <main className="flex-1 overflow-y-auto">
-          <ChatMessageList
-            messages={messages}
-            isLoadingMessages={isLoadingMessages}
-            chatError={chatError}
-            availableModels={availableModels}
-          />
+        {showDocuments ? (
+          <DocumentLibrary embedded onBack={() => setShowDocuments(false)} />
+        ) : (
+          <main className="flex-1 overflow-y-auto">
+            <ChatMessageList
+              messages={messages}
+              isLoadingMessages={isLoadingMessages}
+              chatError={chatError}
+              availableModels={availableModels}
+            />
           
           {messages.length === 0 && !isLoadingMessages && (
              <div className="flex min-h-[calc(100vh-120px)] flex-col items-center justify-center">
@@ -917,10 +938,11 @@ export function ChatApp() {
                 </div>
              </div>
           )}
-        </main>
+          </main>
+        )}
 
         {/* Bottom composer — only shown when messages exist */}
-        {messages.length > 0 && (
+        {!showDocuments && messages.length > 0 && (
           <footer className="bg-(--chat-bg) px-3 py-3 md:px-6">
              <ChatComposer
                 onSend={(msg, atts) => handleSendPrompt(msg, atts)}

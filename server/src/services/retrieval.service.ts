@@ -3,6 +3,7 @@ import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import mongoose from "mongoose";
 import { env } from "../config/env.js";
 import { Document } from "../models/document.model.js";
+import { DocumentCollection } from "../models/document-collection.model.js";
 import { ensureQdrantPayloadIndexes } from "./document-processing.service.js";
 
 const DEFAULT_RESULT_LIMIT = 6;
@@ -118,4 +119,26 @@ export async function retrieveRelevantChunks(input: {
       },
     ];
   });
+}
+
+export async function listReadyDocumentIdsForCollection(
+  collectionId: string,
+  userId: string
+): Promise<string[]> {
+  const collection = await DocumentCollection.findOne({
+    _id: collectionId,
+    userId: new mongoose.Types.ObjectId(userId),
+  }).select("documentIds").lean();
+
+  if (!collection) {
+    return [];
+  }
+
+  const documents = await Document.find({
+    _id: { $in: collection.documentIds },
+    userId: new mongoose.Types.ObjectId(userId),
+    status: "ready",
+  }).select("_id").lean();
+
+  return documents.map((document) => document._id.toString());
 }

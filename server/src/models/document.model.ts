@@ -13,6 +13,11 @@ export interface IDocument {
   _id: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
   chatId?: mongoose.Types.ObjectId;
+  folder?: string;
+  tags: string[];
+  collectionIds: mongoose.Types.ObjectId[];
+  version: number;
+  parentDocumentId?: mongoose.Types.ObjectId;
   filename: string;
   mimeType: string;
   size: number;
@@ -40,6 +45,35 @@ const documentSchema = new mongoose.Schema<IDocument, DocumentModel>(
     chatId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Chat",
+      index: true,
+    },
+    folder: {
+      type: String,
+      trim: true,
+      maxlength: 120,
+      default: "Unsorted",
+    },
+    tags: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: (tags: string[]) => tags.length <= 20,
+        message: "A document can have at most 20 tags",
+      },
+    },
+    collectionIds: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "DocumentCollection",
+      index: true,
+    }],
+    version: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
+    parentDocumentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Document",
       index: true,
     },
     filename: {

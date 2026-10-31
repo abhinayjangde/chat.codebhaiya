@@ -538,6 +538,41 @@ When web search is used, the response includes:
 
 ### Documents
 
+#### GET /documents
+List the authenticated user's document library, including folder, tags, collection membership, processing status, and version.
+
+#### PATCH /documents/:documentId
+Update document organization metadata:
+```json
+{
+  "folder": "Product",
+  "tags": ["roadmap", "internal"]
+}
+```
+
+#### POST /documents/:documentId/version
+Upload a replacement file as a new queued document version using multipart field `file`.
+
+#### GET /documents/collections
+List the authenticated user's document collections.
+
+#### POST /documents/collections
+Create a collection with `name` and optional `description`.
+
+#### PUT /documents/collections/:collectionId/documents
+Replace collection membership:
+```json
+{
+  "documentIds": ["65a1b2c3d4e5f6a7b8c9d0e1"]
+}
+```
+
+#### POST /documents/:documentId/summary
+Generate a grounded summary from the document's retrieved chunks.
+
+#### POST /documents/:documentId/questions
+Generate document-specific question-and-answer suggestions.
+
 #### GET /documents/:documentId
 Get the processing status and metadata for a document owned by the authenticated user.
 

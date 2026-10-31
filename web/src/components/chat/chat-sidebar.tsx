@@ -17,6 +17,7 @@ import {
   Settings,
   Share,
   Shield,
+  Library,
   SquarePen,
   Sun,
   SunMoon,
@@ -42,6 +43,7 @@ interface ChatSidebarProps {
   activeChatId: string | null;
   onSelectChat: (chatId: string) => void;
   onNewChat: () => void;
+  onOpenDocuments: () => void;
   onDeleteChat: (chatId: string) => void;
   onRenameChat: (chatId: string, title: string) => void;
   onDownloadPdf: (chatId: string) => void;
@@ -68,6 +70,7 @@ export const ChatSidebar = memo(function ChatSidebar({
   activeChatId,
   onSelectChat,
   onNewChat,
+  onOpenDocuments,
   onDeleteChat,
   onRenameChat,
   onDownloadPdf,
@@ -280,6 +283,14 @@ export const ChatSidebar = memo(function ChatSidebar({
               Search chats
             </button>
           )}
+          <button
+            type="button"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-(--chat-text) transition hover:bg-(--chat-sidebar-text-hover)"
+            onClick={onOpenDocuments}
+          >
+            <Library className="h-[18px] w-[18px] text-(--chat-text-muted)" />
+            Documents
+          </button>
         </nav>
 
         {/* ── Your chats section ── */}
@@ -460,7 +471,7 @@ export const ChatSidebar = memo(function ChatSidebar({
 
                   {/* Theme submenu */}
                   {themeSubmenuOpen && (
-                    <div className="absolute left-full top-0 z-60 ml-1 w-40 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
+                    <div className="absolute left-full -top-2 z-60 ml-1 w-40 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
                       {[
                         { id: "light", label: "Light", icon: Sun },
                         { id: "dark", label: "Dark", icon: Moon },
@@ -513,7 +524,7 @@ export const ChatSidebar = memo(function ChatSidebar({
                   </button>
 
                   {languageSubmenuOpen && (
-                    <div className="absolute left-full top-0 z-60 ml-1 w-40 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
+                    <div className="absolute left-full top-0 z-60 ml-1 w-50 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
                       {[
                         { id: "english", label: "English" },
                         { id: "hinglish", label: "Hinglish (Hindi + Eng)" },

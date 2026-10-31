@@ -12,6 +12,7 @@ import {
   Share,
   ThumbsDown,
   ThumbsUp,
+  ChevronDown,
 } from "lucide-react";
 import { FaBrain } from "react-icons/fa";
 import { useEffect, useRef, memo } from "react";
@@ -156,17 +157,17 @@ export const ChatMessageList = memo(function ChatMessageList({
                       <div className="mt-4 grid gap-2 sm:grid-cols-2">
                         {message.sources.map((source, sourceIndex) => {
                           const href = source.url ?? source.link;
-                          return (
-                            <a
-                              key={`${source.title}-${sourceIndex}`}
-                              href={href || "#"}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="rounded-xl border border-(--chat-dropdown-border) bg-(--chat-source-card) p-3 text-xs transition hover:bg-(--chat-source-card-hover)"
-                            >
+                          const isDocument = source.type === "document";
+                          const sourceCard = (
+                            <>
                               <p className="font-medium text-(--chat-source-title)">
                                 {source.title || "Source"}
                               </p>
+                              {isDocument && source.pageNumber ? (
+                                <p className="mt-1 text-[11px] uppercase tracking-wider text-(--chat-source-link)">
+                                  Page {source.pageNumber} · chunk {(source.chunkIndex ?? 0) + 1}
+                                </p>
+                              ) : null}
                               {source.snippet ? (
                                 <p className="mt-1 line-clamp-3 text-(--chat-source-snippet)">
                                   {source.snippet}
@@ -178,7 +179,31 @@ export const ChatMessageList = memo(function ChatMessageList({
                                   {formatSourceHost(href)}
                                 </p>
                               ) : null}
+                            </>
+                          );
+                          return (
+                            isDocument ? (
+                            <details
+                              key={`${source.title}-${sourceIndex}`}
+                              className="group rounded-xl border border-(--chat-dropdown-border) bg-(--chat-source-card) p-3 text-xs transition hover:bg-(--chat-source-card-hover)"
+                            >
+                              <summary className="flex cursor-pointer list-none items-center justify-between font-medium text-(--chat-source-title)">
+                                <span className="truncate">{source.title || "Document source"}</span>
+                                <ChevronDown className="h-3.5 w-3.5 shrink-0 transition group-open:rotate-180" />
+                              </summary>
+                              <div className="mt-2 border-t border-(--chat-dropdown-border) pt-2">{sourceCard}</div>
+                            </details>
+                            ) : (
+                            <a
+                              key={`${source.title}-${sourceIndex}`}
+                              href={href || undefined}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="rounded-xl border border-(--chat-dropdown-border) bg-(--chat-source-card) p-3 text-xs transition hover:bg-(--chat-source-card-hover)"
+                            >
+                              {sourceCard}
                             </a>
+                            )
                           );
                         })}
                       </div>
