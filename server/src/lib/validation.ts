@@ -68,46 +68,64 @@ export const passwordChangeSchema = z
   })
   .passthrough();
 
+const attachmentSchema = z
+  .object({
+    type: z.enum(["image", "audio", "document"]),
+    content: z.string().trim().optional(),
+    documentId: objectIdSchema.optional(),
+    name: z.string().trim().min(1, "Attachment name is required"),
+    mimeType: z.string().trim().min(1, "Attachment MIME type is required"),
+    size: z.number().int().nonnegative().default(0),
+  })
+  .superRefine((attachment, context) => {
+    if (attachment.type === "document" && !attachment.documentId) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Document attachment ID is required",
+        path: ["documentId"],
+      });
+    }
+
+    if (attachment.type !== "document" && !attachment.content) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Attachment content is required",
+        path: ["content"],
+      });
+    }
+  });
+
 export const createChatSchema = z
   .object({
-    message: z.string().trim().min(1, "Message is required"),
+    message: z.string().trim().default(""),
+    attachments: z.array(attachmentSchema).optional(),
+  })
+  .superRefine((chat, context) => {
+    if (!chat.message && (!chat.attachments || chat.attachments.length === 0)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Message or attachment is required",
+        path: ["message"],
+      });
+    }
   })
   .passthrough();
 
 export const chatMessageSchema = z
   .object({
-    message: z.string().trim().min(1, "Message is required"),
+    message: z.string().trim().default(""),
     model: z.string().trim().optional().nullable(),
     language: z.string().trim().optional(),
-    attachments: z
-      .array(
-        z.object({
-          type: z.enum(["image", "audio", "document"]),
-          content: z.string().trim().optional(),
-          documentId: objectIdSchema.optional(),
-          name: z.string().trim().min(1, "Attachment name is required"),
-          mimeType: z.string().trim().min(1, "Attachment MIME type is required"),
-          size: z.number().int().nonnegative().default(0),
-        })
-          .superRefine((attachment, context) => {
-            if (attachment.type === "document" && !attachment.documentId) {
-              context.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "Document attachment ID is required",
-                path: ["documentId"],
-              });
-            }
-
-            if (attachment.type !== "document" && !attachment.content) {
-              context.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: "Attachment content is required",
-                path: ["content"],
-              });
-            }
-          })
-      )
-      .optional(),
+    attachments: z.array(attachmentSchema).optional(),
+  })
+  .superRefine((chat, context) => {
+    if (!chat.message && (!chat.attachments || chat.attachments.length === 0)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Message or attachment is required",
+        path: ["message"],
+      });
+    }
   })
   .passthrough();
 

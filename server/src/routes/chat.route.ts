@@ -57,6 +57,10 @@ async function buildMessageContent(
     userId: string
 ): Promise<{ content: any; documentSources: DocumentSource[] }> {
     const currentAttachments = attachments ?? [];
+    const attachmentPrompt = currentAttachments.length > 0
+      ? "Please analyze the attached file(s) and explain what you find."
+      : "";
+    const effectiveMessage = message || attachmentPrompt;
     const documentAttachments = currentAttachments.filter(
         (attachment) => attachment.type === "document"
     );
@@ -90,7 +94,7 @@ async function buildMessageContent(
 
     const documentSources = documentIds.length > 0
         ? (await retrieveRelevantChunks({
-            query: message,
+                query: effectiveMessage,
             userId,
             documentIds,
             limit: 6,
@@ -113,7 +117,7 @@ async function buildMessageContent(
     );
 
     if (!hasMedia && !documentContext) {
-        return { content: message, documentSources };
+        return { content: effectiveMessage, documentSources };
     }
 
     const content: Array<Record<string, unknown>> = [];
@@ -133,8 +137,8 @@ async function buildMessageContent(
     }
 
     const textPrompt = documentContext
-        ? `${message}\n\nUse the following retrieved document context when answering:\n${documentContext}`
-        : message;
+        ? `${effectiveMessage}\n\nUse the following retrieved document context when answering:\n${documentContext}`
+        : effectiveMessage;
     content.push({ type: "text", text: textPrompt });
 
     return { content, documentSources };
@@ -230,7 +234,9 @@ router.post("/", async (req: Request, res: Response, next: NextFunction) => {
         const { message } = parseBody(createChatSchema, req.body);
         const userId = req.user?.userId;
 
-        const title = await generateChatTitle(message);
+        const title = await generateChatTitle(
+            message || "Attachment analysis"
+        );
 
         const chat = await Chat.create({ 
             title,
@@ -428,14 +434,6 @@ router.post("/:chatId/stream", async (req: Request, res: Response, next: NextFun
 
         if (!userId) {
             res.status(401).json({ success: false, error: "User not authenticated" });
-            return;
-        }
-
-        if (!message) {
-            res.status(400).json({
-                success: false,
-                error: "Message is required"
-            });
             return;
         }
 
