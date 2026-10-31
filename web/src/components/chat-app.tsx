@@ -650,7 +650,7 @@ export function ChatApp() {
       isSendingRef.current = false;
       setIsSending(false);
     }
-  }, [tokens, composer, activeChatId, user, selectedModel, runWithSession, loadChats]);
+  }, [tokens, composer, activeChatId, user, selectedModel, language, runWithSession, loadChats]);
 
   const handleStopStreaming = useCallback(() => {
     streamAbortRef.current?.abort();
