@@ -306,7 +306,7 @@ router.post("/:chatId", async (req: Request, res: Response, next: NextFunction) 
         const previousMessages = await Message.find({ 
             chatId: new ObjectId(chatId),
             userId: new ObjectId(userId)
-        });
+        }).sort({ createdAt: 1, _id: 1 });
 
         const formatted: Array<{ role: string; content: any }> = previousMessages
             .filter((msg) => msg.role && msg.content)
@@ -483,7 +483,7 @@ router.post("/:chatId/stream", async (req: Request, res: Response, next: NextFun
         const previousMessages = await Message.find({ 
             chatId: new ObjectId(chatId),
             userId: new ObjectId(userId)
-        });
+        }).sort({ createdAt: 1, _id: 1 });
 
         const formatted: Array<{ role: string; content: any }> = previousMessages
             .filter((msg) => msg.role && msg.content)
