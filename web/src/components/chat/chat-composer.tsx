@@ -16,7 +16,14 @@ import {
   Loader2,
 } from "lucide-react";
 import { FaBrain } from "react-icons/fa";
-import { type KeyboardEvent, type FormEvent, useState, useRef, memo } from "react";
+import {
+  type DragEvent,
+  type KeyboardEvent,
+  type FormEvent,
+  useState,
+  useRef,
+  memo,
+} from "react";
 import { cn } from "@/lib/utils";
 import { AutoResizeTextarea } from "@/components/ui/auto-resize-textarea";
 import { ModelInfo } from "@/lib/types";
@@ -97,6 +104,7 @@ export const ChatComposer = memo(function ChatComposer({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const pollDocumentStatus = async (documentId: string) => {
@@ -122,48 +130,66 @@ export const ChatComposer = memo(function ChatComposer({
     }
   };
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
+  const uploadFiles = async (files: File[]) => {
+    if (files.length === 0 || !onUploadFile) {
+      return;
+    }
 
     setIsUploading(true);
     setUploadError(null);
     setPlusMenuOpen(false);
-    
-    if (!onUploadFile) {
-      setIsUploading(false);
-      return;
-    }
 
     try {
       const uploadedAttachments: Attachment[] = [];
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        if (file) {
-          const result = await onUploadFile(file);
-          uploadedAttachments.push(result);
+      for (const file of files) {
+        const result = await onUploadFile(file);
+        uploadedAttachments.push(result);
 
-          if (
-            result.documentId &&
-            result.type === "document" &&
-            result.status !== "ready"
-          ) {
-            void pollDocumentStatus(result.documentId).catch((error) => {
-              setUploadError(error instanceof Error ? error.message : "Unable to check document status");
-            });
-          }
+        if (
+          result.documentId &&
+          result.type === "document" &&
+          result.status !== "ready"
+        ) {
+          void pollDocumentStatus(result.documentId).catch((error) => {
+            setUploadError(error instanceof Error ? error.message : "Unable to check document status");
+          });
         }
       }
-      setAttachments(prev => [...prev, ...uploadedAttachments]);
+      setAttachments((previous) => [...previous, ...uploadedAttachments]);
     } catch (error) {
-      console.error("Upload error", error);
-      // Ideally show a toast
+      setUploadError(error instanceof Error ? error.message : "Upload failed");
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
     }
+  };
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      await uploadFiles(Array.from(files));
+    }
+  };
+
+  const handleDragOver = (event: DragEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    if (!isSending && !isUploading) {
+      setIsDragging(true);
+    }
+  };
+
+  const handleDrop = async (event: DragEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setIsDragging(false);
+
+    if (isSending || isUploading) {
+      return;
+    }
+
+    await uploadFiles(Array.from(event.dataTransfer.files));
   };
 
   const removeAttachment = (index: number) => {
@@ -215,11 +241,21 @@ export const ChatComposer = memo(function ChatComposer({
   return (
     <form
       className={cn(
-        "mx-auto w-full",
+        "relative mx-auto w-full",
         variant === "center" ? "max-w-2xl" : "max-w-3xl"
       )}
       onSubmit={handleComposerSubmit}
+      onDragOver={handleDragOver}
+      onDragLeave={() => setIsDragging(false)}
+      onDrop={handleDrop}
     >
+      {isDragging && (
+        <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-2xl border-2 border-dashed border-(--chat-brand) bg-(--chat-brand)/10 text-sm font-medium text-(--chat-brand)">
+          <span className="rounded-full bg-(--chat-surface) px-4 py-2 shadow-lg">
+            Drop files to attach
+          </span>
+        </div>
+      )}
       <div className="rounded-2xl mx-1 md:mx-0 border border-(--chat-composer-border) bg-(--chat-composer) px-4 pb-2.5 pt-3">
         {uploadError && (
           <p className="mb-2 text-xs text-red-500" role="status">{uploadError}</p>

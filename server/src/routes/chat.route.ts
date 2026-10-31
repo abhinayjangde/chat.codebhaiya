@@ -146,14 +146,22 @@ async function buildMessageContent(
             : undefined;
         const mediaContent = attachment.content ?? (
             document
-                ? `data:${document.mimeType};base64:${(await downloadDocumentFromS3(document.s3Key)).toString("base64")}`
+                ? `data:${document.mimeType};base64,${(await downloadDocumentFromS3(document.s3Key)).toString("base64")}`
                 : undefined
         );
 
         if (attachment.type === "image" && mediaContent) {
+            const imageDataUrl = mediaContent.startsWith("data:")
+                ? mediaContent
+                : `data:${attachment.mimeType};base64,${mediaContent}`;
+
+            if (!/^data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=\s]+$/i.test(imageDataUrl)) {
+                throw new HttpError(400, "Uploaded image could not be encoded for analysis");
+            }
+
             content.push({
                 type: "image_url",
-                image_url: { url: mediaContent },
+                image_url: imageDataUrl,
             });
         } else if (attachment.type === "audio" && mediaContent) {
             content.push({
