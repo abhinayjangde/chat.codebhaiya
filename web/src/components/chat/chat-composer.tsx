@@ -308,7 +308,7 @@ export const ChatComposer = memo(function ChatComposer({
               type="button"
               onClick={() => setPlusMenuOpen(!plusMenuOpen)}
               className={cn(
-                "inline-flex h-8 w-8 items-center justify-center rounded-full border border-(--chat-composer-border) text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)",
+                "inline-flex hover:cursor-pointer h-8 w-8 items-center justify-center rounded-full border border-(--chat-composer-border) text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)",
                 plusMenuOpen && "bg-(--chat-dropdown-hover) text-(--chat-action-icon-hover)"
               )}
               aria-label="Attach"
@@ -323,7 +323,7 @@ export const ChatComposer = memo(function ChatComposer({
                   className="fixed inset-0 z-40"
                   onClick={() => setPlusMenuOpen(false)}
                 />
-                <div className="absolute bottom-full -left-4 mb-2 w-72 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl z-50">
+                <div className="absolute bottom-full -left-4 mb-2 w-55 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl z-50">
                   {/* Upload images */}
                   <input
                     type="file"
@@ -335,7 +335,7 @@ export const ChatComposer = memo(function ChatComposer({
                   />
                   <button
                     type="button"
-                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover)"
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
                     onClick={() => {
                       imageInputRef.current?.click();
                       setPlusMenuOpen(false);
@@ -356,7 +356,7 @@ export const ChatComposer = memo(function ChatComposer({
                   />
                   <button
                     type="button"
-                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover)"
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
                     onClick={() => {
                       fileInputRef.current?.click();
                       setPlusMenuOpen(false);
@@ -371,7 +371,7 @@ export const ChatComposer = memo(function ChatComposer({
                   {/* Create images (future) */}
                   <button
                     type="button"
-                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-medium text-(--chat-text-muted) transition hover:bg-(--chat-dropdown-hover)"
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-medium text-(--chat-text-muted) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
                     onClick={() => setPlusMenuOpen(false)}
                     disabled
                   >

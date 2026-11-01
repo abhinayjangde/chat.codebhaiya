@@ -80,6 +80,7 @@ export function ChatApp() {
   const [collectionId, setCollectionId] = useState<string | null>(null);
   const [showDocuments, setShowDocuments] = useState(false);
   const [greeting, setGreeting] = useState(getTimeGreeting());
+  const [streamSteps, setStreamSteps] = useState<{ id: "thinking" | "webSearch" | "analyzing"; label: string; status: "pending" | "active" | "complete" }[] | null>(null);
   
   const { theme, setTheme } = useTheme();
 
@@ -515,6 +516,13 @@ export function ChatApp() {
       const controller = new AbortController();
       streamAbortRef.current = controller;
 
+      // Initialize stream status steps
+      setStreamSteps([
+        { id: "thinking", label: "Thinking", status: "active" },
+        { id: "webSearch", label: "Web search", status: "pending" },
+        { id: "analyzing", label: "Analyzing", status: "pending" },
+      ]);
+
       const stream = await runWithSession((accessToken) =>
         apiClient.streamMessage(
           readyChatId, 
@@ -535,6 +543,7 @@ export function ChatApp() {
         }
 
         if (event.type === "token") {
+          setStreamSteps(null);
           setMessages((previous) =>
             previous.map((message) => {
               if (message._id !== assistantMessageId) return message;
@@ -564,6 +573,20 @@ export function ChatApp() {
         }
 
         if (event.type === "tool_start") {
+          const isWebSearch = event.tool === "web_search";
+          if (isWebSearch) {
+            setStreamSteps((prev) =>
+              prev
+                ? prev.map((step) =>
+                    step.id === "thinking"
+                      ? { ...step, status: "complete" }
+                      : step.id === "webSearch"
+                      ? { ...step, status: "active" }
+                      : step
+                  )
+                : null
+            );
+          }
           setMessages((previous) =>
             previous.map((message) =>
               message._id === assistantMessageId
@@ -580,6 +603,17 @@ export function ChatApp() {
         }
 
         if (event.type === "tool_result") {
+          setStreamSteps((prev) =>
+            prev
+              ? prev.map((step) =>
+                  step.id === "webSearch"
+                    ? { ...step, status: "complete" }
+                    : step.id === "analyzing"
+                    ? { ...step, status: "active" }
+                    : step
+                )
+              : null
+          );
           setMessages((previous) =>
             previous.map((message) =>
               message._id === assistantMessageId
@@ -597,6 +631,7 @@ export function ChatApp() {
         }
 
         if (event.type === "done") {
+          setStreamSteps(null);
           setMessages((previous) =>
             previous.map((message) =>
               message._id === assistantMessageId
@@ -647,6 +682,7 @@ export function ChatApp() {
               : entry
           )
         );
+      setStreamSteps(null);
         return;
       }
 
@@ -669,6 +705,7 @@ export function ChatApp() {
       replacementRef.current = undefined;
       skipNextFetchRef.current = true;
       isSendingRef.current = false;
+      setStreamSteps(null);
       setIsSending(false);
     }
   }, [tokens, composer, activeChatId, user, selectedModel, language, collectionId, runWithSession, loadChats]);
@@ -917,6 +954,7 @@ export function ChatApp() {
               isLoadingMessages={isLoadingMessages}
               chatError={chatError}
               availableModels={availableModels}
+              streamSteps={streamSteps}
               onEditMessage={handleEditMessage}
               onRegenerateMessage={handleRegenerateMessage}
             />

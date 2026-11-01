@@ -19,8 +19,10 @@ import { useEffect, useRef, memo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CodeBlock } from "@/components/ui/code-block";
+import { CitationMarker } from "@/components/chat/citation-popover";
+import { StreamStatus } from "@/components/chat/stream-status";
 import { cn } from "@/lib/utils";
-import { ChatMessage, ModelInfo } from "@/lib/types";
+import { ChatMessage, MessageSource, ModelInfo } from "@/lib/types";
 import { formatSourceHost, formatTime } from "@/lib/chat-utils";
 
 interface ChatMessageListProps {
@@ -28,6 +30,7 @@ interface ChatMessageListProps {
   isLoadingMessages: boolean;
   chatError: string | null;
   availableModels: ModelInfo[];
+  streamSteps: { id: "thinking" | "webSearch" | "analyzing"; label: string; status: "pending" | "active" | "complete" }[] | null;
   onEditMessage: (message: ChatMessage) => void;
   onRegenerateMessage: (message: ChatMessage, userMessage: ChatMessage) => void;
 }
@@ -37,6 +40,7 @@ export const ChatMessageList = memo(function ChatMessageList({
   isLoadingMessages,
   chatError,
   availableModels,
+  streamSteps,
   onEditMessage,
   onRegenerateMessage,
 }: ChatMessageListProps) {
@@ -127,42 +131,15 @@ export const ChatMessageList = memo(function ChatMessageList({
                 ) : (
                   /* ── AI response: no bubble, full-width text ── */
                   <div className="w-full max-w-none">
+                    {message.isStreaming && streamSteps && (
+                      <StreamStatus steps={streamSteps} className="mb-3" />
+                    )}
                     {displayContent ? (
                       <div className="prose dark:prose-invert max-w-none text-[15px] leading-8 text-(--chat-ai-text)">
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={{
-                            code({ node, className, children, ...props }) {
-                              const match = /language-(\w+)/.exec(
-                                className || ""
-                              );
-                              const inline =
-                                !match && !String(children).includes("\n");
-                              return !inline && match ? (
-                                <CodeBlock
-                                  language={match[1]}
-                                  value={String(children).replace(
-                                    /\n$/,
-                                    ""
-                                  )}
-                                  {...props}
-                                />
-                              ) : (
-                                <code
-                                  className={cn(
-                                    "bg-neutral-200 dark:bg-neutral-800 rounded px-1 py-0.5 text-sm",
-                                    className
-                                  )}
-                                  {...props}
-                                >
-                                  {children}
-                                </code>
-                              );
-                            },
-                          }}
-                        >
-                          {displayContent}
-                        </ReactMarkdown>
+                        <CitationAwareContent
+                          content={displayContent}
+                          sources={message.sources ?? []}
+                        />
                       </div>
                     ) : null}
 
@@ -305,3 +282,34 @@ export const ChatMessageList = memo(function ChatMessageList({
     </div>
   );
 });
+
+function CitationAwareContent({
+  content,
+  sources,
+}: {
+  content: string;
+  sources: MessageSource[];
+}) {
+  const parts = content.split(/(\[\d+\])/);
+
+  return (
+    <span>
+      {parts.map((part, i) => {
+        const match = part.match(/^\[(\d+)\]$/);
+        if (match) {
+          const index = parseInt(match[1], 10);
+          const source =
+            sources.find((s) => s.position === index) ?? sources[index - 1];
+          if (source) {
+            return <CitationMarker key={i} index={index} source={source} />;
+          }
+        }
+        return (
+          <ReactMarkdown key={i} remarkPlugins={[remarkGfm]}>
+            {part}
+          </ReactMarkdown>
+        );
+      })}
+    </span>
+  );
+}
