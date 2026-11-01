@@ -219,7 +219,7 @@
 }
 
 .home-grid {
-  background-image: linear-gradient(to right, rgba(23, 33, 38, 0.07) 1px, transparent 1px), linear-gradient(to bottom, rgba(23, 33, 38, 0.07) 1px, transparent 1px);
+  background-image: linear-gradient(to right, rgba(117, 232, 208, 0.09) 1px, transparent 1px), linear-gradient(to bottom, rgba(117, 232, 208, 0.09) 1px, transparent 1px);
   background-size: 42px 42px;
   mask-image: linear-gradient(to bottom, black, transparent 82%);
 }

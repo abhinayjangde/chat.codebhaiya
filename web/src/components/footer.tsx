@@ -2,10 +2,10 @@ import Image from "next/image";
 
 export function Footer() {
   return (
-    <footer className="relative z-10 border-t border-[#172126]/15 py-10">
+    <footer className="relative z-10 border-t border-[#e9f1ed]/10 py-10">
       <div className="mx-auto max-w-6xl px-5 flex flex-col md:flex-row justify-between items-center gap-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#087f78]">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#75e8d0]">
             <Image
               src="https://avatars.githubusercontent.com/u/166032907?v=4"
               alt="Logo"
@@ -14,7 +14,7 @@ export function Footer() {
               height={24}
             />
           </div>
-          <span className="text-[#172126] font-bold tracking-widest text-sm uppercase" style={{ fontFamily: "var(--font-fraunces), serif" }}>
+          <span className="text-[#e9f1ed] font-bold tracking-widest text-sm uppercase" style={{ fontFamily: "var(--font-fraunces), serif" }}>
             CodebhaiyaAI
           </span>
         </div>
