@@ -8,9 +8,11 @@ import {
   ChevronRight,
   Cloud,
   Gavel,
+  Image,
   MoreHorizontal,
   Paperclip,
   Plus,
+  Sparkles,
   Square,
   Telescope,
   Loader2,
@@ -106,6 +108,7 @@ export const ChatComposer = memo(function ChatComposer({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const pollDocumentStatus = async (documentId: string) => {
     if (!onDocumentStatus) {
@@ -320,7 +323,28 @@ export const ChatComposer = memo(function ChatComposer({
                   className="fixed inset-0 z-40"
                   onClick={() => setPlusMenuOpen(false)}
                 />
-                <div className="absolute bottom-full left-0 mb-2 w-72 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl z-50">
+                <div className="absolute bottom-full -left-4 mb-2 w-72 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl z-50">
+                  {/* Upload images */}
+                  <input
+                    type="file"
+                    multiple
+                    className="hidden"
+                    ref={imageInputRef}
+                    onChange={handleFileChange}
+                    accept="image/*"
+                  />
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover)"
+                    onClick={() => {
+                      imageInputRef.current?.click();
+                      setPlusMenuOpen(false);
+                    }}
+                  >
+                    <Image className="h-[18px] w-[18px] text-(--chat-text-secondary)" />
+                    Add images
+                  </button>
+
                   {/* Upload files */}
                   <input
                     type="file"
@@ -328,15 +352,31 @@ export const ChatComposer = memo(function ChatComposer({
                     className="hidden"
                     ref={fileInputRef}
                     onChange={handleFileChange}
-                    accept="image/*,audio/*,application/pdf,text/*,.c,.cpp,.js,.ts,.py,.java,.md,.csv,.log"
+                    accept="audio/*,application/pdf,text/*,.c,.cpp,.js,.ts,.py,.java,.md,.csv,.log"
                   />
                   <button
                     type="button"
                     className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover)"
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => {
+                      fileInputRef.current?.click();
+                      setPlusMenuOpen(false);
+                    }}
                   >
                     <Paperclip className="h-[18px] w-[18px] text-(--chat-text-secondary)" />
-                    Upload files or images
+                    Add files
+                  </button>
+
+                  <div className="my-1 border-t border-(--chat-dropdown-border)" />
+
+                  {/* Create images (future) */}
+                  <button
+                    type="button"
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-medium text-(--chat-text-muted) transition hover:bg-(--chat-dropdown-hover)"
+                    onClick={() => setPlusMenuOpen(false)}
+                    disabled
+                  >
+                    <Sparkles className="h-[18px] w-[18px] text-(--chat-text-muted)" />
+                    Create images
                   </button>
 
                   {/* Cloud */}
