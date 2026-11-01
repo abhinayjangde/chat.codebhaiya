@@ -141,7 +141,7 @@ async function issueTokens(
       expiresAt: getTokenExpiryDate(tokens.refreshToken),
       $unset: { revokedAt: 1 },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
   );
 
   return tokens;

@@ -210,7 +210,7 @@ export async function processDocument(documentId: string): Promise<void> {
       status: "processing",
       errorMessage: undefined,
     },
-    { new: true }
+    { returnDocument: "after" }
   );
 
   if (!document) {

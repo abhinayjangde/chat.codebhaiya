@@ -179,7 +179,7 @@ router.put("/preferences", authenticateToken, async (req: Request, res: Response
     const user = await User.findByIdAndUpdate(
       req.user!.userId,
       { $set: { "preferences.systemInstructions": systemInstructions } },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     )
       .select("_id email name preferences")
       .lean();

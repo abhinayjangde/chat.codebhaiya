@@ -99,7 +99,7 @@ router.patch("/collections/:collectionId", async (req: Request, res: Response, n
     const collection = await DocumentCollection.findOneAndUpdate(
       { _id: collectionId, userId: ownerId(req.user!.userId) },
       { $set: input },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ).lean();
     if (!collection) {
       res.status(404).json({ success: false, error: "Collection not found" });
@@ -124,7 +124,7 @@ router.put("/collections/:collectionId/documents", async (req: Request, res: Res
     const collection = await DocumentCollection.findOneAndUpdate(
       { _id: collectionId, userId: ownerId(req.user!.userId) },
       { $set: { documentIds: ids } },
-      { new: true }
+      { returnDocument: "after" }
     ).lean();
     if (!collection) {
       res.status(404).json({ success: false, error: "Collection not found" });
@@ -148,7 +148,7 @@ router.patch("/:documentId", async (req: Request, res: Response, next: NextFunct
     const document = await Document.findOneAndUpdate(
       { _id: documentId, userId: ownerId(req.user!.userId) },
       { $set: input },
-      { new: true, runValidators: true }
+      { returnDocument: "after", runValidators: true }
     ).lean();
     if (!document) {
       res.status(404).json({ success: false, error: "Document not found" });
