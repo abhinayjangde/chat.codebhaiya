@@ -15,7 +15,15 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { FaBrain } from "react-icons/fa";
-import { useEffect, useRef, memo } from "react";
+import {
+  Children,
+  isValidElement,
+  memo,
+  ReactElement,
+  ReactNode,
+  useEffect,
+  useRef,
+} from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { CodeBlock } from "@/components/ui/code-block";
@@ -293,7 +301,7 @@ function CitationAwareContent({
   const parts = content.split(/(\[\d+\])/);
 
   return (
-    <span>
+    <div>
       {parts.map((part, i) => {
         const match = part.match(/^\[(\d+)\]$/);
         if (match) {
@@ -305,11 +313,28 @@ function CitationAwareContent({
           }
         }
         return (
-          <ReactMarkdown key={i} remarkPlugins={[remarkGfm]}>
+          <ReactMarkdown
+            key={i}
+            remarkPlugins={[remarkGfm]}
+            components={{
+              code: (props) => <code {...props} />,
+              pre: ({ children }) => {
+                const codeElement = Children.toArray(children).find(isValidElement) as
+                  | ReactElement<{ className?: string; children?: ReactNode }>
+                  | undefined;
+                const codeProps = codeElement?.props;
+                const language =
+                  codeProps?.className?.match(/language-([\w+-]+)/)?.[1] ?? "text";
+                const codeString = String(codeProps?.children ?? "").replace(/\n$/, "");
+
+                return <CodeBlock language={language} value={codeString} />;
+              },
+            }}
+          >
             {part}
           </ReactMarkdown>
         );
       })}
-    </span>
+    </div>
   );
 }
