@@ -557,8 +557,8 @@ export const ChatSidebar = memo(function ChatSidebar({
                 {/* Divider */}
                 <div className="my-1.5 border-t border-(--chat-dropdown-border)" />
 
-                <button
-                  type="button"
+                <Link
+                  href="/terms"
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
                   onClick={() => {
                     setSettingsMenuOpen(false);
@@ -566,9 +566,9 @@ export const ChatSidebar = memo(function ChatSidebar({
                 >
                   <FileText className="h-[18px] w-[18px] text-(--chat-label)" />
                   Terms of service
-                </button>
-                <button
-                  type="button"
+                </Link>
+                <Link
+                  href="/privacy"
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
                   onClick={() => {
                     setSettingsMenuOpen(false);
@@ -576,7 +576,7 @@ export const ChatSidebar = memo(function ChatSidebar({
                 >
                   <Shield className="h-[18px] w-[18px] text-(--chat-label)" />
                   Privacy policy
-                </button>
+                </Link>
                 <button
                   type="button"
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"

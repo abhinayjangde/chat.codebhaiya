@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 export function Footer() {
   return (
@@ -22,9 +23,9 @@ export function Footer() {
           © {new Date().getFullYear()} Codebhaiya. All rights reserved.
         </p>
         <div className="flex gap-6 text-xs text-[#748083]">
-          <a href="#" className="hover:text-[#087f78] transition-colors">Privacy</a>
-          <a href="#" className="hover:text-[#087f78] transition-colors">Terms</a>
-          <a href="#" className="hover:text-[#087f78] transition-colors">Contact</a>
+          <Link href="/privacy" className="hover:text-[#087f78] transition-colors">Privacy</Link>
+          <Link href="/terms" className="hover:text-[#087f78] transition-colors">Terms</Link>
+          <a href="mailto:hello@codebhaiya.com" className="hover:text-[#087f78] transition-colors">Contact</a>
         </div>
       </div>
     </footer>

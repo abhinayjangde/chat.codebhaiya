@@ -204,7 +204,7 @@ export default function LoginPage() {
           {/* ── Help ── */}
           <div className="flex justify-center">
             <a
-              href="#"
+              href="mailto:hello@codebhaiya.com"
               className="inline-flex items-center gap-1.5 text-xs text-[#888] transition-colors hover:text-[#ccc]"
             >
               <HelpCircle className="h-3.5 w-3.5" />
@@ -216,14 +216,14 @@ export default function LoginPage() {
           <p className="text-center text-[11px] leading-relaxed text-[#555]">
             Your login constitutes acceptance of the{" "}
             <a
-              href="#"
+              href="/terms"
               className="text-[#a78bfa] transition-colors hover:text-[#c4b5fd]"
             >
               Terms of Service
             </a>{" "}
             and{" "}
             <a
-              href="#"
+              href="/privacy"
               className="text-[#a78bfa] transition-colors hover:text-[#c4b5fd]"
             >
               Privacy Policy
