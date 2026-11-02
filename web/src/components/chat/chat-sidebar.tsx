@@ -119,9 +119,9 @@ export const ChatSidebar = memo(function ChatSidebar({
   const [renamingChatId, setRenamingChatId] = useState<string | null>(null);
   const [renameTitle, setRenameTitle] = useState("");
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
-  const [themeSubmenuOpen, setThemeSubmenuOpen] = useState(false);
-  const [languageSubmenuOpen, setLanguageSubmenuOpen] = useState(false);
-  const [customizeSubmenuOpen, setCustomizeSubmenuOpen] = useState(false);
+  const [activeSubmenu, setActiveSubmenu] = useState<
+    "theme" | "language" | "customize" | null
+  >(null);
 
   // Modals
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -132,6 +132,26 @@ export const ChatSidebar = memo(function ChatSidebar({
   const chatOptionsRef = useRef<HTMLDivElement>(null);
   const settingsRef = useRef<HTMLDivElement>(null);
 
+  const handleMouseEnter = (menu: "theme" | "language" | "customize") => {
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(hover: hover)").matches &&
+      window.innerWidth >= 768
+    ) {
+      setActiveSubmenu(menu);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    if (
+      typeof window !== "undefined" &&
+      window.matchMedia("(hover: hover)").matches &&
+      window.innerWidth >= 768
+    ) {
+      setActiveSubmenu(null);
+    }
+  };
+
   const filteredChats = chats.filter((c) =>
     c.title?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -139,7 +159,7 @@ export const ChatSidebar = memo(function ChatSidebar({
   const recentChats = filteredChats.filter((c) => !c.isPinned);
 
   useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
+    function handleClickOutside(event: MouseEvent | TouchEvent) {
       if (
         searchOpen &&
         searchRef.current &&
@@ -160,12 +180,15 @@ export const ChatSidebar = memo(function ChatSidebar({
         !settingsRef.current.contains(event.target as Node)
       ) {
         setSettingsMenuOpen(false);
+        setActiveSubmenu(null);
       }
     }
 
     document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
     };
   }, [searchOpen, chatMenuOpenId, settingsMenuOpen]);
 
@@ -374,7 +397,11 @@ export const ChatSidebar = memo(function ChatSidebar({
           "fixed inset-0 z-20 bg-(--chat-overlay) transition md:hidden",
           mobileSidebarOpen ? "opacity-100" : "pointer-events-none opacity-0"
         )}
-        onClick={() => setMobileSidebarOpen(false)}
+        onClick={() => {
+          setMobileSidebarOpen(false);
+          setSettingsMenuOpen(false);
+          setActiveSubmenu(null);
+        }}
       />
 
       <aside
@@ -409,6 +436,8 @@ export const ChatSidebar = memo(function ChatSidebar({
             onClick={() => {
               setSidebarOpen(false);
               setMobileSidebarOpen(false);
+              setSettingsMenuOpen(false);
+              setActiveSubmenu(null);
             }}
             aria-label="Toggle sidebar"
           >
@@ -584,27 +613,46 @@ export const ChatSidebar = memo(function ChatSidebar({
           {/* Settings with popup */}
           <div className="relative" ref={settingsRef}>
             {settingsMenuOpen && (
-              <div className="absolute bottom-full left-0 z-50 mb-1 w-full rounded-md border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
-                {/* Top group - Theme with hover submenu */}
+              <div className="absolute bottom-full left-0 z-50 mb-1 w-full max-h-[calc(100dvh-120px)] overflow-y-auto rounded-md border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl md:max-h-none md:overflow-visible">
+                {/* Top group - Theme with hover/click submenu */}
                 <div
                   className="relative"
-                  onMouseEnter={() => setThemeSubmenuOpen(true)}
-                  onMouseLeave={() => setThemeSubmenuOpen(false)}
+                  onMouseEnter={() => handleMouseEnter("theme")}
+                  onMouseLeave={handleMouseLeave}
                 >
                   <button
                     type="button"
-                    className="flex w-full items-center justify-between px-4 py-2.5 text-sm text-(--chat-text-secondary) hover:cursor-pointer transition hover:bg-(--chat-dropdown-hover)"
+                    className={cn(
+                      "flex w-full items-center justify-between px-4 py-2.5 text-sm text-(--chat-text-secondary) hover:cursor-pointer transition hover:bg-(--chat-dropdown-hover)",
+                      activeSubmenu === "theme" && "bg-(--chat-dropdown-hover) text-(--chat-text)"
+                    )}
+                    onClick={() =>
+                      setActiveSubmenu((prev) => (prev === "theme" ? null : "theme"))
+                    }
+                    aria-expanded={activeSubmenu === "theme"}
                   >
                     <span className="flex items-center gap-3">
                       <SunMoon className="h-[18px] w-[18px] text-(--chat-label)" />
                       Theme
                     </span>
-                    <ChevronRight className="h-4 w-4 text-[#666]" />
+                    <ChevronRight
+                      className={cn(
+                        "h-4 w-4 text-[#666] transition-transform duration-200",
+                        activeSubmenu === "theme" && "rotate-90 md:rotate-0"
+                      )}
+                    />
                   </button>
 
                   {/* Theme submenu */}
-                  {themeSubmenuOpen && (
-                    <div className="absolute left-full -top-2 z-60 ml-1 w-40 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
+                  {activeSubmenu === "theme" && (
+                    <div
+                      className={cn(
+                        // Mobile: inline accordion expansion
+                        "w-full bg-(--chat-dropdown-hover)/40 py-1 my-0.5 space-y-0.5",
+                        // Desktop: flyout submenu to the right
+                        "md:absolute md:left-full md:-top-2 md:z-60 md:ml-1 md:w-40 md:space-y-0 md:bg-(--chat-dropdown) md:my-0 md:py-1.5 md:rounded-xl md:border md:border-(--chat-dropdown-border) md:shadow-2xl md:before:absolute md:before:-left-2 md:before:top-0 md:before:bottom-0 md:before:w-2"
+                      )}
+                    >
                       {[
                         { id: "light", label: "Light", icon: Sun },
                         { id: "dark", label: "Dark", icon: Moon },
@@ -613,10 +661,10 @@ export const ChatSidebar = memo(function ChatSidebar({
                         <button
                           key={opt.id}
                           type="button"
-                          className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                          className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text) hover:cursor-pointer md:py-2.5"
                           onClick={() => {
                             setTheme(opt.id);
-                            setThemeSubmenuOpen(false);
+                            setActiveSubmenu(null);
                             setSettingsMenuOpen(false);
                           }}
                         >
@@ -624,7 +672,7 @@ export const ChatSidebar = memo(function ChatSidebar({
                             className={cn(
                               "h-2.5 w-2.5 rounded-full border",
                               theme === opt.id
-                                ? "border-white bg-white"
+                                ? "border-(--chat-text) bg-(--chat-text)"
                                 : "border-[#666] bg-transparent"
                             )}
                           />
@@ -642,22 +690,41 @@ export const ChatSidebar = memo(function ChatSidebar({
                 {/* Language selection */}
                 <div
                   className="relative"
-                  onMouseEnter={() => setLanguageSubmenuOpen(true)}
-                  onMouseLeave={() => setLanguageSubmenuOpen(false)}
+                  onMouseEnter={() => handleMouseEnter("language")}
+                  onMouseLeave={handleMouseLeave}
                 >
                   <button
                     type="button"
-                    className="flex w-full items-center justify-between px-4 py-2.5 text-sm text-(--chat-text-secondary) hover:cursor-pointer transition hover:bg-(--chat-dropdown-hover)"
+                    className={cn(
+                      "flex w-full items-center justify-between px-4 py-2.5 text-sm text-(--chat-text-secondary) hover:cursor-pointer transition hover:bg-(--chat-dropdown-hover)",
+                      activeSubmenu === "language" && "bg-(--chat-dropdown-hover) text-(--chat-text)"
+                    )}
+                    onClick={() =>
+                      setActiveSubmenu((prev) => (prev === "language" ? null : "language"))
+                    }
+                    aria-expanded={activeSubmenu === "language"}
                   >
                     <span className="flex items-center gap-3">
                       <Languages className="h-[18px] w-[18px] text-(--chat-label)" />
                       Language
                     </span>
-                    <ChevronRight className="h-4 w-4 text-[#666]" />
+                    <ChevronRight
+                      className={cn(
+                        "h-4 w-4 text-[#666] transition-transform duration-200",
+                        activeSubmenu === "language" && "rotate-90 md:rotate-0"
+                      )}
+                    />
                   </button>
 
-                  {languageSubmenuOpen && (
-                    <div className="absolute left-full -top-2 z-60 ml-1 w-50 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
+                  {activeSubmenu === "language" && (
+                    <div
+                      className={cn(
+                        // Mobile: inline accordion expansion
+                        "w-full bg-(--chat-dropdown-hover)/40 py-1 my-0.5 space-y-0.5",
+                        // Desktop: flyout submenu to the right
+                        "md:absolute md:left-full md:-top-2 md:z-60 md:ml-1 md:w-50 md:space-y-0 md:bg-(--chat-dropdown) md:my-0 md:py-1.5 md:rounded-xl md:border md:border-(--chat-dropdown-border) md:shadow-2xl md:before:absolute md:before:-left-2 md:before:top-0 md:before:bottom-0 md:before:w-2"
+                      )}
+                    >
                       {[
                         { id: "english", label: "English" },
                         { id: "hinglish", label: "Hinglish (Hindi + Eng)" },
@@ -665,10 +732,10 @@ export const ChatSidebar = memo(function ChatSidebar({
                         <button
                           key={opt.id}
                           type="button"
-                          className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                          className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text) hover:cursor-pointer md:py-2.5"
                           onClick={() => {
                             setLanguage(opt.id as "english" | "hinglish");
-                            setLanguageSubmenuOpen(false);
+                            setActiveSubmenu(null);
                             setSettingsMenuOpen(false);
                           }}
                         >
@@ -676,7 +743,7 @@ export const ChatSidebar = memo(function ChatSidebar({
                             className={cn(
                               "h-2.5 w-2.5 rounded-full border",
                               language === opt.id
-                                ? "border-white bg-white"
+                                ? "border-(--chat-text) bg-(--chat-text)"
                                 : "border-[#666] bg-transparent"
                             )}
                           />
@@ -693,7 +760,9 @@ export const ChatSidebar = memo(function ChatSidebar({
                 <Link
                   href="/terms"
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                  onMouseEnter={handleMouseLeave}
                   onClick={() => {
+                    setActiveSubmenu(null);
                     setSettingsMenuOpen(false);
                   }}
                 >
@@ -703,7 +772,9 @@ export const ChatSidebar = memo(function ChatSidebar({
                 <Link
                   href="/privacy"
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                  onMouseEnter={handleMouseLeave}
                   onClick={() => {
+                    setActiveSubmenu(null);
                     setSettingsMenuOpen(false);
                   }}
                 >
@@ -713,7 +784,9 @@ export const ChatSidebar = memo(function ChatSidebar({
                 <button
                   type="button"
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                  onMouseEnter={handleMouseLeave}
                   onClick={() => {
+                    setActiveSubmenu(null);
                     setSettingsMenuOpen(false);
                   }}
                 >
@@ -721,11 +794,13 @@ export const ChatSidebar = memo(function ChatSidebar({
                   Send feedback
                 </button>
 
-                {/* Change Password */}
+                {/* Custom instructions */}
                 <button
                   type="button"
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                  onMouseEnter={handleMouseLeave}
                   onClick={() => {
+                    setActiveSubmenu(null);
                     setSettingsMenuOpen(false);
                     setIsInstructionsOpen(true);
                   }}
@@ -738,7 +813,9 @@ export const ChatSidebar = memo(function ChatSidebar({
                 <button
                   type="button"
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                  onMouseEnter={handleMouseLeave}
                   onClick={() => {
+                    setActiveSubmenu(null);
                     setSettingsMenuOpen(false);
                     setIsChangePasswordOpen(true);
                   }}
@@ -751,27 +828,46 @@ export const ChatSidebar = memo(function ChatSidebar({
                 <div className="my-1.5 border-t border-(--chat-dropdown-border)" />
                 <div
                   className="relative"
-                  onMouseEnter={() => setCustomizeSubmenuOpen(true)}
-                  onMouseLeave={() => setCustomizeSubmenuOpen(false)}
+                  onMouseEnter={() => handleMouseEnter("customize")}
+                  onMouseLeave={handleMouseLeave}
                 >
                   <button
                     type="button"
-                    className="flex w-full items-center justify-between px-4 py-2.5 text-sm text-(--chat-text-secondary) hover:cursor-pointer transition hover:bg-(--chat-dropdown-hover)"
+                    className={cn(
+                      "flex w-full items-center justify-between px-4 py-2.5 text-sm text-(--chat-text-secondary) hover:cursor-pointer transition hover:bg-(--chat-dropdown-hover)",
+                      activeSubmenu === "customize" && "bg-(--chat-dropdown-hover) text-(--chat-text)"
+                    )}
+                    onClick={() =>
+                      setActiveSubmenu((prev) => (prev === "customize" ? null : "customize"))
+                    }
+                    aria-expanded={activeSubmenu === "customize"}
                   >
                     <span className="flex items-center gap-3">
                       <SlidersHorizontal className="h-4 w-4 text-(--chat-label)" />
                       Customize
                     </span>
-                    <ChevronRight className="h-4 w-4 text-[#666]" />
+                    <ChevronRight
+                      className={cn(
+                        "h-4 w-4 text-[#666] transition-transform duration-200",
+                        activeSubmenu === "customize" && "rotate-90 md:rotate-0"
+                      )}
+                    />
                   </button>
 
-                  {customizeSubmenuOpen && (
-                    <div className="absolute left-full -top-2 z-60 ml-1 w-40 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
+                  {activeSubmenu === "customize" && (
+                    <div
+                      className={cn(
+                        // Mobile: inline accordion expansion
+                        "w-full bg-(--chat-dropdown-hover)/40 py-1 my-0.5 space-y-0.5",
+                        // Desktop: flyout submenu to the right
+                        "md:absolute md:left-full md:-top-2 md:z-60 md:ml-1 md:w-40 md:space-y-0 md:bg-(--chat-dropdown) md:my-0 md:py-1.5 md:rounded-xl md:border md:border-(--chat-dropdown-border) md:shadow-2xl md:before:absolute md:before:-left-2 md:before:top-0 md:before:bottom-0 md:before:w-2"
+                      )}
+                    >
                       <button
                         type="button"
-                        className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                        className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text) hover:cursor-pointer md:py-2.5"
                         onClick={() => {
-                          setCustomizeSubmenuOpen(false);
+                          setActiveSubmenu(null);
                           setSettingsMenuOpen(false);
                           toast("Skill settings coming soon");
                         }}
@@ -781,9 +877,9 @@ export const ChatSidebar = memo(function ChatSidebar({
                       </button>
                       <button
                         type="button"
-                        className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                        className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text) hover:cursor-pointer md:py-2.5"
                         onClick={() => {
-                          setCustomizeSubmenuOpen(false);
+                          setActiveSubmenu(null);
                           setSettingsMenuOpen(false);
                           onOpenMcpSettings();
                         }}
@@ -793,9 +889,9 @@ export const ChatSidebar = memo(function ChatSidebar({
                       </button>
                       <button
                         type="button"
-                        className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                        className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text) hover:cursor-pointer md:py-2.5"
                         onClick={() => {
-                          setCustomizeSubmenuOpen(false);
+                          setActiveSubmenu(null);
                           setSettingsMenuOpen(false);
                           toast("Plugins coming soon");
                         }}
@@ -814,7 +910,9 @@ export const ChatSidebar = memo(function ChatSidebar({
                 <button
                   type="button"
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                  onMouseEnter={handleMouseLeave}
                   onClick={() => {
+                    setActiveSubmenu(null);
                     setSettingsMenuOpen(false);
                     onLogout();
                   }}
@@ -828,7 +926,9 @@ export const ChatSidebar = memo(function ChatSidebar({
                   type="button"
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-400 transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={isDeletingAccount}
+                  onMouseEnter={handleMouseLeave}
                   onClick={() => {
+                    setActiveSubmenu(null);
                     setSettingsMenuOpen(false);
                     handleDeleteAccount();
                   }}
@@ -845,7 +945,12 @@ export const ChatSidebar = memo(function ChatSidebar({
                 "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-sidebar-text-hover) hover:cursor-pointer",
                 settingsMenuOpen && "bg-white/5"
               )}
-              onClick={() => setSettingsMenuOpen(!settingsMenuOpen)}
+              onClick={() => {
+                if (settingsMenuOpen) {
+                  setActiveSubmenu(null);
+                }
+                setSettingsMenuOpen(!settingsMenuOpen);
+              }}
             >
               <Settings className="h-[18px] w-[18px] text-(--chat-label)" />
               Settings
