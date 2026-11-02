@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   chatMessageSchema,
   createChatSchema,
+  listChatsQuerySchema,
   renameChatSchema,
+  updateChatSchema,
 } from "./chat.schema.js";
 import { paginationQuerySchema } from "./common.schema.js";
 
@@ -84,6 +86,80 @@ describe("chat.schema", () => {
       });
 
       expect(result.success).toBe(false);
+    });
+  });
+
+  describe("updateChatSchema", () => {
+    it("accepts title update", () => {
+      const result = updateChatSchema.safeParse({
+        title: "Updated Title",
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("accepts isPinned boolean", () => {
+      const result = updateChatSchema.safeParse({
+        isPinned: true,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("accepts isArchived boolean", () => {
+      const result = updateChatSchema.safeParse({
+        isArchived: true,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("accepts multiple fields simultaneously", () => {
+      const result = updateChatSchema.safeParse({
+        title: "New Title",
+        isPinned: true,
+        isArchived: false,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects empty object when no fields are supplied", () => {
+      const result = updateChatSchema.safeParse({});
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects title longer than 120 characters", () => {
+      const result = updateChatSchema.safeParse({
+        title: "a".repeat(121),
+      });
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe("listChatsQuerySchema", () => {
+    it("transforms 'true' string to boolean true", () => {
+      const result = listChatsQuerySchema.safeParse({
+        archived: "true",
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.archived).toBe(true);
+      }
+    });
+
+    it("transforms 'false' string to boolean false", () => {
+      const result = listChatsQuerySchema.safeParse({
+        archived: "false",
+      });
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.archived).toBe(false);
+      }
+    });
+
+    it("accepts query without archived param", () => {
+      const result = listChatsQuerySchema.safeParse({});
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.archived).toBeUndefined();
+      }
     });
   });
 

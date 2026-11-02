@@ -30,8 +30,9 @@ export const chatApi = {
     });
   },
 
-  async listChats(accessToken: string): Promise<{ chats: ChatSummary[] }> {
-    return requestData<{ chats: ChatSummary[] }>("/chat", {
+  async listChats(accessToken: string, archived?: boolean): Promise<{ chats: ChatSummary[] }> {
+    const url = archived !== undefined ? `/chat?archived=${archived}` : "/chat";
+    return requestData<{ chats: ChatSummary[] }>(url, {
       method: "GET",
       headers: authHeaders(accessToken),
     });
@@ -63,16 +64,39 @@ export const chatApi = {
     });
   },
 
+  async updateChat(
+    chatId: string,
+    updates: { title?: string; isPinned?: boolean; isArchived?: boolean },
+    accessToken: string
+  ): Promise<{ title?: string; chat?: ChatSummary }> {
+    return requestData<{ title?: string; chat?: ChatSummary }>(`/chat/${chatId}`, {
+      method: "PATCH",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify(updates),
+    });
+  },
+
   async renameChat(
     chatId: string,
     title: string,
     accessToken: string
   ): Promise<{ title: string }> {
-    return requestData<{ title: string }>(`/chat/${chatId}`, {
-      method: "PATCH",
-      headers: authHeaders(accessToken),
-      body: JSON.stringify({ title }),
-    });
+    const data = await chatApi.updateChat(chatId, { title }, accessToken);
+    return { title: data.title ?? title };
+  },
+
+  async duplicateChat(
+    chatId: string,
+    accessToken: string
+  ): Promise<{ chat: ChatSummary; chatId: string; title: string }> {
+    return requestData<{ chat: ChatSummary; chatId: string; title: string }>(
+      `/chat/${chatId}/duplicate`,
+      {
+        method: "POST",
+        headers: authHeaders(accessToken),
+        body: JSON.stringify({}),
+      }
+    );
   },
 
   async deleteChat(chatId: string, accessToken: string): Promise<void> {

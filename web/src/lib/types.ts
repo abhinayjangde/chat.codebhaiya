@@ -29,6 +29,8 @@ export interface ChatSummary {
   _id: string;
   userId: string;
   title: string;
+  isPinned?: boolean;
+  isArchived?: boolean;
   createdAt: string;
   updatedAt: string;
 }

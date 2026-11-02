@@ -235,12 +235,15 @@ List available models based on server configuration.
 ### Chats
 
 #### GET /chat
-List all chats for the authenticated user.
+List all chats for the authenticated user, sorted with pinned chats first, then by most recently updated.
 
 **Headers:**
 ```http
 Authorization: Bearer <access_token>
 ```
+
+**Query Parameters:**
+- `archived` (optional): Set to `true` to list archived chats, or `false` / omit to list active chats (default).
 
 **Response (200 OK):**
 ```json
@@ -251,7 +254,9 @@ Authorization: Bearer <access_token>
       {
         "_id": "65a1b2c3d4e5f6g7h8i9j0k1",
         "userId": "65a1b2c3d4e5f6g7h8i9j0k2",
-        "title": "Hello!",
+        "title": "Architecture Discussion",
+        "isPinned": true,
+        "isArchived": false,
         "createdAt": "2026-02-13T10:30:00.000Z",
         "updatedAt": "2026-02-13T10:35:00.000Z"
       }
@@ -272,10 +277,8 @@ Content-Type: application/json
 **Request Body:**
 ```json
 {
-{
-   "message": "Initial message for the chat",
-   "model": "groq-llama-3.3-70b" // Optional
- }
+  "message": "Initial message for the chat",
+  "model": "groq-llama-3.3-70b" // Optional
 }
 ```
 
@@ -287,6 +290,84 @@ Content-Type: application/json
     "title": "Initial message for the chat",
     "chatId": "65a1b2c3d4e5f6g7h8i9j0k1"
   }
+}
+```
+
+#### PATCH /chat/:chatId
+Update a conversation's title, pinned status, or archive status. At least one field is required.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "title": "Renamed Title", // Optional (1-120 chars)
+  "isPinned": true,          // Optional (boolean)
+  "isArchived": false        // Optional (boolean)
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Chat updated successfully",
+  "data": {
+    "title": "Renamed Title",
+    "_id": "65a1b2c3d4e5f6g7h8i9j0k1",
+    "isPinned": true,
+    "isArchived": false,
+    "updatedAt": "2026-02-13T10:40:00.000Z"
+  }
+}
+```
+
+#### POST /chat/:chatId/duplicate
+Clone an existing conversation along with all its messages and message context.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "message": "Chat duplicated successfully",
+  "data": {
+    "chatId": "65a1b2c3d4e5f6g7h8i9j0k9",
+    "title": "Architecture Discussion (Copy)",
+    "chat": {
+      "_id": "65a1b2c3d4e5f6g7h8i9j0k9",
+      "userId": "65a1b2c3d4e5f6g7h8i9j0k2",
+      "title": "Architecture Discussion (Copy)",
+      "isPinned": false,
+      "isArchived": false,
+      "createdAt": "2026-02-13T10:42:00.000Z",
+      "updatedAt": "2026-02-13T10:42:00.000Z"
+    }
+  }
+}
+```
+
+#### DELETE /chat/:chatId
+Delete a conversation and all its messages permanently.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Chat deleted successfully"
 }
 ```
 

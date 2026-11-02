@@ -2,8 +2,12 @@
 "use client";
 
 import {
+  Archive,
+  ArchiveRestore,
+  ArrowLeft,
   ChevronRight,
   Cog,
+  Copy,
   FileDown,
   FileText,
   GraduationCap,
@@ -14,11 +18,12 @@ import {
   Moon,
   MoreHorizontal,
   PanelLeft,
+  Pin,
+  PinOff,
   Plus,
   Plug,
   Search,
   Settings,
-  Share,
   Shield,
   Library,
   SquarePen,
@@ -27,6 +32,7 @@ import {
   Languages,
   Trash2,
   X,
+  SlidersHorizontal,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -66,6 +72,11 @@ interface ChatSidebarProps {
   language: "english" | "hinglish";
   setLanguage: (lang: "english" | "hinglish") => void;
   onOpenMcpSettings: () => void;
+  onTogglePin: (chatId: string, isPinned: boolean) => void;
+  onToggleArchive: (chatId: string, isArchived: boolean) => void;
+  onDuplicateChat: (chatId: string) => void;
+  isShowingArchived: boolean;
+  setIsShowingArchived: (show: boolean) => void;
 }
 
 export const ChatSidebar = memo(function ChatSidebar({
@@ -94,6 +105,11 @@ export const ChatSidebar = memo(function ChatSidebar({
   language,
   setLanguage,
   onOpenMcpSettings,
+  onTogglePin,
+  onToggleArchive,
+  onDuplicateChat,
+  isShowingArchived,
+  setIsShowingArchived,
 }: ChatSidebarProps) {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
@@ -119,6 +135,8 @@ export const ChatSidebar = memo(function ChatSidebar({
   const filteredChats = chats.filter((c) =>
     c.title?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  const pinnedChats = filteredChats.filter((c) => c.isPinned);
+  const recentChats = filteredChats.filter((c) => !c.isPinned);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -163,6 +181,176 @@ export const ChatSidebar = memo(function ChatSidebar({
     }
     setRenamingChatId(null);
     setRenameTitle("");
+  };
+
+  const renderChatItem = (chat: ChatSummary, index: number, listLength: number) => {
+    return (
+      <div key={chat._id} className="group relative">
+        {renamingChatId === chat._id ? (
+          <div className="w-full px-2 py-1">
+            <input
+              type="text"
+              value={renameTitle}
+              onChange={(e) => setRenameTitle(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSaveRename();
+                if (e.key === "Escape") setRenamingChatId(null);
+              }}
+              onBlur={handleSaveRename}
+              autoFocus
+              className="w-full rounded bg-(--chat-surface) px-2 py-1 text-sm text-(--chat-text) outline-none ring-1 ring-(--chat-focus-ring)"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        ) : (
+          <button
+            type="button"
+            className={cn(
+              "w-full rounded-lg px-3 py-2 pr-8 text-left text-sm transition hover:cursor-pointer flex items-center justify-between gap-1.5",
+              chat._id === activeChatId
+                ? "bg-(--chat-sidebar-active) text-(--chat-text)"
+                : "text-(--chat-text-secondary) hover:bg-(--chat-sidebar-hover)"
+            )}
+            onClick={() => {
+              onSelectChat(chat._id);
+              setMobileSidebarOpen(false);
+            }}
+          >
+            <p className="truncate flex-1">
+              {shortTitle(chat.title || "New chat")}
+            </p>
+            {chat.isPinned && (
+              <Pin className="h-3 w-3 shrink-0 text-(--chat-text-muted)" />
+            )}
+          </button>
+        )}
+
+        {/* ⋯ menu trigger */}
+        <button
+          type="button"
+          className={cn(
+            "absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded-md text-(--chat-text-muted) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text)",
+            chatMenuOpenId === chat._id
+              ? "opacity-100"
+              : "opacity-0 group-hover:opacity-100"
+          )}
+          onClick={(e) => {
+            e.stopPropagation();
+            setChatMenuOpenId(
+              chatMenuOpenId === chat._id ? null : chat._id
+            );
+          }}
+          aria-label="Chat options"
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+
+        {/* Dropdown menu */}
+        {chatMenuOpenId === chat._id && (
+          <div
+            ref={chatOptionsRef}
+            className={cn(
+              "absolute right-0 z-50 w-full rounded-md border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl",
+              index > 3 && index >= listLength - 7
+                ? "bottom-full mb-1"
+                : "top-full mt-1"
+            )}
+          >
+            {!isShowingArchived && (
+              <button
+                type="button"
+                className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                onClick={() => {
+                  setChatMenuOpenId(null);
+                  onTogglePin(chat._id, !!chat.isPinned);
+                }}
+              >
+                {chat.isPinned ? (
+                  <>
+                    <PinOff className="h-4 w-4 text-(--chat-label)" />
+                    Unpin
+                  </>
+                ) : (
+                  <>
+                    <Pin className="h-4 w-4 text-(--chat-label)" />
+                    Pin to top
+                  </>
+                )}
+              </button>
+            )}
+
+            <button
+              type="button"
+              className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+              onClick={() => {
+                setChatMenuOpenId(null);
+                onDuplicateChat(chat._id);
+              }}
+            >
+              <Copy className="h-4 w-4 text-(--chat-label)" />
+              Duplicate
+            </button>
+
+            <button
+              type="button"
+              className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+              onClick={() => {
+                setChatMenuOpenId(null);
+                onToggleArchive(chat._id, !!chat.isArchived);
+              }}
+            >
+              {isShowingArchived ? (
+                <>
+                  <ArchiveRestore className="h-4 w-4 text-(--chat-label)" />
+                  Restore chat
+                </>
+              ) : (
+                <>
+                  <Archive className="h-4 w-4 text-(--chat-label)" />
+                  Archive
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleStartRename(chat._id, chat.title || "");
+              }}
+            >
+              <SquarePen className="h-4 w-4 text-(--chat-label)" />
+              Rename
+            </button>
+            <div className="my-1 border-t border-(--chat-dropdown-border)" />
+            <button
+              type="button"
+              className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+              onClick={() => {
+                setChatMenuOpenId(null);
+                onDownloadPdf(chat._id);
+              }}
+            >
+              <FileDown className="h-4 w-4 text-(--chat-label)" />
+              Download as PDF
+            </button>
+            <div className="my-1 border-t border-(--chat-dropdown-border)" />
+            <button
+              type="button"
+              className="flex w-full items-center gap-3 px-4 py-2 text-sm text-red-400 transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+              onClick={() => {
+                setChatMenuOpenId(null);
+                onDeleteChat(chat._id);
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete
+            </button>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const handleDeleteAccount = () => {
@@ -233,7 +421,12 @@ export const ChatSidebar = memo(function ChatSidebar({
           <button
             type="button"
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-(--chat-text) transition hover:bg-(--chat-sidebar-text-hover) hover:cursor-pointer"
-            onClick={onNewChat}
+            onClick={() => {
+              if (isShowingArchived) {
+                setIsShowingArchived(false);
+              }
+              onNewChat();
+            }}
             disabled={isSending}
           >
             <Plus className="h-[18px] w-[18px] text-(--chat-text-muted)" />
@@ -290,13 +483,38 @@ export const ChatSidebar = memo(function ChatSidebar({
             <Library className="h-[18px] w-[18px] text-(--chat-text-muted)" />
             Documents
           </button>
+          <button
+            type="button"
+            className={cn(
+              "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition hover:bg-(--chat-sidebar-text-hover) hover:cursor-pointer",
+              isShowingArchived
+                ? "bg-(--chat-sidebar-active) text-(--chat-text) font-medium"
+                : "text-(--chat-text)"
+            )}
+            onClick={() => setIsShowingArchived(!isShowingArchived)}
+          >
+            <Archive className="h-[18px] w-[18px] text-(--chat-text-muted)" />
+            {isShowingArchived ? "All conversations" : "Archived chats"}
+          </button>
         </nav>
 
         {/* â”€â”€ Your chats section â”€â”€ */}
         <div className="mt-5 flex flex-col flex-1 min-h-0">
-          <p className="px-4 pb-2 text-[11px] font-medium text-(--chat-label)">
-            Your chats
-          </p>
+          <div className="flex items-center justify-between px-4 pb-2">
+            <p className="text-[11px] font-medium text-(--chat-label)">
+              {isShowingArchived ? "Archived chats" : "Your chats"}
+            </p>
+            {isShowingArchived && (
+              <button
+                type="button"
+                onClick={() => setIsShowingArchived(false)}
+                className="text-[11px] text-(--chat-text-muted) hover:text-(--chat-text) transition flex items-center gap-1 hover:cursor-pointer"
+              >
+                <ArrowLeft className="h-3 w-3" />
+                Back
+              </button>
+            )}
+          </div>
           <div className="sidebar-scroll flex-1 overflow-y-auto px-2 pb-3">
             {isLoadingChats || isBootstrapping ? (
               <div className="px-3 py-2 text-sm text-(--chat-text-faint)">
@@ -306,126 +524,42 @@ export const ChatSidebar = memo(function ChatSidebar({
               <div className="px-3 py-2 text-sm text-(--chat-text-faint)">
                 {searchQuery.trim()
                   ? "No matching chats."
+                  : isShowingArchived
+                  ? "No archived chats."
                   : "No conversations yet."}
               </div>
-            ) : (
+            ) : isShowingArchived ? (
               <div className="flex flex-col gap-0.5">
-                {filteredChats.map((chat, index) => (
-                  <div key={chat._id} className="group relative">
-                    {renamingChatId === chat._id ? (
-                      <div className="w-full px-2 py-1">
-                        <input
-                          type="text"
-                          value={renameTitle}
-                          onChange={(e) => setRenameTitle(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") handleSaveRename();
-                            if (e.key === "Escape") setRenamingChatId(null);
-                          }}
-                          onBlur={handleSaveRename}
-                          autoFocus
-                          className="w-full rounded bg-(--chat-surface) px-2 py-1 text-sm text-(--chat-text) outline-none ring-1 ring-(--chat-focus-ring)"
-                          onClick={(e) => e.stopPropagation()}
-                        />
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        className={cn(
-                          "w-full rounded-lg px-3 py-2 pr-8 text-left text-sm transition hover:cursor-pointer",
-                          chat._id === activeChatId
-                            ? "bg-(--chat-sidebar-active) text-(--chat-text)"
-                            : "text-(--chat-text-secondary) hover:bg-(--chat-sidebar-hover)"
-                        )}
-                        onClick={() => {
-                          onSelectChat(chat._id);
-                          setMobileSidebarOpen(false);
-                        }}
-                      >
-                        <p className="truncate">
-                          {shortTitle(chat.title || "New chat")}
-                        </p>
-                      </button>
-                    )}
-
-                    {/* â‹¯ menu trigger */}
-                    <button
-                      type="button"
-                      className={cn(
-                        "absolute right-1 top-1/2 -translate-y-1/2 inline-flex h-6 w-6 items-center justify-center rounded-md text-(--chat-text-muted) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text)",
-                        chatMenuOpenId === chat._id
-                          ? "opacity-100"
-                          : "opacity-0 group-hover:opacity-100"
+                {filteredChats.map((chat, index) =>
+                  renderChatItem(chat, index, filteredChats.length)
+                )}
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                {pinnedChats.length > 0 && (
+                  <div>
+                    <p className="px-2 pb-1.5 text-[11px] font-medium text-(--chat-label)">
+                      Pinned
+                    </p>
+                    <div className="flex flex-col gap-0.5">
+                      {pinnedChats.map((chat, index) =>
+                        renderChatItem(chat, index, filteredChats.length)
                       )}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setChatMenuOpenId(
-                          chatMenuOpenId === chat._id ? null : chat._id
-                        );
-                      }}
-                      aria-label="Chat options"
-                    >
-                      <MoreHorizontal className="h-4 w-4" />
-                    </button>
-
-                    {/* Dropdown menu */}
-                    {chatMenuOpenId === chat._id && (
-                      <div
-                        ref={chatOptionsRef}
-                        className={cn(
-                          "absolute right-0 z-50 w-full rounded-md border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl",
-                          index > 3 && index >= filteredChats.length - 7
-                            ? "bottom-full mb-1"
-                            : "top-full mt-1"
-                        )}
-                      >
-                        <button
-                          type="button"
-                          className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) opacity-50 cursor-not-allowed"
-                          disabled
-                        >
-                          <Share className="h-4 w-4 text-(--chat-label)" />
-                          Share
-                        </button>
-                        <button
-                          type="button"
-                          className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleStartRename(chat._id, chat.title || "");
-                          }}
-                        >
-                          <SquarePen className="h-4 w-4 text-(--chat-label)" />
-                          Rename
-                        </button>
-                        <div className="my-1 border-t border-(--chat-dropdown-border)" />
-                        <button
-                          type="button"
-                          className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
-                          onClick={() => {
-                            setChatMenuOpenId(null);
-                            onDownloadPdf(chat._id);
-                          }}
-                        >
-                          <FileDown className="h-4 w-4 text-(--chat-label)" />
-                          Download as PDF
-                        </button>
-                        <div className="my-1 border-t border-(--chat-dropdown-border)" />
-                        <button
-                          type="button"
-                          className="flex w-full items-center gap-3 px-4 py-2 text-sm text-red-400 transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
-                          onClick={() => {
-                            setChatMenuOpenId(null);
-                            onDeleteChat(chat._id);
-                          }}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                          Delete
-                        </button>
-                      </div>
+                    </div>
+                  </div>
+                )}
+                <div>
+                  {pinnedChats.length > 0 && (
+                    <p className="px-2 pb-1.5 text-[11px] font-medium text-(--chat-label)">
+                      Recent
+                    </p>
+                  )}
+                  <div className="flex flex-col gap-0.5">
+                    {recentChats.map((chat, index) =>
+                      renderChatItem(chat, index, filteredChats.length)
                     )}
                   </div>
-                ))}
+                </div>
               </div>
             )}
           </div>
@@ -625,7 +759,7 @@ export const ChatSidebar = memo(function ChatSidebar({
                     className="flex w-full items-center justify-between px-4 py-2.5 text-sm text-(--chat-text-secondary) hover:cursor-pointer transition hover:bg-(--chat-dropdown-hover)"
                   >
                     <span className="flex items-center gap-3">
-                      <GraduationCap className="h-[18px] w-[18px] text-(--chat-label)" />
+                      <SlidersHorizontal className="h-4 w-4 text-(--chat-label)" />
                       Customize
                     </span>
                     <ChevronRight className="h-4 w-4 text-[#666]" />

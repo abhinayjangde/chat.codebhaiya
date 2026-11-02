@@ -73,9 +73,28 @@ export const chatMessageSchema = z
   })
   .passthrough();
 
-export const renameChatSchema = z
+export const updateChatSchema = z
   .object({
-    title: z.string().trim().min(1, "Title is required").max(120, "Title must be 120 characters or fewer"),
+    title: z.string().trim().min(1, "Title is required").max(120, "Title must be 120 characters or fewer").optional(),
+    isPinned: z.boolean().optional(),
+    isArchived: z.boolean().optional(),
+  })
+  .refine(
+    (data) => data.title !== undefined || data.isPinned !== undefined || data.isArchived !== undefined,
+    {
+      message: "At least one field (title, isPinned, isArchived) must be provided",
+    }
+  )
+  .passthrough();
+
+export const renameChatSchema = updateChatSchema;
+
+export const listChatsQuerySchema = z
+  .object({
+    archived: z
+      .enum(["true", "false"])
+      .transform((val) => val === "true")
+      .optional(),
   })
   .passthrough();
 

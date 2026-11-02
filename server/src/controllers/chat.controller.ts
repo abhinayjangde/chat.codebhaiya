@@ -8,9 +8,11 @@ import {
   chatIdParamSchema,
   chatMessageSchema,
   createChatSchema,
+  listChatsQuerySchema,
   paginationQuerySchema,
   parseBody,
   renameChatSchema,
+  updateChatSchema,
 } from "../lib/validation.js";
 import { generateChatTitle } from "../services/chat.service.js";
 import { cleanupDocumentsForChat } from "../services/document-cleanup.service.js";
@@ -36,7 +38,23 @@ export async function getModels(_req: Request, res: Response): Promise<void> {
 export async function listChats(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const userId = req.user?.userId;
-    const chats = await Chat.find({ userId: new ObjectId(userId) }).sort({ updatedAt: -1 });
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: "User not authenticated",
+      });
+      return;
+    }
+
+    const { archived } = parseBody(listChatsQuerySchema, req.query);
+    const isArchived = archived === true;
+
+    const filter: Record<string, any> = {
+      userId: new ObjectId(userId),
+      isArchived: isArchived ? true : { $ne: true },
+    };
+
+    const chats = await Chat.find(filter).sort({ isPinned: -1, updatedAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -228,12 +246,17 @@ export async function sendMessage(req: Request, res: Response, next: NextFunctio
   }
 }
 
-export async function renameChat(req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function updateChat(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const rawChatId = Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId;
     const chatId = parseBody(chatIdParamSchema, rawChatId);
-    const { title } = parseBody(renameChatSchema, req.body);
+    const { title, isPinned, isArchived } = parseBody(updateChatSchema, req.body);
     const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ success: false, error: "User not authenticated" });
+      return;
+    }
 
     const chat = await Chat.findOne({
       _id: new ObjectId(chatId),
@@ -248,15 +271,88 @@ export async function renameChat(req: Request, res: Response, next: NextFunction
       return;
     }
 
-    await Chat.findByIdAndUpdate(chatId, {
-      title: title.trim(),
+    const updates: Record<string, any> = {
       updatedAt: new Date(),
-    });
+    };
+    if (title !== undefined) updates.title = title.trim();
+    if (isPinned !== undefined) updates.isPinned = isPinned;
+    if (isArchived !== undefined) updates.isArchived = isArchived;
+
+    const updatedChat = await Chat.findByIdAndUpdate(chatId, updates, { new: true });
 
     res.status(200).json({
       success: true,
-      message: "Chat renamed successfully",
-      data: { title: title.trim() },
+      message: "Chat updated successfully",
+      data: {
+        title: updatedChat?.title,
+        chat: updatedChat,
+        ...updatedChat?.toObject(),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export const renameChat = updateChat;
+
+export async function duplicateChat(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const rawChatId = Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId;
+    const chatId = parseBody(chatIdParamSchema, rawChatId);
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      res.status(401).json({ success: false, error: "User not authenticated" });
+      return;
+    }
+
+    const chat = await Chat.findOne({
+      _id: new ObjectId(chatId),
+      userId: new ObjectId(userId),
+    });
+
+    if (!chat) {
+      res.status(404).json({
+        success: false,
+        error: "Chat not found",
+      });
+      return;
+    }
+
+    const newChat = await Chat.create({
+      userId: new ObjectId(userId),
+      title: `${chat.title} (Copy)`,
+      isPinned: false,
+      isArchived: false,
+    });
+
+    const messages = await Message.find({
+      chatId: new ObjectId(chatId),
+      userId: new ObjectId(userId),
+    }).sort({ createdAt: 1, _id: 1 });
+
+    if (messages.length > 0) {
+      const clonedMessages = messages.map((msg) => {
+        const obj = msg.toObject();
+        delete (obj as any)._id;
+        return {
+          ...obj,
+          chatId: newChat._id,
+          userId: new ObjectId(userId),
+        };
+      });
+      await Message.insertMany(clonedMessages);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "Chat duplicated successfully",
+      data: {
+        chat: newChat,
+        chatId: newChat._id,
+        title: newChat.title,
+      },
     });
   } catch (error) {
     next(error);

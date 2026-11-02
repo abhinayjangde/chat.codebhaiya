@@ -13,12 +13,22 @@ interface UseChatHistoryProps {
   setUser: React.Dispatch<React.SetStateAction<UserProfile | null>>;
 }
 
+function sortChats(chats: ChatSummary[]): ChatSummary[] {
+  return [...chats].sort((a, b) => {
+    const aPinned = a.isPinned ? 1 : 0;
+    const bPinned = b.isPinned ? 1 : 0;
+    if (aPinned !== bPinned) return bPinned - aPinned;
+    return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+  });
+}
+
 export function useChatHistory({ tokens, runWithSession, setUser }: UseChatHistoryProps) {
   const [chats, setChats] = useState<ChatSummary[]>([]);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [isLoadingChats, setIsLoadingChats] = useState(false);
   const [isBootstrapping, setIsBootstrapping] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [isShowingArchived, setIsShowingArchived] = useState(false);
 
   const [availableModels, setAvailableModels] = useState<ModelInfo[]>([]);
   const [selectedModel, setSelectedModel] = useState<string>("");
@@ -48,17 +58,16 @@ export function useChatHistory({ tokens, runWithSession, setUser }: UseChatHisto
     }
   }, []);
 
-  const loadChats = useCallback(async () => {
+  const loadChats = useCallback(async (archived?: boolean) => {
     if (!tokens) return;
 
     setIsLoadingChats(true);
     setChatError(null);
 
     try {
-      const data = await runWithSession((accessToken) => apiClient.listChats(accessToken));
-      const ordered = [...data.chats].sort(
-        (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
-      );
+      const showArchived = archived ?? isShowingArchived;
+      const data = await runWithSession((accessToken) => apiClient.listChats(accessToken, showArchived));
+      const ordered = sortChats(data.chats);
 
       setChats(ordered);
       setActiveChatId((current) => {
@@ -72,7 +81,7 @@ export function useChatHistory({ tokens, runWithSession, setUser }: UseChatHisto
     } finally {
       setIsLoadingChats(false);
     }
-  }, [tokens, runWithSession]);
+  }, [tokens, runWithSession, isShowingArchived]);
 
   const loadMcpServers = useCallback(async () => {
     if (!tokens) return;
@@ -204,6 +213,81 @@ export function useChatHistory({ tokens, runWithSession, setUser }: UseChatHisto
     [tokens]
   );
 
+  const handleToggleShowArchived = useCallback((showArchived: boolean) => {
+    setIsShowingArchived(showArchived);
+    void loadChats(showArchived);
+  }, [loadChats]);
+
+  const handleTogglePin = useCallback(
+    async (chatId: string, currentPinned: boolean) => {
+      try {
+        const nextPinned = !currentPinned;
+        await runWithSession((accessToken) =>
+          apiClient.updateChat(chatId, { isPinned: nextPinned }, accessToken)
+        );
+
+        setChats((current) =>
+          sortChats(
+            current.map((c) =>
+              c._id === chatId ? { ...c, isPinned: nextPinned, updatedAt: new Date().toISOString() } : c
+            )
+          )
+        );
+        toast.success(nextPinned ? "Chat pinned to top" : "Chat unpinned");
+      } catch (error) {
+        toast.error(getErrorMessage(error));
+      }
+    },
+    [runWithSession]
+  );
+
+  const handleToggleArchive = useCallback(
+    async (chatId: string, currentArchived: boolean) => {
+      try {
+        const nextArchived = !currentArchived;
+        await runWithSession((accessToken) =>
+          apiClient.updateChat(chatId, { isArchived: nextArchived }, accessToken)
+        );
+
+        setChats((current) => current.filter((c) => c._id !== chatId));
+        if (activeChatId === chatId) {
+          setActiveChatId(null);
+        }
+        toast.success(nextArchived ? "Chat archived" : "Chat restored from archive");
+      } catch (error) {
+        toast.error(getErrorMessage(error));
+      }
+    },
+    [runWithSession, activeChatId]
+  );
+
+  const handleDuplicateChat = useCallback(
+    async (chatId: string) => {
+      try {
+        const data = await runWithSession((accessToken) =>
+          apiClient.duplicateChat(chatId, accessToken)
+        );
+
+        const newChat: ChatSummary = data.chat ?? {
+          _id: data.chatId,
+          title: data.title,
+          userId: "",
+          isPinned: false,
+          isArchived: false,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
+        setChats((current) => sortChats([newChat, ...current]));
+        setActiveChatId(newChat._id);
+        toast.success("Chat duplicated");
+      } catch (error) {
+        toast.error(getErrorMessage(error));
+      }
+    },
+    [runWithSession]
+  );
+
   return {
     chats,
     setChats,
@@ -228,5 +312,10 @@ export function useChatHistory({ tokens, runWithSession, setUser }: UseChatHisto
     handleRenameChat,
     handleDeleteChat,
     handleDownloadPdf,
+    isShowingArchived,
+    setIsShowingArchived: handleToggleShowArchived,
+    handleTogglePin,
+    handleToggleArchive,
+    handleDuplicateChat,
   };
 }

@@ -15,7 +15,8 @@ router.post("/", chatController.createChat);
 
 router.get("/:chatId/messages", chatController.getChatMessages);
 router.post("/:chatId", chatController.sendMessage);
-router.patch("/:chatId", chatController.renameChat);
+router.patch("/:chatId", chatController.updateChat);
+router.post("/:chatId/duplicate", chatController.duplicateChat);
 router.delete("/:chatId", chatController.deleteChat);
 
 router.post("/:chatId/stream", chatController.streamChatMessage);

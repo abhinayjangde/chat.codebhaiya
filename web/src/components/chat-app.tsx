@@ -75,6 +75,11 @@ export function ChatApp() {
     handleRenameChat,
     handleDeleteChat,
     handleDownloadPdf,
+    handleTogglePin,
+    handleToggleArchive,
+    handleDuplicateChat,
+    isShowingArchived,
+    setIsShowingArchived,
   } = useChatHistory({
     tokens,
     runWithSession,
@@ -217,6 +222,11 @@ export function ChatApp() {
           setShowMcpSettings(true);
           setShowDocuments(false);
         }}
+        onTogglePin={handleTogglePin}
+        onToggleArchive={handleToggleArchive}
+        onDuplicateChat={handleDuplicateChat}
+        isShowingArchived={isShowingArchived}
+        setIsShowingArchived={setIsShowingArchived}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
