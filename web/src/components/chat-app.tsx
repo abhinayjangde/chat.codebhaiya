@@ -1058,7 +1058,7 @@ export function ChatApp() {
         )}
 
         {/* Bottom composer — only shown when messages exist */}
-        {!showDocuments && messages.length > 0 && (
+        {!showMcpSettings && !showDocuments && messages.length > 0 && (
           <footer className="bg-(--chat-bg) px-3 py-3 md:px-6">
              <ChatComposer
                 onSend={(msg, atts) => handleSendPrompt(msg, atts)}
