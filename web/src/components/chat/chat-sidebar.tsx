@@ -36,6 +36,9 @@ import { cn } from "@/lib/utils";
 import { ChatSummary, UserProfile } from "@/lib/types";
 import { shortTitle } from "@/lib/chat-utils";
 import { ExternalLink } from "lucide-react";
+import { ChangePasswordModal } from "./sidebar/change-password-modal";
+import { CustomInstructionsModal } from "./sidebar/custom-instructions-modal";
+import { DeleteAccountModal } from "./sidebar/delete-account-modal";
 
 interface ChatSidebarProps {
   sidebarOpen: boolean;
@@ -104,19 +107,9 @@ export const ChatSidebar = memo(function ChatSidebar({
   const [languageSubmenuOpen, setLanguageSubmenuOpen] = useState(false);
   const [customizeSubmenuOpen, setCustomizeSubmenuOpen] = useState(false);
 
-  // Change password modal state
+  // Modals
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
-  const [cpCurrentPassword, setCpCurrentPassword] = useState("");
-  const [cpNewPassword, setCpNewPassword] = useState("");
-  const [cpConfirmPassword, setCpConfirmPassword] = useState("");
-  const [cpError, setCpError] = useState<string | null>(null);
-  const [cpLoading, setCpLoading] = useState(false);
   const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
-  const [instructions, setInstructions] = useState(
-    user?.preferences?.systemInstructions ?? ""
-  );
-  const [instructionsError, setInstructionsError] = useState<string | null>(null);
-  const [instructionsLoading, setInstructionsLoading] = useState(false);
 
   const searchRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -181,7 +174,7 @@ export const ChatSidebar = memo(function ChatSidebar({
     try {
       await onDeleteAccount();
       setIsConfirmDeleteOpen(false);
-    } catch (err) {
+    } catch {
       setIsDeletingAccount(false);
     }
   };
@@ -205,7 +198,7 @@ export const ChatSidebar = memo(function ChatSidebar({
             : "md:-translate-x-full md:w-0 md:opacity-0 md:overflow-hidden"
         )}
       >
-        {/* ── Top bar: logo + new-chat icon ── */}
+        {/* â”€â”€ Top bar: logo + new-chat icon â”€â”€ */}
         <div className="flex items-center justify-between px-3 pt-3 pb-1">
           <button
             type="button"
@@ -235,7 +228,7 @@ export const ChatSidebar = memo(function ChatSidebar({
           </button>
         </div>
 
-        {/* ── Navigation links ── */}
+        {/* â”€â”€ Navigation links â”€â”€ */}
         <nav className="mt-2 flex flex-col gap-0.5 px-2">
           <button
             type="button"
@@ -263,7 +256,7 @@ export const ChatSidebar = memo(function ChatSidebar({
                     setSearchOpen(false);
                   }
                 }}
-                placeholder="Search chats…"
+                placeholder="Search chatsâ€¦"
                 autoFocus
                 className="w-full bg-transparent px-3 py-1 text-sm text-(--chat-text) outline-none placeholder:text-(--chat-text-faint)"
               />
@@ -299,7 +292,7 @@ export const ChatSidebar = memo(function ChatSidebar({
           </button>
         </nav>
 
-        {/* ── Your chats section ── */}
+        {/* â”€â”€ Your chats section â”€â”€ */}
         <div className="mt-5 flex flex-col flex-1 min-h-0">
           <p className="px-4 pb-2 text-[11px] font-medium text-(--chat-label)">
             Your chats
@@ -307,7 +300,7 @@ export const ChatSidebar = memo(function ChatSidebar({
           <div className="sidebar-scroll flex-1 overflow-y-auto px-2 pb-3">
             {isLoadingChats || isBootstrapping ? (
               <div className="px-3 py-2 text-sm text-(--chat-text-faint)">
-                Loading chats…
+                Loading chatsâ€¦
               </div>
             ) : filteredChats.length === 0 ? (
               <div className="px-3 py-2 text-sm text-(--chat-text-faint)">
@@ -355,7 +348,7 @@ export const ChatSidebar = memo(function ChatSidebar({
                       </button>
                     )}
 
-                    {/* ⋯ menu trigger */}
+                    {/* â‹¯ menu trigger */}
                     <button
                       type="button"
                       className={cn(
@@ -438,7 +431,7 @@ export const ChatSidebar = memo(function ChatSidebar({
           </div>
         </div>
 
-        {/* ── Bottom section ── */}
+        {/* â”€â”€ Bottom section â”€â”€ */}
         <div className="mt-auto flex flex-col gap-0.5 px-2 pb-3">
           <button
             type="button"
@@ -600,8 +593,6 @@ export const ChatSidebar = memo(function ChatSidebar({
                   className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
                   onClick={() => {
                     setSettingsMenuOpen(false);
-                    setInstructions(user?.preferences?.systemInstructions ?? "");
-                    setInstructionsError(null);
                     setIsInstructionsOpen(true);
                   }}
                 >
@@ -616,10 +607,6 @@ export const ChatSidebar = memo(function ChatSidebar({
                   onClick={() => {
                     setSettingsMenuOpen(false);
                     setIsChangePasswordOpen(true);
-                    setCpCurrentPassword("");
-                    setCpNewPassword("");
-                    setCpConfirmPassword("");
-                    setCpError(null);
                   }}
                 >
                   <KeyRound className="h-[18px] w-[18px] text-(--chat-label)" />
@@ -750,198 +737,25 @@ export const ChatSidebar = memo(function ChatSidebar({
         </div>
       </aside>
 
-      {/* Delete Confirmation Modal */}
-      {isConfirmDeleteOpen && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-sm rounded-xl border border-(--chat-dropdown-border) bg-(--chat-surface) p-6 shadow-2xl">
-            <h3 className="mb-2 text-lg font-semibold text-(--chat-text)">
-              Delete Account
-            </h3>
-            <p className="mb-6 text-sm text-(--chat-text-secondary) leading-relaxed">
-              Are you sure you want to delete your account? This action is irreversible and will permanently delete all your chat history.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                type="button"
-                className="rounded-lg px-4 py-2 text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-sidebar-hover) disabled:opacity-50"
-                onClick={() => setIsConfirmDeleteOpen(false)}
-                disabled={isDeletingAccount}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="rounded-lg bg-red-500/10 px-4 py-2 text-sm font-medium text-red-500 transition hover:bg-red-500/20 disabled:opacity-50"
-                onClick={executeDeleteAccount}
-                disabled={isDeletingAccount}
-              >
-                {isDeletingAccount ? "Deleting..." : "Delete Account"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <DeleteAccountModal
+        isOpen={isConfirmDeleteOpen}
+        isDeleting={isDeletingAccount}
+        onClose={() => setIsConfirmDeleteOpen(false)}
+        onConfirm={executeDeleteAccount}
+      />
 
-      {/* Change Password Modal */}
-      {isInstructionsOpen && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-lg rounded-xl border border-(--chat-dropdown-border) bg-(--chat-surface) p-6 shadow-2xl">
-            <h3 className="mb-2 text-lg font-semibold text-(--chat-text)">
-              Custom instructions
-            </h3>
-            <p className="mb-4 text-sm leading-relaxed text-(--chat-text-secondary)">
-              Tell Codebhaiya how you want it to respond. These instructions apply to your future chats.
-            </p>
-            {instructionsError && (
-              <div className="mb-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">
-                {instructionsError}
-              </div>
-            )}
-            <textarea
-              value={instructions}
-              onChange={(event) => setInstructions(event.target.value)}
-              maxLength={4000}
-              rows={7}
-              placeholder="Example: Explain code step by step and use TypeScript examples."
-              className="w-full resize-y rounded-lg border border-(--chat-dropdown-border) bg-(--chat-bg) px-3 py-2.5 text-sm text-(--chat-text) outline-none placeholder:text-(--chat-text-faint) focus:ring-1 focus:ring-(--chat-focus-ring)"
-              autoFocus
-            />
-            <p className="mt-1 text-right text-xs text-(--chat-text-faint)">
-              {instructions.length}/4000
-            </p>
-            <div className="mt-5 flex justify-end gap-3">
-              <button
-                type="button"
-                className="rounded-lg px-4 py-2 text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-sidebar-hover) disabled:opacity-50"
-                onClick={() => setIsInstructionsOpen(false)}
-                disabled={instructionsLoading}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-(--chat-text) transition hover:bg-white/20 disabled:opacity-50"
-                disabled={instructionsLoading}
-                onClick={async () => {
-                  setInstructionsLoading(true);
-                  setInstructionsError(null);
-                  try {
-                    await onSaveSystemInstructions(instructions);
-                    toast.success("Custom instructions saved");
-                    setIsInstructionsOpen(false);
-                  } catch (error) {
-                    setInstructionsError(
-                      error instanceof Error ? error.message : "Failed to save instructions"
-                    );
-                  } finally {
-                    setInstructionsLoading(false);
-                  }
-                }}
-              >
-                {instructionsLoading ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <CustomInstructionsModal
+        isOpen={isInstructionsOpen}
+        initialInstructions={user?.preferences?.systemInstructions ?? ""}
+        onClose={() => setIsInstructionsOpen(false)}
+        onSave={onSaveSystemInstructions}
+      />
 
-      {/* Change Password Modal */}
-      {isChangePasswordOpen && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 p-4">
-          <div className="w-full max-w-sm rounded-xl border border-(--chat-dropdown-border) bg-(--chat-surface) p-6 shadow-2xl">
-            <h3 className="mb-4 text-lg font-semibold text-(--chat-text)">
-              Change Password
-            </h3>
-
-            {cpError && (
-              <div className="mb-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-400">
-                {cpError}
-              </div>
-            )}
-
-            <div className="flex flex-col gap-3">
-              <input
-                type="password"
-                placeholder="Current password"
-                value={cpCurrentPassword}
-                onChange={(e) => setCpCurrentPassword(e.target.value)}
-                className="w-full rounded-lg border border-(--chat-dropdown-border) bg-(--chat-bg) px-3 py-2.5 text-sm text-(--chat-text) outline-none placeholder:text-(--chat-text-faint) focus:ring-1 focus:ring-(--chat-focus-ring)"
-                autoFocus
-              />
-              <input
-                type="password"
-                placeholder="New password (min 8 characters)"
-                value={cpNewPassword}
-                onChange={(e) => setCpNewPassword(e.target.value)}
-                className="w-full rounded-lg border border-(--chat-dropdown-border) bg-(--chat-bg) px-3 py-2.5 text-sm text-(--chat-text) outline-none placeholder:text-(--chat-text-faint) focus:ring-1 focus:ring-(--chat-focus-ring)"
-              />
-              <input
-                type="password"
-                placeholder="Confirm new password"
-                value={cpConfirmPassword}
-                onChange={(e) => setCpConfirmPassword(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !cpLoading) {
-                    e.preventDefault();
-                    document.getElementById("cp-save-btn")?.click();
-                  }
-                }}
-                className="w-full rounded-lg border border-(--chat-dropdown-border) bg-(--chat-bg) px-3 py-2.5 text-sm text-(--chat-text) outline-none placeholder:text-(--chat-text-faint) focus:ring-1 focus:ring-(--chat-focus-ring)"
-              />
-            </div>
-
-            <div className="mt-5 flex justify-end gap-3">
-              <button
-                type="button"
-                className="rounded-lg px-4 py-2 text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-sidebar-hover) disabled:opacity-50"
-                onClick={() => setIsChangePasswordOpen(false)}
-                disabled={cpLoading}
-              >
-                Cancel
-              </button>
-              <button
-                id="cp-save-btn"
-                type="button"
-                className="rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-(--chat-text) transition hover:bg-white/20 disabled:opacity-50"
-                disabled={cpLoading}
-                onClick={async () => {
-                  setCpError(null);
-
-                  if (!cpCurrentPassword || !cpNewPassword || !cpConfirmPassword) {
-                    setCpError("All fields are required");
-                    return;
-                  }
-                  if (cpNewPassword.length < 8) {
-                    setCpError("New password must be at least 8 characters");
-                    return;
-                  }
-                  if (cpNewPassword !== cpConfirmPassword) {
-                    setCpError("New passwords do not match");
-                    return;
-                  }
-
-                  setCpLoading(true);
-                  try {
-                    await onChangePassword(cpCurrentPassword, cpNewPassword);
-                    toast.success("Password changed successfully");
-                    setIsChangePasswordOpen(false);
-                  } catch (err: unknown) {
-                    setCpError(
-                      err instanceof Error
-                        ? err.message
-                        : "Failed to change password"
-                    );
-                  } finally {
-                    setCpLoading(false);
-                  }
-                }}
-              >
-                {cpLoading ? "Saving..." : "Save"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+        onChangePassword={onChangePassword}
+      />
     </>
   );
 });

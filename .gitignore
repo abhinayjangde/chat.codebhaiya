@@ -1,3 +1,6 @@
 improvements.md
 .vscode
 secret.md
+node_modules/
+dist/
+.next/
