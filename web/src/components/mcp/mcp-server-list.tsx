@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ArrowLeft,
-  ChevronRight,
   Code2,
   Loader2,
   Pencil,

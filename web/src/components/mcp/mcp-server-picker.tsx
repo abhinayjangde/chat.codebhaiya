@@ -4,7 +4,6 @@ import {
   Check,
   ChevronDown,
   Plug,
-  X,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";

@@ -28,11 +28,12 @@ import {
 } from "react";
 import { cn } from "@/lib/utils";
 import { AutoResizeTextarea } from "@/components/ui/auto-resize-textarea";
-import { ModelInfo } from "@/lib/types";
+import { McpServer, ModelInfo } from "@/lib/types";
 import { Bot } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import { SiMeta, SiOpenai } from "react-icons/si";
 import type { Attachment } from "@/lib/types";
+import { PromptToolsMenu } from "@/components/chat/prompt-tools-menu";
 
 function ModelLogo({
   provider,
@@ -79,6 +80,9 @@ interface ChatComposerProps {
   variant: "center" | "footer";
   inputValue?: string;           // Optional controlled input
   onInputChange?: (val: string) => void; // Optional control handler
+  mcpServers?: McpServer[];
+  selectedMcpServerIds?: string[];
+  onMcpServerIdsChange?: (ids: string[]) => void;
 }
 
 export const ChatComposer = memo(function ChatComposer({
@@ -93,7 +97,10 @@ export const ChatComposer = memo(function ChatComposer({
   onDocumentStatus,
   variant,
   inputValue,
-  onInputChange
+  onInputChange,
+  mcpServers = [],
+  selectedMcpServerIds = [],
+  onMcpServerIdsChange,
 }: ChatComposerProps) {
   // If controlled props are provided, use them; otherwise use local state
   const [internalComposer, setInternalComposer] = useState("");
@@ -379,6 +386,18 @@ export const ChatComposer = memo(function ChatComposer({
                     Create images
                   </button>
 
+                  {onMcpServerIdsChange && (
+                    <>
+                      <div className="my-1 border-t border-(--chat-dropdown-border)" />
+                      <PromptToolsMenu
+                        embedded
+                        servers={mcpServers}
+                        selectedServerIds={selectedMcpServerIds}
+                        onServerIdsChange={onMcpServerIdsChange}
+                      />
+                    </>
+                  )}
+
                   {/* Cloud */}
                   {/* <button
                     type="button"
@@ -451,7 +470,6 @@ export const ChatComposer = memo(function ChatComposer({
               </>
             )}
           </div>
-
           {/* Right — model, mic, send/stop */}
           <div className="flex items-center gap-1.5">
             <div className="relative">

@@ -47,7 +47,6 @@ import { ChatMessageList } from "@/components/chat/chat-message-list";
 import { ChatComposer } from "@/components/chat/chat-composer";
 import { ChatAuthForm } from "@/components/chat/chat-auth-form";
 import { DocumentLibrary } from "@/components/documents/document-library";
-import { McpServerPicker } from "@/components/mcp/mcp-server-picker";
 import { McpServerList } from "@/components/mcp/mcp-server-list";
 import { getTimeGreeting, firstName } from "@/lib/greeting";
 
@@ -1024,18 +1023,10 @@ export function ChatApp() {
                   variant="center"
                   inputValue={composer}
                   onInputChange={setComposer}
+                  mcpServers={mcpServers}
+                  selectedMcpServerIds={selectedMcpServerIds}
+                  onMcpServerIdsChange={setSelectedMcpServerIds}
                 />
-
-                {mcpServers.length > 0 && (
-                  <div className="mt-3 flex items-center justify-center">
-                    <McpServerPicker
-                      servers={mcpServers}
-                      selectedServerIds={selectedMcpServerIds}
-                      onChange={setSelectedMcpServerIds}
-                      runWithSession={runWithSession}
-                    />
-                  </div>
-                )}
 
                 {/* Quick action chips */}
                 {/* Note: Chips logic was inline. I should probably move chips to Composer or just keep here. 
@@ -1082,18 +1073,11 @@ export function ChatApp() {
                 variant="footer"
                 inputValue={composer}
                 onInputChange={setComposer}
+                mcpServers={mcpServers}
+                selectedMcpServerIds={selectedMcpServerIds}
+                onMcpServerIdsChange={setSelectedMcpServerIds}
               />
 
-              {mcpServers.length > 0 && (
-                <div className="mt-2 flex items-center justify-center">
-                  <McpServerPicker
-                    servers={mcpServers}
-                    selectedServerIds={selectedMcpServerIds}
-                    onChange={setSelectedMcpServerIds}
-                    runWithSession={runWithSession}
-                  />
-                </div>
-              )}
           </footer>
         )}
       </div>
