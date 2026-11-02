@@ -6,6 +6,9 @@ import type {
   DocumentStatusResponse,
   DocumentCollection,
   ModelInfo,
+  McpServer,
+  McpServerFormData,
+  ListMcpToolsResponse,
   UserProfile,
 } from "@/lib/types";
 
@@ -249,12 +252,13 @@ export const apiClient = {
     model?: string,
     attachments?: Attachment[],
     language?: string,
-    collectionId?: string
+    collectionId?: string,
+    mcpServerIds?: string[]
   ): Promise<{ title: string; chatId: string }> {
     return requestData<{ title: string; chatId: string }>("/chat", {
       method: "POST",
       headers: authHeaders(accessToken),
-      body: JSON.stringify({ message, model, attachments, language, collectionId }),
+      body: JSON.stringify({ message, model, attachments, language, collectionId, mcpServerIds }),
     });
   },
 
@@ -287,7 +291,8 @@ export const apiClient = {
     attachments?: Attachment[],
     language?: string,
     collectionId?: string,
-    replacement?: { editMessageId?: string; regenerateMessageId?: string }
+    replacement?: { editMessageId?: string; regenerateMessageId?: string },
+    mcpServerIds?: string[]
   ): Promise<ReadableStream<Uint8Array>> {
     const response = await fetch(`${API_BASE_URL}/chat/${chatId}/stream`, {
       method: "POST",
@@ -299,6 +304,7 @@ export const apiClient = {
         language,
         collectionId,
         ...replacement,
+        mcpServerIds,
       }),
       signal,
       cache: "no-store",
@@ -468,6 +474,60 @@ export const apiClient = {
       method: "PUT",
       headers: authHeaders(accessToken),
       body: JSON.stringify({ currentPassword, newPassword }),
+    });
+  },
+
+  // -- MCP server methods --
+
+  async listMcpServers(
+    accessToken: string
+  ): Promise<{ servers: McpServer[] }> {
+    return requestData<{ servers: McpServer[] }>("/mcp/servers", {
+      method: "GET",
+      headers: authHeaders(accessToken),
+    });
+  },
+
+  async createMcpServer(
+    data: McpServerFormData,
+    accessToken: string
+  ): Promise<{ server: McpServer }> {
+    return requestData<{ server: McpServer }>("/mcp/servers", {
+      method: "POST",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify(data),
+    });
+  },
+
+  async updateMcpServer(
+    id: string,
+    data: Partial<McpServerFormData>,
+    accessToken: string
+  ): Promise<{ server: McpServer }> {
+    return requestData<{ server: McpServer }>(`/mcp/servers/${id}`, {
+      method: "PATCH",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify(data),
+    });
+  },
+
+  async deleteMcpServer(
+    id: string,
+    accessToken: string
+  ): Promise<void> {
+    await requestData<void>(`/mcp/servers/${id}`, {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+    });
+  },
+
+  async listMcpServerTools(
+    id: string,
+    accessToken: string
+  ): Promise<ListMcpToolsResponse> {
+    return requestData<ListMcpToolsResponse>(`/mcp/servers/${id}/tools`, {
+      method: "POST",
+      headers: authHeaders(accessToken),
     });
   },
 };

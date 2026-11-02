@@ -16,15 +16,7 @@
         "SARVAM_API_KEY": "${env:SARVAM_API_KEY}"
       }
     },
-    "context7": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@upstash/context7-mcp@latest",
-        "--transport",
-        "stdio"
-      ]
-    },
+ 
     "mongodb": {
       "command": "npx",
       "args": [

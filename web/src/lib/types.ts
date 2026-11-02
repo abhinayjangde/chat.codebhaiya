@@ -147,3 +147,41 @@ export type StreamEvent =
   | StreamTokenEvent
   | StreamDoneEvent
   | StreamErrorEvent;
+
+// -- MCP types --
+
+export interface McpServer {
+  _id: string;
+  userId: string;
+  name: string;
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+  isActive: boolean;
+  lastConnectedAt?: string;
+  lastError?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface McpServerFormData {
+  name: string;
+  command: string;
+  args: string[];
+  env: Record<string, string>;
+  isActive: boolean;
+}
+
+export interface McpTool {
+  name: string;
+  description?: string;
+  inputSchema: {
+    type: "object";
+    properties?: Record<string, unknown>;
+    required?: string[];
+  };
+}
+
+export interface ListMcpToolsResponse {
+  tools: McpTool[];
+}

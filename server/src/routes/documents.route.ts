@@ -245,7 +245,7 @@ router.post("/:documentId/summary", async (req: Request, res: Response, next: Ne
       limit: 8,
     });
     const context = chunks.map((chunk) => `[Page ${chunk.pageNumber ?? "?"}]\n${chunk.text}`).join("\n\n");
-    const agent = getAgent(await autoSelectModel("Summarize this document"), "english");
+    const agent = await getAgent(await autoSelectModel("Summarize this document"), "english");
     const response = await agent.invoke({
       messages: [{ role: "user", content: `Create a concise, structured summary of ${document.filename} using only this context:\n${context}` }],
     });
@@ -271,7 +271,7 @@ router.post("/:documentId/questions", async (req: Request, res: Response, next: 
       limit: 8,
     });
     const context = chunks.map((chunk) => chunk.text).join("\n\n");
-    const agent = getAgent(await autoSelectModel("Generate questions about this document"), "english");
+    const agent = await getAgent(await autoSelectModel("Generate questions about this document"), "english");
     const response = await agent.invoke({
       messages: [{ role: "user", content: `Generate 8 useful questions and short answers about ${document.filename}. Return JSON array with question and answer fields. Use only this context:\n${context}` }],
     });

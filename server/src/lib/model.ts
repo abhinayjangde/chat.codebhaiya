@@ -3,8 +3,17 @@ import { ChatGroq } from "@langchain/groq";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { ChatOllama } from "@langchain/ollama";
 import { createAgent } from "langchain";
+import { type Tool } from "@langchain/core/tools";
 import { env } from "../config/env.js";
 import { webSearchTool } from "./tools.js";
+import { McpServer } from "../models/mcp-server.model.js";
+import {
+  mcpClientRegistry,
+  buildLangChainTools,
+  McpClient,
+  type McpTool,
+} from "./mcp.js";
+import { ObjectId } from "mongodb";
 
 // -- Model Definitions --
 
@@ -208,11 +217,16 @@ export async function autoSelectModel(message: string, attachments?: Attachment[
 /**
  * Creates an agent instance for the requested model ID and language.
  * Falls back to DEFAULT_MODEL if the requested ID is invalid or unavailable.
+ *
+ * @param mcpServerIds - Optional MCP server ids whose tools should be attached
+ *   to the agent. Servers are fetched from the DB, connected, and their tools
+ *   merged with the built-in web search tool.
  */
-export function getAgent(
+export async function getAgent(
   modelId?: string,
   language: string = "english",
-  customInstructions?: string
+  customInstructions?: string,
+  mcpServerIds: string[] = []
 ) {
   const resolvedModelId = modelId ?? DEFAULT_MODEL;
 
@@ -288,14 +302,72 @@ export function getAgent(
     `;
   }
 
-  // 4. Create and return the agent
+  // 4. Build the tool list: built-in web search + MCP server tools.
+  const tools: Tool[] = [webSearchTool as unknown as Tool];
+  const mcpClients = new Map<string, McpClient>();
+  let mcpToolDescriptions: string[] = [];
+
+  try {
+    if (mcpServerIds && mcpServerIds.length > 0) {
+      const servers = await McpServer.find({
+        _id: { $in: mcpServerIds.map((id) => new ObjectId(id)) },
+      }).lean();
+
+      for (const server of servers) {
+        const client = new McpClient(
+          server._id.toString(),
+          server.name,
+          server.command,
+          server.args,
+          server.env
+        );
+        await client.connect();
+        mcpClients.set(server._id.toString(), client);
+
+        const mcpTools = await client.listTools();
+        const langChainTools = buildLangChainTools(
+          mcpClients,
+          mcpTools.map((t: McpTool) => ({ serverId: server._id.toString(), tool: t }))
+        );
+        tools.push(...langChainTools);
+        mcpToolDescriptions = mcpToolDescriptions.concat(
+          mcpTools.map((t: McpTool) => `- \`mcp_${server.name.replace(/[^a-zA-Z0-9]/g, "_")}_${t.name}\` (MCP server: ${server.name}): ${t.description ?? "no description"}`)
+        );
+      }
+
+      if (mcpToolDescriptions.length > 0) {
+        languageInstructions += `
+
+You also have access to the following Model Context Protocol (MCP) tools. Use them when the user's request matches a tool's purpose:
+${mcpToolDescriptions.join("\n")}
+
+When calling an MCP tool, pass arguments that match the tool's input schema. After receiving a tool result, incorporate it into your answer.`;
+      }
+    }
+  } catch (error) {
+    // If MCP setup fails, continue with just the built-in tools rather than
+    // failing the whole request. Surface a warning so it's visible in logs.
+    console.error("MCP tool setup failed, continuing without MCP tools:", error);
+  } finally {
+    // Disconnect all MCP clients created for this agent run.
+    for (const [serverId, client] of mcpClients) {
+      try {
+        await client.disconnect();
+      } catch {
+        // ignore
+      }
+      mcpClientRegistry.delete(serverId);
+    }
+  }
+
+  // 5. Create and return the agent
   const customInstructionsBlock = customInstructions?.trim()
     ? `\n\nUser's custom instructions:\n${customInstructions.trim()}`
     : "";
 
   return createAgent({
     model: llm,
-    tools: [webSearchTool],
+    tools,
     systemPrompt: `You are a helpful AI assistant with access to web search.
 Current model: ${config.displayName}
 

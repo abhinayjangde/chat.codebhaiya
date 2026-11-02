@@ -3,8 +3,10 @@
 
 import {
   ChevronRight,
+  Cog,
   FileDown,
   FileText,
+  GraduationCap,
   KeyRound,
   LogOut,
   MessageCircle,
@@ -13,6 +15,7 @@ import {
   MoreHorizontal,
   PanelLeft,
   Plus,
+  Plug,
   Search,
   Settings,
   Share,
@@ -59,6 +62,7 @@ interface ChatSidebarProps {
   isBootstrapping: boolean;
   language: "english" | "hinglish";
   setLanguage: (lang: "english" | "hinglish") => void;
+  onOpenMcpSettings: () => void;
 }
 
 export const ChatSidebar = memo(function ChatSidebar({
@@ -86,6 +90,7 @@ export const ChatSidebar = memo(function ChatSidebar({
   isBootstrapping,
   language,
   setLanguage,
+  onOpenMcpSettings,
 }: ChatSidebarProps) {
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
@@ -97,6 +102,7 @@ export const ChatSidebar = memo(function ChatSidebar({
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const [themeSubmenuOpen, setThemeSubmenuOpen] = useState(false);
   const [languageSubmenuOpen, setLanguageSubmenuOpen] = useState(false);
+  const [customizeSubmenuOpen, setCustomizeSubmenuOpen] = useState(false);
 
   // Change password modal state
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
@@ -524,7 +530,7 @@ export const ChatSidebar = memo(function ChatSidebar({
                   </button>
 
                   {languageSubmenuOpen && (
-                    <div className="absolute left-full top-0 z-60 ml-1 w-50 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
+                    <div className="absolute left-full -top-2 z-60 ml-1 w-50 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
                       {[
                         { id: "english", label: "English" },
                         { id: "hinglish", label: "Hinglish (Hindi + Eng)" },
@@ -619,6 +625,66 @@ export const ChatSidebar = memo(function ChatSidebar({
                   <KeyRound className="h-[18px] w-[18px] text-(--chat-label)" />
                   Change password
                 </button>
+
+                {/* Customize selection */}
+                <div className="my-1.5 border-t border-(--chat-dropdown-border)" />
+                <div
+                  className="relative"
+                  onMouseEnter={() => setCustomizeSubmenuOpen(true)}
+                  onMouseLeave={() => setCustomizeSubmenuOpen(false)}
+                >
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between px-4 py-2.5 text-sm text-(--chat-text-secondary) hover:cursor-pointer transition hover:bg-(--chat-dropdown-hover)"
+                  >
+                    <span className="flex items-center gap-3">
+                      <GraduationCap className="h-[18px] w-[18px] text-(--chat-label)" />
+                      Customize
+                    </span>
+                    <ChevronRight className="h-4 w-4 text-[#666]" />
+                  </button>
+
+                  {customizeSubmenuOpen && (
+                    <div className="absolute left-full -top-2 z-60 ml-1 w-40 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl">
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                        onClick={() => {
+                          setCustomizeSubmenuOpen(false);
+                          setSettingsMenuOpen(false);
+                          toast("Skill settings coming soon");
+                        }}
+                      >
+                        <GraduationCap className="h-[16px] w-[16px] text-(--chat-label)" />
+                        Skill
+                      </button>
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                        onClick={() => {
+                          setCustomizeSubmenuOpen(false);
+                          setSettingsMenuOpen(false);
+                          onOpenMcpSettings();
+                        }}
+                      >
+                        <Plug className="h-[16px] w-[16px] text-(--chat-label)" />
+                        Connectors
+                      </button>
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                        onClick={() => {
+                          setCustomizeSubmenuOpen(false);
+                          setSettingsMenuOpen(false);
+                          toast("Plugins coming soon");
+                        }}
+                      >
+                        <Cog className="h-[16px] w-[16px] text-(--chat-label)" />
+                        Plugins
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 {/* Divider */}
                 <div className="my-1.5 border-t border-(--chat-dropdown-border)" />

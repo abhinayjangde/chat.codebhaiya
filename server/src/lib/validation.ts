@@ -104,10 +104,18 @@ const attachmentSchema = z
     }
   });
 
+// Chat message schema extension: allow selecting MCP server IDs
+export const mcpServerIdsSchema = z
+  .array(objectIdSchema)
+  .max(10, "You can select up to 10 MCP servers per chat")
+  .optional()
+  .nullable();
+
 export const createChatSchema = z
   .object({
     message: z.string().trim().default(""),
     attachments: z.array(attachmentSchema).optional(),
+    mcpServerIds: mcpServerIdsSchema,
   })
   .superRefine((chat, context) => {
     if (!chat.message && (!chat.attachments || chat.attachments.length === 0)) {
@@ -129,6 +137,7 @@ export const chatMessageSchema = z
     language: z.string().trim().optional(),
     attachments: z.array(attachmentSchema).optional(),
     collectionId: objectIdSchema.optional(),
+    mcpServerIds: mcpServerIdsSchema,
   })
   .superRefine((chat, context) => {
     if (!chat.message && (!chat.attachments || chat.attachments.length === 0)) {
@@ -173,3 +182,15 @@ export const collectionSchema = z.object({
 export const collectionDocumentsSchema = z.object({
   documentIds: z.array(objectIdSchema).max(500),
 }).passthrough();
+
+// -- MCP server schemas --
+
+export const mcpServerSchema = z.object({
+  name: z.string().trim().min(2, "Name must be at least 2 characters").max(100, "Name must be 100 characters or fewer"),
+  command: z.string().trim().min(1, "Command is required"),
+  args: z.array(z.string().trim().min(1)).default([]),
+  env: z.record(z.string().min(1, "Env var name is required"), z.string()).default({}),
+  isActive: z.boolean().default(true),
+}).passthrough();
+
+export const mcpServerIdSchema = objectIdSchema;

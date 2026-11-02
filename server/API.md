@@ -626,6 +626,161 @@ Both endpoints return `404` when the document does not exist or belongs to anoth
 
 ---
 
+## MCP Connectors
+
+Users can connect to external Model Context Protocol (MCP) servers so the AI agent can call their tools during chats. MCP servers are configured per-user via `command` + `args` (stdio transport) and optional environment variables.
+
+### GET /mcp/servers
+List the authenticated user's MCP server configurations.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "servers": [
+      {
+        "_id": "65a1b2c3d4e5f6g7h8i9j0k1",
+        "userId": "65a1b2c3d4e5f6g7h8i9j0k2",
+        "name": "GitHub",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-github"],
+        "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "***masked***" },
+        "isActive": true,
+        "lastConnectedAt": "2026-02-15T12:00:00.000Z",
+        "createdAt": "2026-02-14T12:00:00.000Z",
+        "updatedAt": "2026-02-14T12:00:00.000Z"
+      }
+    ]
+  }
+}
+```
+
+### POST /mcp/servers
+Register a new MCP server. The server is validated by connecting and listing its tools before saving.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "name": "GitHub",
+  "command": "npx",
+  "args": ["-y", "@modelcontextprotocol/server-github"],
+  "env": {
+    "GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_..."
+  },
+  "isActive": true
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "data": {
+    "server": {
+      "_id": "65a1b2c3d4e5f6g7h8i9j0k1",
+      "name": "GitHub",
+      ...
+    },
+    "toolCount": 12
+  }
+}
+```
+
+### PATCH /mcp/servers/:id
+Update an MCP server configuration.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+**Request Body:** (same fields as POST, all optional)
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "server": { ... }
+  }
+}
+```
+
+### DELETE /mcp/servers/:id
+Remove an MCP server configuration and disconnect any active client.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "MCP server removed"
+}
+```
+
+### POST /mcp/servers/:id/tools
+Connect to an MCP server and list its exposed tools (preview only; connection is closed after).
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "tools": [
+      {
+        "name": "create_issue",
+        "description": "Create a new GitHub issue",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "title": { "type": "string" },
+            "body": { "type": "string" },
+            "repo": { "type": "string" }
+          },
+          "required": ["title", "repo"]
+        }
+      }
+    ]
+  }
+}
+```
+
+### Using MCP servers in chats
+MCP servers can be attached to a chat by passing `mcpServerIds` (an array of server `_id` strings) in the `/chat` (POST) and `/chat/:chatId/stream` (POST) request bodies. When attached, the MCP server's tools are made available to the LangChain agent alongside web search. MCP tool executions are surfaced in the SSE stream as `tool_start` and `tool_result` events, with the tool name prefixed by `mcp_<serverName>_<toolName>`.
+
+**Example request body:**
+```json
+{
+  "message": "Create an issue for this bug",
+  "mcpServerIds": ["65a1b2c3d4e5f6g7h8i9j0k1"]
+}
+```
+
+---
+
 ## Data Models
 
 ### User

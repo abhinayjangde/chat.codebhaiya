@@ -38,6 +38,7 @@ const envSchema = z.object({
   OLLAMA_BASE_URL: z.string().trim().default("https://api.ollama.com"),
   SARVAM_API_KEY: z.string().trim().optional(),
   MODEL_NAME: z.string().trim().optional(),
+  MAX_MCP_SERVERS_PER_USER: z.coerce.number().int().min(1).max(20).default(5),
   // Render sets this automatically for every deployed service
   RENDER_EXTERNAL_URL: z.string().trim().optional(),
 });

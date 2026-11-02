@@ -6,7 +6,7 @@ import { Document } from "../models/document.model.js";
 import { Message } from "../models/message.model.js";
 import { getAgent, getAvailableModels, DEFAULT_MODEL, autoSelectModel } from "../lib/model.js";
 import { authenticateToken } from "../middleware/auth.middleware.js";
-import { HttpError, parseBody, createChatSchema, chatMessageSchema, paginationQuerySchema, renameChatSchema, chatIdParamSchema } from "../lib/validation.js";
+import { HttpError, parseBody, createChatSchema, chatMessageSchema, paginationQuerySchema, renameChatSchema, chatIdParamSchema, mcpServerIdsSchema } from "../lib/validation.js";
 import type { SearchResult } from "../services/search.service.js";
 import { listReadyDocumentIdsForCollection, retrieveRelevantChunks, type RetrievedChunk } from "../services/retrieval.service.js";
 import { cleanupDocumentsForChat } from "../services/document-cleanup.service.js";
@@ -300,6 +300,7 @@ router.post("/:chatId", async (req: Request, res: Response, next: NextFunction) 
             language,
             model,
             collectionId,
+            mcpServerIds,
         } = parseBody(chatMessageSchema, req.body);
         const userId = req.user?.userId;
 
@@ -353,10 +354,11 @@ router.post("/:chatId", async (req: Request, res: Response, next: NextFunction) 
         }
 
         const user = await User.findById(userId).select("preferences.systemInstructions").lean();
-        const agent = getAgent(
+        const agent = await getAgent(
             selectedModel,
             language ?? undefined,
-            user?.preferences?.systemInstructions
+            user?.preferences?.systemInstructions,
+            mcpServerIds ?? []
         );
         const response = await agent.invoke({ messages: formatted });
         await Message.create({
@@ -484,6 +486,7 @@ router.post("/:chatId/stream", async (req: Request, res: Response, next: NextFun
             collectionId,
             editMessageId,
             regenerateMessageId,
+            mcpServerIds,
         } = parseBody(chatMessageSchema, req.body);
         const userId = req.user?.userId;
 
@@ -568,10 +571,11 @@ router.post("/:chatId/stream", async (req: Request, res: Response, next: NextFun
         }
 
         const user = await User.findById(userId).select("preferences.systemInstructions").lean();
-        const agent = getAgent(
+        const agent = await getAgent(
             selectedModel,
             language ?? undefined,
-            user?.preferences?.systemInstructions
+            user?.preferences?.systemInstructions,
+            mcpServerIds ?? []
         );
         const stream = await agent.stream(
             { messages: formatted },

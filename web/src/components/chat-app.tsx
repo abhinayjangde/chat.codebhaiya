@@ -30,6 +30,7 @@ import type {
   ChatSummary,
   UserProfile,
   ModelInfo,
+  McpServer,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useTheme } from "next-themes";
@@ -46,6 +47,8 @@ import { ChatMessageList } from "@/components/chat/chat-message-list";
 import { ChatComposer } from "@/components/chat/chat-composer";
 import { ChatAuthForm } from "@/components/chat/chat-auth-form";
 import { DocumentLibrary } from "@/components/documents/document-library";
+import { McpServerPicker } from "@/components/mcp/mcp-server-picker";
+import { McpServerList } from "@/components/mcp/mcp-server-list";
 import { getTimeGreeting, firstName } from "@/lib/greeting";
 
 export function ChatApp() {
@@ -79,6 +82,9 @@ export function ChatApp() {
   const [language, setLanguage] = useState<"english" | "hinglish">("english");
   const [collectionId, setCollectionId] = useState<string | null>(null);
   const [showDocuments, setShowDocuments] = useState(false);
+  const [mcpServers, setMcpServers] = useState<McpServer[]>([]);
+  const [selectedMcpServerIds, setSelectedMcpServerIds] = useState<string[]>([]);
+  const [showMcpSettings, setShowMcpSettings] = useState(false);
   const [greeting, setGreeting] = useState(getTimeGreeting());
   const [streamSteps, setStreamSteps] = useState<{ id: "thinking" | "webSearch" | "analyzing"; label: string; status: "pending" | "active" | "complete" }[] | null>(null);
   
@@ -183,6 +189,21 @@ export function ChatApp() {
     }
   }, [tokens, runWithSession]);
 
+  const loadMcpServers = useCallback(async () => {
+    if (!tokens) {
+      return;
+    }
+
+    try {
+      const data = await runWithSession((accessToken) =>
+        apiClient.listMcpServers(accessToken)
+      );
+      setMcpServers(data.servers ?? []);
+    } catch {
+      // MCP servers are optional; don't surface an error to the user
+    }
+  }, [tokens, runWithSession]);
+
   useEffect(() => {
     setHydrated(true);
     const storedTokens = readStoredTokens();
@@ -257,6 +278,7 @@ export function ChatApp() {
           return mergedUser;
         });
         await loadChats();
+        await loadMcpServers();
       } catch (error) {
         if (!cancelled) {
           setChatError(getErrorMessage(error));
@@ -273,7 +295,7 @@ export function ChatApp() {
     return () => {
       cancelled = true;
     };
-  }, [tokens, runWithSession, loadChats]);
+  }, [tokens, runWithSession, loadChats, loadMcpServers]);
 
   useEffect(() => {
     if (!tokens || !activeChatId) {
@@ -451,7 +473,15 @@ export function ChatApp() {
     try {
       if (!targetChatId) {
         const created = await runWithSession((accessToken) =>
-          apiClient.createChat(prompt, accessToken, selectedModel, attachments, language, collectionId ?? undefined)
+          apiClient.createChat(
+            prompt,
+            accessToken,
+            selectedModel,
+            attachments,
+            language,
+            collectionId ?? undefined,
+            selectedMcpServerIds
+          )
         );
         targetChatId = String(created.chatId);
 
@@ -533,7 +563,8 @@ export function ChatApp() {
           attachments,
           language,
           collectionId ?? undefined,
-          activeReplacement
+          activeReplacement,
+          selectedMcpServerIds
         )
       );
 
@@ -708,7 +739,7 @@ export function ChatApp() {
       setStreamSteps(null);
       setIsSending(false);
     }
-  }, [tokens, composer, activeChatId, user, selectedModel, language, collectionId, runWithSession, loadChats]);
+  }, [tokens, composer, activeChatId, user, selectedModel, language, collectionId, selectedMcpServerIds, runWithSession, loadChats]);
 
   const handleEditMessage = useCallback((message: ChatMessage) => {
     if (isSendingRef.current || !message._id) {
@@ -860,6 +891,11 @@ export function ChatApp() {
     setShowDocuments(true);
   }, []);
 
+  const handleOpenMcpSettings = useCallback(() => {
+    setShowMcpSettings(true);
+    setShowDocuments(false);
+  }, []);
+
   if (!hydrated) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -920,6 +956,7 @@ export function ChatApp() {
         isBootstrapping={isBootstrapping}
         language={language}
         setLanguage={setLanguage}
+        onOpenMcpSettings={handleOpenMcpSettings}
       />
 
       <div className="flex min-w-0 flex-1 flex-col">
@@ -945,7 +982,13 @@ export function ChatApp() {
           </button>
         )}
 
-        {showDocuments ? (
+        {showMcpSettings ? (
+          <McpServerList
+            runWithSession={runWithSession}
+            onServersChange={setMcpServers}
+            onBack={() => setShowMcpSettings(false)}
+          />
+        ) : showDocuments ? (
           <DocumentLibrary embedded onBack={() => setShowDocuments(false)} />
         ) : (
           <main className="flex-1 overflow-y-auto">
@@ -982,6 +1025,17 @@ export function ChatApp() {
                   inputValue={composer}
                   onInputChange={setComposer}
                 />
+
+                {mcpServers.length > 0 && (
+                  <div className="mt-3 flex items-center justify-center">
+                    <McpServerPicker
+                      servers={mcpServers}
+                      selectedServerIds={selectedMcpServerIds}
+                      onChange={setSelectedMcpServerIds}
+                      runWithSession={runWithSession}
+                    />
+                  </div>
+                )}
 
                 {/* Quick action chips */}
                 {/* Note: Chips logic was inline. I should probably move chips to Composer or just keep here. 
@@ -1029,6 +1083,17 @@ export function ChatApp() {
                 inputValue={composer}
                 onInputChange={setComposer}
               />
+
+              {mcpServers.length > 0 && (
+                <div className="mt-2 flex items-center justify-center">
+                  <McpServerPicker
+                    servers={mcpServers}
+                    selectedServerIds={selectedMcpServerIds}
+                    onChange={setSelectedMcpServerIds}
+                    runWithSession={runWithSession}
+                  />
+                </div>
+              )}
           </footer>
         )}
       </div>
