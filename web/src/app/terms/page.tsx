@@ -2,7 +2,14 @@ import type { Metadata } from "next";
 import { LegalPage } from "@/components/legal-page";
 
 export const metadata: Metadata = {
-  title: "Terms of service | codebhaiya.ai",
+  title: "Terms of Service",
+  alternates: {
+    canonical: "/terms",
+  },
+  openGraph: {
+    title: "Terms of Service | Codebhaiya",
+    description: "The rules for using the Codebhaiya AI workbench.",
+  },
   description: "The rules for using the Codebhaiya AI workbench.",
 };
 

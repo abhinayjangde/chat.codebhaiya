@@ -2,7 +2,14 @@ import type { Metadata } from "next";
 import { LegalPage } from "@/components/legal-page";
 
 export const metadata: Metadata = {
-  title: "Privacy policy | codebhaiya.ai",
+  title: "Privacy Policy",
+  alternates: {
+    canonical: "/privacy",
+  },
+  openGraph: {
+    title: "Privacy Policy | Codebhaiya",
+    description: "How Codebhaiya handles account, conversation, and uploaded data.",
+  },
   description: "How Codebhaiya handles account, conversation, and uploaded data.",
 };
 

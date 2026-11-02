@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
+import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 
@@ -29,9 +31,11 @@ export default function ForgotPasswordPage() {
       >
         {/* Logo — top-right */}
         <div className="absolute right-6 top-6">
-          <img
+          <Image
             src="https://avatars.githubusercontent.com/u/166032907?v=4"
-            alt="Logo"
+            alt="Codebhaiya Logo"
+            width={32}
+            height={32}
             className="size-8 rounded-full"
           />
         </div>
@@ -76,12 +80,12 @@ export default function ForgotPasswordPage() {
 
           {/* ── Go back ── */}
           <div className="flex justify-center">
-            <a
+            <Link
               href="/login"
               className="text-xs font-medium text-[#888] underline underline-offset-2 transition-colors hover:text-[#ccc]"
             >
               Go back
-            </a>
+            </Link>
           </div>
         </div>
       </div>
