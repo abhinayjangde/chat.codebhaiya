@@ -15,6 +15,36 @@
       "env": {
         "SARVAM_API_KEY": "${env:SARVAM_API_KEY}"
       }
+    },
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp@latest",
+        "--transport",
+        "stdio"
+      ]
+    },
+    "mongodb": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mongodb-mcp-server@latest"
+      ],
+      "env": {
+        "MDB_MCP_CONNECTION_STRING": "${env:MONGODB_URI}",
+        "MDB_MCP_READ_ONLY": "true"
+      }
+    },
+    "gemini-api-docs": {
+      "url": "https://gemini-api-docs-mcp.dev"
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "chrome-devtools-mcp@latest"
+      ]
     }
   }
 }
