@@ -9,7 +9,9 @@
     "dev": "tsc-watch --onSuccess \"node dist/index.js\"",
     "worker": "node dist/workers/document.worker.js",
     "worker:dev": "tsc-watch --onSuccess \"node dist/workers/document.worker.js\"",
-    "smoke:test": "node scripts/smoke-test.mjs"
+    "smoke:test": "node scripts/smoke-test.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "type": "module",
@@ -27,7 +29,8 @@
     "@types/pdfkit": "^0.17.5",
     "@types/uuid": "^11.0.0",
     "tsc-watch": "^7.2.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.5"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.958.0",

@@ -303,7 +303,7 @@ export async function getAgent(
   }
 
   // 4. Build the tool list: built-in web search + MCP server tools.
-  const tools: Tool[] = [webSearchTool as unknown as Tool];
+  const tools: any[] = [webSearchTool];
   const mcpClients = new Map<string, McpClient>();
   let mcpToolDescriptions: string[] = [];
 

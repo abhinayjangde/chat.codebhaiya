@@ -182,15 +182,15 @@ export function McpServerList({
 
   return (
     <div className="flex-1 overflow-y-auto bg-(--chat-bg) text-(--chat-text)">
-      <div className="mx-auto max-w-4xl px-4 py-8 md:px-8">
+      <div className="mx-auto max-w-4xl px-4 py-5 sm:py-8 md:px-8">
         {/* Top Header */}
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-4 border-b border-(--chat-dropdown-border) pb-6">
-          <div className="flex items-center gap-3">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-(--chat-dropdown-border) pb-5 sm:mb-8 sm:pb-6">
+          <div className="flex min-w-0 items-start gap-3">
             {onBack && (
               <button
                 type="button"
                 onClick={onBack}
-                className="inline-flex items-center justify-center rounded-lg border border-(--chat-dropdown-border) bg-(--chat-surface) p-2 text-(--chat-text-secondary) hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text) transition"
+                className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-(--chat-dropdown-border) bg-(--chat-surface) text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text)"
                 title="Back to chat"
                 aria-label="Back"
               >
@@ -198,10 +198,10 @@ export function McpServerList({
               </button>
             )}
             <div>
-              <h1 className="text-xl font-bold tracking-tight text-(--chat-text)">
+              <h1 className="text-lg font-bold tracking-tight text-(--chat-text) sm:text-xl">
                 MCP Connectors
               </h1>
-              <p className="text-xs text-(--chat-text-muted) mt-0.5">
+              <p className="mt-1 max-w-[25rem] text-xs leading-4 text-(--chat-text-muted)">
                 Connect external Model Context Protocol tools and servers to your chats.
               </p>
             </div>
@@ -214,7 +214,7 @@ export function McpServerList({
               setFormOpen(true);
             }}
             disabled={loading}
-            className="gap-1.5"
+            className="shrink-0 gap-1.5"
           >
             <Plus className="h-4 w-4" /> Add Server
           </Button>
@@ -258,7 +258,7 @@ export function McpServerList({
                 <div
                   key={server._id}
                   className={cn(
-                    "group flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-surface) p-4 transition hover:border-(--chat-brand)/30",
+                    "group flex flex-col justify-between gap-4 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-surface) p-4 transition hover:border-(--chat-brand)/30 sm:p-5 md:flex-row md:items-center",
                     !server.isActive && "opacity-70"
                   )}
                 >
@@ -296,12 +296,12 @@ export function McpServerList({
                         </span>
                       </div>
 
-                      <div className="mt-1.5 flex flex-wrap items-center gap-2 font-mono text-xs text-(--chat-text-muted)">
+                      <div className="mt-1.5 flex min-w-0 flex-wrap items-center gap-2 font-mono text-xs text-(--chat-text-muted)">
                         <span className="rounded bg-(--chat-bg) px-2 py-0.5 border border-(--chat-dropdown-border) text-(--chat-brand)">
                           {server.command}
                         </span>
                         {server.args.length > 0 && (
-                          <span className="truncate max-w-md text-(--chat-text-secondary)">
+                          <span className="min-w-0 max-w-full flex-1 truncate text-(--chat-text-secondary) sm:max-w-md">
                             {server.args.join(" ")}
                           </span>
                         )}
@@ -314,13 +314,13 @@ export function McpServerList({
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 self-end md:self-center shrink-0">
+                  <div className="flex shrink-0 items-center gap-1.5 self-end md:self-center">
                     {/* Preview Tools */}
                     <button
                       type="button"
                       onClick={() => handlePreviewTools(server)}
                       disabled={isInspecting || loading}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-(--chat-dropdown-border) bg-(--chat-bg) px-2.5 py-1.5 text-xs text-(--chat-text-secondary) hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text) transition"
+                      className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-(--chat-dropdown-border) bg-(--chat-bg) px-3 py-2 text-xs text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text) sm:min-h-0 sm:px-2.5 sm:py-1.5"
                       title="Inspect exposed tools"
                     >
                       {isInspecting ? (
@@ -339,7 +339,7 @@ export function McpServerList({
                         setFormOpen(true);
                       }}
                       disabled={loading}
-                      className="rounded-lg border border-(--chat-dropdown-border) bg-(--chat-bg) p-2 text-(--chat-text-secondary) hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text) transition"
+                      className="rounded-lg border border-(--chat-dropdown-border) bg-(--chat-bg) p-3 text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text) sm:p-2"
                       title="Edit server"
                       aria-label="Edit"
                     >
@@ -351,7 +351,7 @@ export function McpServerList({
                       type="button"
                       onClick={() => handleDelete(server._id, server.name)}
                       disabled={isDeleting || loading}
-                      className="rounded-lg border border-(--chat-dropdown-border) bg-(--chat-bg) p-2 text-(--chat-text-secondary) hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400 transition"
+                      className="rounded-lg border border-(--chat-dropdown-border) bg-(--chat-bg) p-3 text-(--chat-text-secondary) transition hover:border-red-500/30 hover:bg-red-500/10 hover:text-red-400 sm:p-2"
                       title="Remove server"
                       aria-label="Delete"
                     >
@@ -393,7 +393,7 @@ export function McpServerList({
               className="fixed inset-0 bg-black/70 backdrop-blur-sm"
               onClick={() => setPreviewModal(null)}
             />
-            <div className="relative w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-xl border border-(--chat-dropdown-border) bg-(--chat-surface) p-6 shadow-2xl">
+            <div className="relative max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-xl border border-(--chat-dropdown-border) bg-(--chat-surface) p-4 shadow-2xl sm:p-6">
               <div className="flex items-center justify-between border-b border-(--chat-dropdown-border) pb-4 mb-4">
                 <div className="flex items-center gap-2.5">
                   <div className="rounded-lg bg-(--chat-brand)/10 p-2 text-(--chat-brand)">

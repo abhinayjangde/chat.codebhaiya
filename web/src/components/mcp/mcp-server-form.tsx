@@ -187,8 +187,8 @@ export function McpServerForm({
         className="fixed inset-0 bg-black/70 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative w-full max-w-lg max-h-[92vh] overflow-y-auto rounded-xl border border-(--chat-dropdown-border) bg-(--chat-surface) p-6 shadow-2xl">
-        <div className="flex items-center justify-between mb-5">
+      <div className="relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-xl border border-(--chat-dropdown-border) bg-(--chat-surface) p-4 shadow-2xl sm:p-6">
+        <div className="mb-5 flex items-start justify-between gap-3">
           <div>
             <h3 className="text-lg font-semibold text-(--chat-text)">
               {title}
@@ -300,7 +300,7 @@ export function McpServerForm({
             {Object.keys(env).length > 0 && (
               <div className="space-y-2 max-h-36 overflow-y-auto pr-1">
                 {Object.entries(env).map(([key, value]) => (
-                  <div key={key} className="flex items-center gap-2">
+                  <div key={key} className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
                     <Input
                       value={key}
                       onChange={(e) => {
@@ -313,7 +313,7 @@ export function McpServerForm({
                         });
                       }}
                       placeholder="KEY"
-                      className="flex-1 font-mono text-xs"
+                      className="w-full flex-1 font-mono text-xs"
                       disabled={loading}
                     />
                     <Input
@@ -326,13 +326,13 @@ export function McpServerForm({
                       }
                       placeholder="value"
                       type="password"
-                      className="flex-1 font-mono text-xs"
+                      className="w-full flex-1 font-mono text-xs"
                       disabled={loading}
                     />
                     <button
                       type="button"
                       onClick={() => removeEnvVar(key)}
-                      className="rounded p-2 text-(--chat-text-muted) hover:bg-red-500/10 hover:text-red-400 transition"
+                      className="self-end rounded p-2 text-(--chat-text-muted) transition hover:bg-red-500/10 hover:text-red-400 sm:self-auto"
                       disabled={loading}
                       title="Remove"
                     >
@@ -343,11 +343,11 @@ export function McpServerForm({
               </div>
             )}
 
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
               <Input
                 ref={envKeyRef}
                 placeholder="KEY (e.g. API_TOKEN)"
-                className="flex-1 font-mono text-xs"
+                className="w-full flex-1 font-mono text-xs"
                 disabled={loading}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
@@ -360,7 +360,7 @@ export function McpServerForm({
                 ref={envValueRef}
                 placeholder="value"
                 type="password"
-                className="flex-1 font-mono text-xs"
+                className="w-full flex-1 font-mono text-xs"
                 disabled={loading}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
@@ -375,7 +375,7 @@ export function McpServerForm({
                 size="sm"
                 onClick={addEnvVar}
                 disabled={loading}
-                className="shrink-0 h-9 px-3"
+                className="h-10 shrink-0 px-3 sm:h-9"
               >
                 <Plus className="h-3.5 w-3.5 mr-1" /> Add
               </Button>
