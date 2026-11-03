@@ -1,15 +1,13 @@
-
 "use client";
 
 import {
   AtSign,
+  Check,
   Copy,
   Loader2,
   MessageSquareText,
-  MoreHorizontal,
   RefreshCw,
   Paperclip,
-  Share,
   ThumbsDown,
   ThumbsUp,
   Sparkles,
@@ -23,10 +21,14 @@ import {
   ReactElement,
   ReactNode,
   useEffect,
+  useMemo,
   useRef,
+  useState,
 } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
+import toast from "react-hot-toast";
 import { CodeBlock } from "@/components/ui/code-block";
 import { CitationMarker } from "@/components/chat/citation-popover";
 import { StreamStatus } from "@/components/chat/stream-status";
@@ -56,6 +58,8 @@ export const ChatMessageList = memo(function ChatMessageList({
   onOpenResume,
 }: ChatMessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [feedbackMap, setFeedbackMap] = useState<Record<string, "like" | "dislike">>({});
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({
@@ -82,6 +86,33 @@ export const ChatMessageList = memo(function ChatMessageList({
     return displayContent;
   };
 
+  const handleCopy = (text: string, id: string) => {
+    if (!navigator.clipboard || !navigator.clipboard.writeText) return;
+    void navigator.clipboard.writeText(text);
+    setCopiedMessageId(id);
+    toast.success("Copied to clipboard", { id: "chat-copy-toast", duration: 1800 });
+    setTimeout(() => {
+      setCopiedMessageId((prev) => (prev === id ? null : prev));
+    }, 2000);
+  };
+
+  const handleFeedback = (id: string, type: "like" | "dislike") => {
+    setFeedbackMap((prev) => {
+      const current = prev[id];
+      if (current === type) {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      }
+      if (type === "like") {
+        toast.success("Thanks for your feedback!", { id: "chat-feedback-toast", duration: 1800 });
+      } else {
+        toast("Feedback recorded", { icon: "📝", id: "chat-feedback-toast", duration: 1800 });
+      }
+      return { ...prev, [id]: type };
+    });
+  };
+
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-6">
       {chatError ? (
@@ -100,10 +131,11 @@ export const ChatMessageList = memo(function ChatMessageList({
           {messages.map((message, index) => {
             const isUser = message.role === "user";
             const displayContent = getDisplayContent(message, index);
+            const messageId = message._id ?? `msg-${index}`;
 
             return (
               <div
-                key={message._id ?? `${message.role}-${index}`}
+                key={messageId}
                 className={cn("flex", isUser ? "justify-end" : "justify-start")}
               >
                 {isUser ? (
@@ -140,13 +172,13 @@ export const ChatMessageList = memo(function ChatMessageList({
                     </div>
                   </div>
                 ) : (
-                  /* ── AI response: no bubble, full-width text ── */
+                  /* ── AI response: formatted text with rich typography ── */
                   <div className="w-full max-w-none">
                     {message.isStreaming && streamSteps && (
                       <StreamStatus steps={streamSteps} className="mb-3" />
                     )}
                     {displayContent ? (
-                      <div className="prose dark:prose-invert max-w-none text-[15px] leading-8 text-(--chat-ai-text)">
+                      <div className="chat-markdown max-w-none text-[15px] leading-relaxed text-(--chat-ai-text)">
                         <CitationAwareContent
                           content={displayContent}
                           sources={message.sources ?? []}
@@ -253,7 +285,7 @@ export const ChatMessageList = memo(function ChatMessageList({
                     {/* Action bar */}
                     {!message.isStreaming && displayContent ? (
                       <div className="mt-4 flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 text-(--chat-action-icon) bg-(--chat-dropdown-hover) px-2 py-1 rounded-md">
+                        <div className="flex items-center gap-1.5 text-(--chat-action-icon) bg-(--chat-dropdown-hover) px-2.5 py-1 rounded-md">
                           <FaBrain className="h-3 w-3" />
                           <span className="text-[11px] font-medium">
                             {message.modelName 
@@ -265,39 +297,71 @@ export const ChatMessageList = memo(function ChatMessageList({
                           <p className="mr-2 text-[11px] text-(--chat-timestamp)">
                             {formatTime(message.createdAt)}
                           </p>
-                        {[
-                          { icon: Copy, label: "Copy" },
-                          { icon: ThumbsUp, label: "Like" },
-                          { icon: ThumbsDown, label: "Dislike" },
-                          // { icon: Share, label: "Share" },
-                          { icon: RefreshCw, label: "Regenerate" },
-                          // { icon: MoreHorizontal, label: "More" },
-                        ].map((action) => (
+                          
+                          {/* Copy button */}
                           <button
-                            key={action.label}
+                            type="button"
+                            className={cn(
+                              "inline-flex h-7 w-7 items-center justify-center rounded-md text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)",
+                              copiedMessageId === messageId && "text-emerald-500 bg-emerald-500/10"
+                            )}
+                            title={copiedMessageId === messageId ? "Copied!" : "Copy response"}
+                            aria-label="Copy"
+                            onClick={() => handleCopy(displayContent, messageId)}
+                          >
+                            {copiedMessageId === messageId ? (
+                              <Check className="h-4 w-4 text-emerald-500" />
+                            ) : (
+                              <Copy className="h-4 w-4" />
+                            )}
+                          </button>
+
+                          {/* Like button */}
+                          <button
+                            type="button"
+                            className={cn(
+                              "inline-flex h-7 w-7 items-center justify-center rounded-md text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)",
+                              feedbackMap[messageId] === "like" && "text-emerald-500 bg-emerald-500/10 hover:text-emerald-600"
+                            )}
+                            title="Good response"
+                            aria-label="Like"
+                            onClick={() => handleFeedback(messageId, "like")}
+                          >
+                            <ThumbsUp className="h-4 w-4" />
+                          </button>
+
+                          {/* Dislike button */}
+                          <button
+                            type="button"
+                            className={cn(
+                              "inline-flex h-7 w-7 items-center justify-center rounded-md text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)",
+                              feedbackMap[messageId] === "dislike" && "text-rose-500 bg-rose-500/10 hover:text-rose-600"
+                            )}
+                            title="Bad response"
+                            aria-label="Dislike"
+                            onClick={() => handleFeedback(messageId, "dislike")}
+                          >
+                            <ThumbsDown className="h-4 w-4" />
+                          </button>
+
+                          {/* Regenerate button */}
+                          <button
                             type="button"
                             className="inline-flex h-7 w-7 items-center justify-center rounded-md text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)"
-                            aria-label={action.label}
+                            title="Regenerate response"
+                            aria-label="Regenerate"
                             onClick={() => {
-                              if (action.label === "Copy" && displayContent) {
-                                void navigator.clipboard.writeText(
-                                  displayContent
-                                );
-                              }
-                              if (action.label === "Regenerate") {
-                                const previousUser = messages
-                                  .slice(0, index)
-                                  .reverse()
-                                  .find((entry) => entry.role === "user");
-                                if (previousUser) {
-                                  onRegenerateMessage(message, previousUser);
-                                }
+                              const previousUser = messages
+                                .slice(0, index)
+                                .reverse()
+                                .find((entry) => entry.role === "user");
+                              if (previousUser) {
+                                onRegenerateMessage(message, previousUser);
                               }
                             }}
                           >
-                            <action.icon className="h-4 w-4" />
+                            <RefreshCw className="h-4 w-4" />
                           </button>
-                        ))}
                         </div>
                       </div>
                     ) : null}
@@ -320,43 +384,167 @@ function CitationAwareContent({
   content: string;
   sources: MessageSource[];
 }) {
-  const parts = content.split(/(\[\d+\])/);
+  // Turn valid citations [1], [2] into markdown links [citation:1](citation:1),
+  // while preserving any citations inside code blocks or inline code snippets.
+  const processedContent = useMemo(() => {
+    if (!sources || sources.length === 0) return content;
+    return content.replace(
+      /(```[\s\S]*?```|`[^`\n]+`)|(?<!\w)\[(\d+)\](?!\w)/g,
+      (match, codeSegment, citationIndex) => {
+        if (codeSegment) {
+          return codeSegment;
+        }
+        const idx = parseInt(citationIndex, 10);
+        const hasSource = sources.some(
+          (s) => s.position === idx || sources[idx - 1] !== undefined
+        );
+        if (hasSource) {
+          return `[citation:${idx}](citation:${idx})`;
+        }
+        return match;
+      }
+    );
+  }, [content, sources]);
 
   return (
-    <div>
-      {parts.map((part, i) => {
-        const match = part.match(/^\[(\d+)\]$/);
-        if (match) {
-          const index = parseInt(match[1], 10);
-          const source =
-            sources.find((s) => s.position === index) ?? sources[index - 1];
-          if (source) {
-            return <CitationMarker key={i} index={index} source={source} />;
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm, remarkBreaks]}
+      components={{
+        p: ({ children }) => (
+          <p className="mb-3.5 last:mb-0 leading-[1.7] text-(--chat-ai-text)">
+            {children}
+          </p>
+        ),
+        h1: ({ children }) => (
+          <h1 className="mt-6 mb-3 text-2xl font-bold tracking-tight text-(--chat-text) first:mt-0">
+            {children}
+          </h1>
+        ),
+        h2: ({ children }) => (
+          <h2 className="mt-5 mb-2.5 text-xl font-semibold tracking-tight text-(--chat-text) first:mt-0">
+            {children}
+          </h2>
+        ),
+        h3: ({ children }) => (
+          <h3 className="mt-4 mb-2 text-lg font-semibold text-(--chat-text) first:mt-0">
+            {children}
+          </h3>
+        ),
+        h4: ({ children }) => (
+          <h4 className="mt-3 mb-1.5 text-base font-semibold text-(--chat-text) first:mt-0">
+            {children}
+          </h4>
+        ),
+        ul: ({ children }) => (
+          <ul className="my-3 ml-1 list-disc space-y-1.5 pl-5 text-(--chat-ai-text) marker:text-(--chat-text-secondary)/80">
+            {children}
+          </ul>
+        ),
+        ol: ({ children }) => (
+          <ol className="my-3 ml-1 list-decimal space-y-1.5 pl-5 text-(--chat-ai-text) marker:font-semibold marker:text-(--chat-text-secondary)/80">
+            {children}
+          </ol>
+        ),
+        li: ({ children }) => (
+          <li className="pl-1 leading-[1.65]">
+            {children}
+          </li>
+        ),
+        strong: ({ children }) => (
+          <strong className="font-semibold text-(--chat-text)">
+            {children}
+          </strong>
+        ),
+        em: ({ children }) => (
+          <em className="italic">{children}</em>
+        ),
+        blockquote: ({ children }) => (
+          <blockquote className="my-3.5 border-l-2 border-primary/70 bg-(--chat-surface)/50 px-4 py-2.5 rounded-r-lg italic text-(--chat-text-secondary)">
+            {children}
+          </blockquote>
+        ),
+        hr: () => (
+          <hr className="my-5 border-0 h-px bg-(--chat-dropdown-border)" />
+        ),
+        a: ({ href, children }) => {
+          if (href?.startsWith("citation:")) {
+            const index = parseInt(href.slice("citation:".length), 10);
+            const source =
+              sources.find((s) => s.position === index) ?? sources[index - 1];
+            if (source) {
+              return <CitationMarker index={index} source={source} />;
+            }
           }
-        }
-        return (
-          <ReactMarkdown
-            key={i}
-            remarkPlugins={[remarkGfm]}
-            components={{
-              code: (props) => <code {...props} />,
-              pre: ({ children }) => {
-                const codeElement = Children.toArray(children).find(isValidElement) as
-                  | ReactElement<{ className?: string; children?: ReactNode }>
-                  | undefined;
-                const codeProps = codeElement?.props;
-                const language =
-                  codeProps?.className?.match(/language-([\w+-]+)/)?.[1] ?? "text";
-                const codeString = String(codeProps?.children ?? "").replace(/\n$/, "");
+          return (
+            <a
+              href={href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-primary underline underline-offset-4 decoration-primary/40 hover:decoration-primary transition-colors cursor-pointer"
+            >
+              {children}
+            </a>
+          );
+        },
+        code: ({ className, children, ...props }) => {
+          const isInline = !className?.includes("language-");
+          if (isInline) {
+            return (
+              <code
+                className="rounded-md bg-(--chat-surface) px-1.5 py-0.5 font-mono text-[0.85em] font-medium text-emerald-600 dark:text-emerald-400 border border-(--chat-dropdown-border) shadow-2xs"
+                {...props}
+              >
+                {children}
+              </code>
+            );
+          }
+          return (
+            <code className={className} {...props}>
+              {children}
+            </code>
+          );
+        },
+        pre: ({ children }) => {
+          const codeElement = Children.toArray(children).find(isValidElement) as
+            | ReactElement<{ className?: string; children?: ReactNode }>
+            | undefined;
+          const codeProps = codeElement?.props;
+          const language =
+            codeProps?.className?.match(/language-([\w+-]+)/)?.[1] ?? "text";
+          const codeString = String(codeProps?.children ?? "").replace(/\n$/, "");
 
-                return <CodeBlock language={language} value={codeString} />;
-              },
-            }}
-          >
-            {part}
-          </ReactMarkdown>
-        );
-      })}
-    </div>
+          return <CodeBlock language={language} value={codeString} />;
+        },
+        table: ({ children }) => (
+          <div className="my-4 w-full overflow-x-auto rounded-xl border border-(--chat-dropdown-border) bg-(--chat-surface)/40 shadow-xs">
+            <table className="w-full border-collapse text-left text-sm">
+              {children}
+            </table>
+          </div>
+        ),
+        thead: ({ children }) => (
+          <thead className="border-b border-(--chat-dropdown-border) bg-(--chat-surface) text-xs font-semibold uppercase tracking-wider text-(--chat-text-secondary)">
+            {children}
+          </thead>
+        ),
+        th: ({ children }) => (
+          <th className="px-4 py-2.5 font-semibold text-(--chat-text)">
+            {children}
+          </th>
+        ),
+        td: ({ children }) => (
+          <td className="border-t border-(--chat-dropdown-border)/50 px-4 py-2 text-(--chat-ai-text)">
+            {children}
+          </td>
+        ),
+        tr: ({ children }) => (
+          <tr className="hover:bg-(--chat-dropdown-hover)/50 transition-colors">
+            {children}
+          </tr>
+        ),
+      }}
+    >
+      {processedContent}
+    </ReactMarkdown>
   );
 }

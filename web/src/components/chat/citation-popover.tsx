@@ -22,13 +22,13 @@ export function CitationMarker({ index, source }: CitationMarkerProps) {
 
   return (
     <span
-      className="relative inline-block cursor-help"
+      className="relative inline-block cursor-help align-baseline mx-0.5"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onMouseMove={handleMouseMove}
     >
       <span
-        className="inline-flex items-center justify-center rounded-full border border-(--chat-dropdown-border) bg-(--chat-surface) px-1.5 py-0.5 text-[11px] font-medium text-(--chat-text-secondary) hover:bg-(--chat-dropdown-hover) transition-colors"
+        className="inline-flex items-center justify-center rounded-full border border-(--chat-dropdown-border) bg-(--chat-surface) px-1.5 py-0.5 text-[11px] font-medium text-(--chat-text-secondary) hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text) transition-colors shadow-2xs"
       >
         [{index}]
       </span>

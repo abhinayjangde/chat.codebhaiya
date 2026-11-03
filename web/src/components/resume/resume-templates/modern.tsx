@@ -12,7 +12,7 @@ export function ModernTemplate({ data }: TemplateProps) {
   const p = data.personalInfo || {};
 
   return (
-    <div className="mx-auto w-full max-w-[800px] bg-white text-zinc-900 p-8 sm:p-12 shadow-sm rounded-lg font-sans text-sm leading-relaxed border border-zinc-200 print:border-none print:shadow-none print:p-0 print:m-0 print:max-w-none print:w-full print:rounded-none">
+    <div className="mx-auto w-full max-w-[800px] bg-white text-zinc-900 p-8 sm:p-12 shadow-sm rounded-none font-sans text-sm leading-relaxed border border-zinc-200 print:border-none print:shadow-none print:p-0 print:m-0 print:max-w-none print:w-full print:rounded-none">
       {/* Header */}
       <header className="border-b-2 border-blue-600 pb-5 mb-6">
         <h1 className="text-3xl sm:text-4xl font-extrabold text-blue-900 tracking-tight">

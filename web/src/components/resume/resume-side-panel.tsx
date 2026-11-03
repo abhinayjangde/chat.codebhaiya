@@ -47,6 +47,13 @@ interface ResumeSidePanelProps {
   onToggleFullscreen?: () => void;
 }
 
+const TEMPLATE_OPTIONS: { id: ResumeTemplate; label: string }[] = [
+  { id: "modern", label: "Modern Clean" },
+  { id: "classic", label: "Classic ATS" },
+  { id: "minimal", label: "Tech Minimalist" },
+  { id: "executive", label: "Executive" },
+];
+
 export function ResumeSidePanel({
   resume,
   chatId,
@@ -60,6 +67,7 @@ export function ResumeSidePanel({
     resume?.template || "modern"
   );
   const [activeTab, setActiveTab] = useState<"preview" | "edit">("preview");
+  const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
   const [downloadMenuOpen, setDownloadMenuOpen] = useState(false);
   const [isExporting, setIsExporting] = useState<ResumeExportFormat | null>(null);
   const [copiedLatex, setCopiedLatex] = useState(false);
@@ -169,6 +177,7 @@ export function ResumeSidePanel({
 
   const handlePrint = () => {
     setDownloadMenuOpen(false);
+    setTemplateMenuOpen(false);
     if (activeTab !== "preview") {
       setActiveTab("preview");
     }
@@ -222,19 +231,60 @@ export function ResumeSidePanel({
 
         {/* Center / Right Controls */}
         <div className="flex items-center gap-1.5 ml-auto">
-          {/* Template Switcher */}
+          {/* Template Switcher Custom Dropdown */}
           <div className="relative">
-            <select
-              value={activeTemplate}
-              onChange={(e) => handleTemplateChange(e.target.value as ResumeTemplate)}
-              className="text-xs font-medium bg-(--chat-dropdown-hover) text-foreground border border-border rounded-lg px-2.5 py-1.5 cursor-pointer focus:outline-none focus:ring-1 focus:ring-(--chat-brand)"
+            <button
+              type="button"
+              onClick={() => {
+                setTemplateMenuOpen(!templateMenuOpen);
+                setDownloadMenuOpen(false);
+              }}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-border bg-(--chat-dropdown-hover) text-foreground text-xs font-medium hover:bg-(--chat-surface) transition cursor-pointer"
               aria-label="Select resume template"
             >
-              <option value="modern">Modern Clean</option>
-              <option value="classic">Classic ATS</option>
-              <option value="minimal">Tech Minimalist</option>
-              <option value="executive">Executive</option>
-            </select>
+              <span>{TEMPLATE_OPTIONS.find((t) => t.id === activeTemplate)?.label || "Template"}</span>
+              <ChevronDown
+                className={cn(
+                  "h-3 w-3 text-muted-foreground transition-transform duration-150",
+                  templateMenuOpen && "rotate-180"
+                )}
+              />
+            </button>
+
+            {templateMenuOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-30"
+                  onClick={() => setTemplateMenuOpen(false)}
+                />
+                <div className="absolute left-0 mt-1.5 w-44 rounded-xl border border-border bg-(--chat-dropdown) p-1.5 shadow-2xl z-40 text-xs text-foreground">
+                  <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Resume Template
+                  </div>
+                  {TEMPLATE_OPTIONS.map((tpl) => (
+                    <button
+                      key={tpl.id}
+                      type="button"
+                      onClick={() => {
+                        handleTemplateChange(tpl.id);
+                        setTemplateMenuOpen(false);
+                      }}
+                      className={cn(
+                        "flex w-full items-center justify-between px-2.5 py-2 rounded-lg text-left transition cursor-pointer",
+                        activeTemplate === tpl.id
+                          ? "bg-(--chat-brand)/10 text-(--chat-brand) font-semibold"
+                          : "text-foreground hover:bg-(--chat-dropdown-hover)"
+                      )}
+                    >
+                      <span>{tpl.label}</span>
+                      {activeTemplate === tpl.id && (
+                        <Check className="h-3.5 w-3.5 text-(--chat-brand)" />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Mode toggle (Preview / Edit) */}
@@ -271,7 +321,10 @@ export function ResumeSidePanel({
           <div className="relative">
             <button
               type="button"
-              onClick={() => setDownloadMenuOpen(!downloadMenuOpen)}
+              onClick={() => {
+                setDownloadMenuOpen(!downloadMenuOpen);
+                setTemplateMenuOpen(false);
+              }}
               disabled={isExporting !== null}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-(--chat-brand) text-white font-medium hover:opacity-90 transition disabled:opacity-50"
             >

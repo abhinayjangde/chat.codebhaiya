@@ -293,6 +293,57 @@ main {
   scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
 
+/* Chat Markdown Formatting & Typography */
+.chat-markdown {
+  word-break: break-word;
+  overflow-wrap: break-word;
+}
+
+.chat-markdown ul {
+  list-style-type: disc;
+}
+
+.chat-markdown ol {
+  list-style-type: decimal;
+}
+
+.chat-markdown ul ul,
+.chat-markdown ol ul {
+  list-style-type: circle;
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.chat-markdown ul ul ul,
+.chat-markdown ol ul ul {
+  list-style-type: square;
+}
+
+.chat-markdown ol ol {
+  list-style-type: lower-alpha;
+  margin-top: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.chat-markdown pre {
+  margin: 0;
+}
+
+/* Ensure native select and option elements adapt properly to dark/light theme */
+select {
+  color-scheme: light dark;
+}
+
+select option {
+  background-color: var(--card, #ffffff);
+  color: var(--foreground, #18181b);
+}
+
+.dark select option {
+  background-color: #18181b;
+  color: #f4f4f5;
+}
+
 /* Print styles for Resume Export */
 @media print {
   @page {

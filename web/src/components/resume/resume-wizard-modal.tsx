@@ -156,11 +156,11 @@ export function ResumeWizardModal({
                 onChange={(e) => setSeniority(e.target.value)}
                 className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-(--chat-brand) cursor-pointer"
               >
-                <option value="Entry-Level / Junior">Entry-Level / Junior</option>
-                <option value="Mid-Level">Mid-Level</option>
-                <option value="Senior">Senior</option>
-                <option value="Lead / Staff">Lead / Staff</option>
-                <option value="Executive / Director">Executive / Director</option>
+                <option value="Entry-Level / Junior" className="bg-card text-foreground">Entry-Level / Junior</option>
+                <option value="Mid-Level" className="bg-card text-foreground">Mid-Level</option>
+                <option value="Senior" className="bg-card text-foreground">Senior</option>
+                <option value="Lead / Staff" className="bg-card text-foreground">Lead / Staff</option>
+                <option value="Executive / Director" className="bg-card text-foreground">Executive / Director</option>
               </select>
             </div>
           </div>

@@ -38,7 +38,11 @@ export const programmingLanguages: languageMap = {
   sql: ".sql",
   html: ".html",
   css: ".css",
-  // add more file extensions here, make sure the key is same as language prop in CodeBlock.tsx component
+  json: ".json",
+  yaml: ".yaml",
+  yml: ".yml",
+  markdown: ".md",
+  md: ".md",
 };
 
 export const generateRandomString = (length: number, lowercase = false) => {
@@ -67,19 +71,25 @@ const CodeBlock: FC<CodeBlockProps> = memo(({ language, value }) => {
     });
   };
 
+  const lineCount = value.trim().split("\n").length;
+  const showLineNumbers = lineCount > 3;
+
   return (
-    <div className="relative w-full rounded-lg bg-[#1e1e1e] font-sans code-block">
-      <div className="flex items-center justify-between w-full px-4 py-2 bg-[#2d2d2d] rounded-t-lg">
-        <span className="text-xs text-zinc-400 lowercase">{language}</span>
+    <div className="relative my-3 w-full rounded-xl border border-neutral-700/50 bg-[#18181b] shadow-sm overflow-hidden font-sans code-block">
+      <div className="flex items-center justify-between w-full px-4 py-2 bg-[#232326] border-b border-neutral-700/40 select-none">
+        <span className="text-xs font-mono font-medium text-neutral-300 lowercase">
+          {language || "code"}
+        </span>
         <div className="flex items-center gap-2">
           <button
+            type="button"
             onClick={copyToClipboard}
-            className="flex items-center gap-1.5 text-xs text-zinc-400 hover:text-zinc-100 transition-colors"
+            className="flex items-center gap-1.5 px-2 py-0.5 rounded text-xs text-neutral-400 hover:text-neutral-100 hover:bg-white/5 transition-colors cursor-pointer"
           >
             {isCopied ? (
               <>
-                <Check className="w-3.5 h-3.5" />
-                Copied!
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="text-emerald-400">Copied!</span>
               </>
             ) : (
               <>
@@ -98,12 +108,19 @@ const CodeBlock: FC<CodeBlockProps> = memo(({ language, value }) => {
             margin: 0,
             padding: "1rem",
             background: "transparent",
-            fontSize: "0.875rem",
+            fontSize: "0.85rem",
+            lineHeight: "1.55",
           }}
           wrapLines={true}
-          showLineNumbers={true}
-          lineProps={(lineNumber) => ({
-            style: { display: "block", cursor: "pointer" },
+          showLineNumbers={showLineNumbers}
+          lineNumberStyle={{
+            minWidth: "2.5em",
+            paddingRight: "1em",
+            color: "#6e7681",
+            userSelect: "none",
+          }}
+          lineProps={() => ({
+            style: { display: "block" },
           })}
         >
           {value}

@@ -11,7 +11,7 @@ export function ExecutiveTemplate({ data }: TemplateProps) {
   const p = data.personalInfo || {};
 
   return (
-    <div className="mx-auto w-full max-w-[800px] bg-white text-zinc-900 p-8 sm:p-12 shadow-sm rounded-lg font-sans text-sm leading-relaxed border border-zinc-200 print:border-none print:shadow-none print:p-0 print:m-0 print:max-w-none print:w-full print:rounded-none">
+    <div className="mx-auto w-full max-w-[800px] bg-white text-zinc-900 p-8 sm:p-12 shadow-sm rounded-none font-sans text-sm leading-relaxed border border-zinc-200 print:border-none print:shadow-none print:p-0 print:m-0 print:max-w-none print:w-full print:rounded-none">
       {/* Executive Header Banner */}
       <header className="border-b-4 border-slate-900 pb-5 mb-6">
         <h1 className="text-3xl sm:text-4xl font-black text-slate-950 tracking-tight uppercase">
@@ -60,7 +60,7 @@ export function ExecutiveTemplate({ data }: TemplateProps) {
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
             {data.skills.map((sc, index) => (
-              <div key={index} className="flex flex-col bg-slate-50 p-2.5 rounded border border-slate-200">
+              <div key={index} className="flex flex-col bg-slate-50 p-2.5 rounded-none border border-slate-200">
                 <span className="font-bold text-slate-900 text-xs mb-1">
                   {sc.category}
                 </span>

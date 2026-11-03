@@ -11,7 +11,7 @@ export function ClassicTemplate({ data }: TemplateProps) {
   const p = data.personalInfo || {};
 
   return (
-    <div className="mx-auto w-full max-w-[800px] bg-white text-black p-8 sm:p-12 shadow-sm rounded-lg font-serif text-sm leading-relaxed border border-zinc-200 print:border-none print:shadow-none print:p-0 print:m-0 print:max-w-none print:w-full print:rounded-none">
+    <div className="mx-auto w-full max-w-[800px] bg-white text-black p-8 sm:p-12 shadow-sm rounded-none font-serif text-sm leading-relaxed border border-zinc-200 print:border-none print:shadow-none print:p-0 print:m-0 print:max-w-none print:w-full print:rounded-none">
       {/* Header - Centered ATS Format */}
       <header className="text-center pb-4 mb-5 border-b border-zinc-800">
         <h1 className="text-3xl font-bold tracking-normal uppercase">

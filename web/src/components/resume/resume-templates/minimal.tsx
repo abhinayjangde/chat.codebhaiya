@@ -11,7 +11,7 @@ export function MinimalTemplate({ data }: TemplateProps) {
   const p = data.personalInfo || {};
 
   return (
-    <div className="mx-auto w-full max-w-[800px] bg-white text-zinc-900 p-8 sm:p-12 shadow-sm rounded-lg font-mono text-xs leading-relaxed border border-zinc-200 print:border-none print:shadow-none print:p-0 print:m-0 print:max-w-none print:w-full print:rounded-none">
+    <div className="mx-auto w-full max-w-[800px] bg-white text-zinc-900 p-8 sm:p-12 shadow-sm rounded-none font-mono text-xs leading-relaxed border border-zinc-200 print:border-none print:shadow-none print:p-0 print:m-0 print:max-w-none print:w-full print:rounded-none">
       {/* Header */}
       <header className="pb-4 mb-5 border-b border-zinc-900">
         <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
@@ -99,7 +99,7 @@ export function MinimalTemplate({ data }: TemplateProps) {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
             {data.skills.map((sc, index) => (
-              <div key={index} className="border border-zinc-200 p-2 rounded bg-zinc-50">
+              <div key={index} className="border border-zinc-200 p-2 rounded-none bg-zinc-50">
                 <span className="font-bold text-zinc-900 block text-[11px] mb-0.5">
                   {sc.category}
                 </span>
