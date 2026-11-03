@@ -509,14 +509,7 @@ export const ChatSidebar = memo(function ChatSidebar({
               Search chats
             </button>
           )}
-          <button
-            type="button"
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-(--chat-text) transition hover:bg-(--chat-sidebar-text-hover)"
-            onClick={onOpenDocuments}
-          >
-            <Library className="h-[18px] w-[18px] text-(--chat-text-muted)" />
-            Documents
-          </button>
+          {/* ============================== */}
           <button
             type="button"
             className={cn(
@@ -619,7 +612,7 @@ export const ChatSidebar = memo(function ChatSidebar({
           <div className="relative" ref={settingsRef}>
             {settingsMenuOpen && (
               <div className="absolute bottom-full left-0 z-50 mb-1 w-full max-h-[calc(100dvh-120px)] overflow-y-auto rounded-md border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl md:max-h-none md:overflow-visible">
-                
+
                 {/* You section */}
                 <div
                   className="relative"
@@ -908,7 +901,10 @@ export const ChatSidebar = memo(function ChatSidebar({
                       ))}
                     </div>
                   )}
+
                 </div>
+
+
                 <div
                   className="relative"
                   onMouseEnter={() => handleMouseEnter("theme")}
@@ -979,6 +975,16 @@ export const ChatSidebar = memo(function ChatSidebar({
                 </div>
                 {/* Divider */}
                 <div className="my-1.5 border-t border-(--chat-dropdown-border)" />
+             
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text) hover:cursor-pointer md:py-2.5"
+                  onClick={onOpenDocuments}
+                >
+                  <Library className="h-[18px] w-[18px] text-(--chat-text-muted)" />
+                  Documents
+                </button>
+
 
                 {/* More section */}
                 <div
