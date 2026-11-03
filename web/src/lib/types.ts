@@ -107,6 +107,7 @@ export interface ChatMessage {
   usedTools?: UsedTool[];
   attachments?: Attachment[];
   isStreaming?: boolean;
+  activeTool?: string;
   modelName?: string;
 }
 

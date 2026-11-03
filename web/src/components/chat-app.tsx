@@ -108,7 +108,6 @@ export function ChatApp() {
     setComposer,
     isLoadingMessages,
     isSending,
-    streamSteps,
     handleSendPrompt,
     handleEditMessage,
     handleRegenerateMessage,
@@ -315,7 +314,6 @@ export function ChatApp() {
                   isLoadingMessages={isLoadingMessages}
                   chatError={chatError}
                   availableModels={availableModels}
-                  streamSteps={streamSteps}
                   onEditMessage={handleEditMessage}
                   onRegenerateMessage={handleRegenerateMessage}
                   onOpenResume={() => setResumeSidePanelOpen(true)}

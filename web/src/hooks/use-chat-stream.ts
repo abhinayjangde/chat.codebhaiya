@@ -35,12 +35,6 @@ interface UseChatStreamProps {
   onResumeUpdated?: (resume: IResumeDoc) => void;
 }
 
-export type StreamStep = {
-  id: "thinking" | "webSearch" | "analyzing";
-  label: string;
-  status: "pending" | "active" | "complete";
-};
-
 export function useChatStream({
   tokens,
   runWithSession,
@@ -60,7 +54,6 @@ export function useChatStream({
   const [composer, setComposer] = useState("");
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
-  const [streamSteps, setStreamSteps] = useState<StreamStep[] | null>(null);
 
   const streamAbortRef = useRef<AbortController | null>(null);
   const skipNextFetchRef = useRef(false);
@@ -248,12 +241,6 @@ export function useChatStream({
         const controller = new AbortController();
         streamAbortRef.current = controller;
 
-        setStreamSteps([
-          { id: "thinking", label: "Thinking", status: "active" },
-          { id: "webSearch", label: "Web search", status: "pending" },
-          { id: "analyzing", label: "Analyzing", status: "pending" },
-        ]);
-
         const stream = await runWithSession((accessToken) =>
           apiClient.streamMessage(
             readyChatId,
@@ -282,7 +269,6 @@ export function useChatStream({
           }
 
           if (event.type === "token") {
-            setStreamSteps(null);
             setMessages((previous) =>
               previous.map((message) => {
                 const isAssistant = message._id === assistantMessageId || (persistedAssistantId && message._id === persistedAssistantId);
@@ -291,7 +277,7 @@ export function useChatStream({
                 if (newContent.startsWith(prompt)) {
                   newContent = newContent.slice(prompt.length);
                 }
-                return { ...message, content: newContent };
+                return { ...message, content: newContent, activeTool: undefined };
               })
             );
             return;
@@ -312,25 +298,12 @@ export function useChatStream({
           }
 
           if (event.type === "tool_start") {
-            const isWebSearch = event.tool === "web_search";
-            if (isWebSearch) {
-              setStreamSteps((prev) =>
-                prev
-                  ? prev.map((step) =>
-                      step.id === "thinking"
-                        ? { ...step, status: "complete" }
-                        : step.id === "webSearch"
-                        ? { ...step, status: "active" }
-                        : step
-                    )
-                  : null
-              );
-            }
             setMessages((previous) =>
               previous.map((message) =>
                 message._id === assistantMessageId || (persistedAssistantId && message._id === persistedAssistantId)
                   ? {
                       ...message,
+                      activeTool: event.tool,
                       usedTools: mergeUsedTools(message.usedTools, {
                         name: event.tool,
                       }),
@@ -342,22 +315,12 @@ export function useChatStream({
           }
 
           if (event.type === "tool_result") {
-            setStreamSteps((prev) =>
-              prev
-                ? prev.map((step) =>
-                    step.id === "webSearch"
-                      ? { ...step, status: "complete" }
-                      : step.id === "analyzing"
-                      ? { ...step, status: "active" }
-                      : step
-                  )
-                : null
-            );
             setMessages((previous) =>
               previous.map((message) =>
                 message._id === assistantMessageId || (persistedAssistantId && message._id === persistedAssistantId)
                   ? {
                       ...message,
+                      activeTool: undefined,
                       usedTools: mergeUsedTools(message.usedTools, {
                         name: event.tool,
                         output: event.output,
@@ -370,7 +333,6 @@ export function useChatStream({
           }
 
           if (event.type === "done") {
-            setStreamSteps(null);
             if (event.resume && onResumeUpdated) {
               onResumeUpdated(event.resume);
             }
@@ -397,6 +359,7 @@ export function useChatStream({
                         )
                       : message.usedTools,
                     isStreaming: false,
+                    activeTool: undefined,
                   };
                 }
                 if (persistedUserId && message._id === userMessageId) {
@@ -419,6 +382,7 @@ export function useChatStream({
                 ...message,
                 _id: persistedAssistantId ?? message._id,
                 isStreaming: false,
+                activeTool: undefined,
                 content:
                   message.content.trim() ||
                   "I could not generate a response for that prompt.",
@@ -444,12 +408,12 @@ export function useChatStream({
                     ...entry,
                     _id: persistedAssistantId ?? entry._id,
                     isStreaming: false,
+                    activeTool: undefined,
                     content: entry.content.trim() || "Generation stopped.",
                   }
                 : entry
             )
           );
-          setStreamSteps(null);
           return;
         }
 
@@ -463,6 +427,7 @@ export function useChatStream({
                   ...entry,
                   _id: persistedAssistantId ?? entry._id,
                   isStreaming: false,
+                  activeTool: undefined,
                   content: entry.content.trim() || `Request failed: ${message}`,
                 }
               : entry
@@ -473,7 +438,6 @@ export function useChatStream({
         replacementRef.current = undefined;
         skipNextFetchRef.current = true;
         isSendingRef.current = false;
-        setStreamSteps(null);
         setIsSending(false);
       }
     },
@@ -561,7 +525,6 @@ export function useChatStream({
     setMessages([]);
     setIsSending(false);
     setIsLoadingMessages(false);
-    setStreamSteps(null);
   }, []);
 
   return {
@@ -571,7 +534,6 @@ export function useChatStream({
     setComposer,
     isLoadingMessages,
     isSending,
-    streamSteps,
     handleSendPrompt,
     handleEditMessage,
     handleRegenerateMessage,

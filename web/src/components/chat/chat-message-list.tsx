@@ -31,7 +31,7 @@ import remarkBreaks from "remark-breaks";
 import toast from "react-hot-toast";
 import { CodeBlock } from "@/components/ui/code-block";
 import { CitationMarker } from "@/components/chat/citation-popover";
-import { StreamStatus } from "@/components/chat/stream-status";
+import { ChatLoadingIndicator } from "@/components/chat/chat-loading-indicator";
 import { cn } from "@/lib/utils";
 import { ChatMessage, MessageSource, ModelInfo } from "@/lib/types";
 import { formatSourceHost, formatTime } from "@/lib/chat-utils";
@@ -41,7 +41,7 @@ interface ChatMessageListProps {
   isLoadingMessages: boolean;
   chatError: string | null;
   availableModels: ModelInfo[];
-  streamSteps: { id: "thinking" | "webSearch" | "analyzing"; label: string; status: "pending" | "active" | "complete" }[] | null;
+  streamSteps?: { id: "thinking" | "webSearch" | "analyzing"; label: string; status: "pending" | "active" | "complete" }[] | null;
   onEditMessage: (message: ChatMessage) => void;
   onRegenerateMessage: (message: ChatMessage, userMessage: ChatMessage) => void;
   onOpenResume?: () => void;
@@ -52,7 +52,6 @@ export const ChatMessageList = memo(function ChatMessageList({
   isLoadingMessages,
   chatError,
   availableModels,
-  streamSteps,
   onEditMessage,
   onRegenerateMessage,
   onOpenResume,
@@ -174,9 +173,16 @@ export const ChatMessageList = memo(function ChatMessageList({
                 ) : (
                   /* ── AI response: formatted text with rich typography ── */
                   <div className="w-full max-w-none">
-                    {message.isStreaming && streamSteps && (
-                      <StreamStatus steps={streamSteps} className="mb-3" />
-                    )}
+                    {message.isStreaming && !displayContent.trim() ? (
+                      <ChatLoadingIndicator
+                        hasWebSearch={
+                          message.activeTool === "web_search" ||
+                          message.usedTools?.some((t) => t.name === "web_search") ||
+                          Boolean(message.sources && message.sources.length > 0)
+                        }
+                        activeTool={message.activeTool}
+                      />
+                    ) : null}
                     {displayContent ? (
                       <div className="chat-markdown max-w-none text-[15px] leading-relaxed text-(--chat-ai-text)">
                         <CitationAwareContent
@@ -253,13 +259,6 @@ export const ChatMessageList = memo(function ChatMessageList({
                             {tool.name}
                           </span>
                         ))}
-                      </div>
-                    ) : null}
-
-                    {message.isStreaming ? (
-                      <div className="mt-3 inline-flex items-center gap-2 text-xs text-(--chat-loading)">
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        thinking...
                       </div>
                     ) : null}
 
