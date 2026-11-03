@@ -152,13 +152,26 @@ export type StreamEvent =
 
 // -- MCP types --
 
+export type McpServerType = "custom" | "cloud";
+
 export interface McpServer {
   _id: string;
   userId: string;
   name: string;
-  command: string;
-  args: string[];
-  env: Record<string, string>;
+  serverType?: McpServerType;
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  cloudConnectorId?: string;
+  cloudConfig?: Record<string, unknown>;
+  authType?: string;
+  metadata?: {
+    icon?: string;
+    description?: string;
+    category?: string;
+    provider?: string;
+    badge?: string;
+  };
   isActive: boolean;
   lastConnectedAt?: string;
   lastError?: string;
@@ -186,4 +199,53 @@ export interface McpTool {
 
 export interface ListMcpToolsResponse {
   tools: McpTool[];
+}
+
+export interface CloudConnectorParam {
+  key: string;
+  label: string;
+  type: "text" | "password" | "textarea" | "select";
+  placeholder?: string;
+  description?: string;
+  required?: boolean;
+  default?: string;
+  options?: Array<{ label: string; value: string }>;
+}
+
+export interface CloudConnector {
+  id: string;
+  name: string;
+  provider: string;
+  tagline: string;
+  description: string;
+  category: "Databases" | "Developer Tools" | "Productivity";
+  icon: string;
+  badge?: string;
+  authTypes: Array<"oauth" | "api_key" | "connection_string" | "none">;
+  defaultAuthType: "oauth" | "api_key" | "connection_string" | "none";
+  features: string[];
+  samplePrompts: string[];
+  configFields: CloudConnectorParam[];
+  authFields: CloudConnectorParam[];
+  supportsOneClickOAuth: boolean;
+  defaultTools: McpTool[];
+  isConnected?: boolean;
+  connectedServerId?: string;
+  serverName?: string;
+  lastConnectedAt?: string;
+  installedConfig?: Record<string, unknown>;
+}
+
+export interface MarketplaceResponse {
+  connectors: CloudConnector[];
+  totalCount: number;
+  connectedCount: number;
+}
+
+export interface ConnectCloudPayload {
+  connectorId: string;
+  name?: string;
+  authType?: "oauth" | "api_key" | "connection_string" | "none";
+  authData?: Record<string, string>;
+  cloudConfig?: Record<string, unknown>;
 }

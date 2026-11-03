@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import {
   ArrowLeft,
+  Cloud,
   Code2,
   Loader2,
   Pencil,
@@ -19,6 +20,7 @@ import { apiClient } from "@/lib/api";
 import type { McpServer, McpServerFormData } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { McpServerForm } from "./mcp-server-form";
+import { McpMarketplace } from "./mcp-marketplace";
 
 interface ToolItem {
   name: string;
@@ -45,6 +47,7 @@ export function McpServerList({
   onServersChange,
   onBack,
 }: McpServerListProps) {
+  const [activeTab, setActiveTab] = useState<"marketplace" | "custom">("marketplace");
   const [servers, setServers] = useState<McpServer[]>([]);
   const [loading, setLoading] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
@@ -180,6 +183,22 @@ export function McpServerList({
     }
   };
 
+  if (activeTab === "marketplace") {
+    return (
+      <McpMarketplace
+        accessToken={accessToken}
+        runWithSession={runWithSession}
+        refreshTokens={refreshTokens}
+        onServersChange={(newServers) => {
+          setServers(newServers);
+          onServersChange?.(newServers);
+        }}
+        onSwitchToCustom={() => setActiveTab("custom")}
+        onBack={onBack}
+      />
+    );
+  }
+
   return (
     <div className="flex-1 overflow-y-auto bg-(--chat-bg) text-(--chat-text)">
       <div className="mx-auto max-w-4xl px-4 py-5 sm:py-8 md:px-8">
@@ -199,25 +218,37 @@ export function McpServerList({
             )}
             <div>
               <h1 className="text-lg font-bold tracking-tight text-(--chat-text) sm:text-xl">
-                MCP Connectors
+                Custom STDIO Connectors
               </h1>
               <p className="mt-1 max-w-[25rem] text-xs leading-4 text-(--chat-text-muted)">
-                Connect external Model Context Protocol tools and servers to your chats.
+                Advanced: configure local command-line subprocesses and custom arguments.
               </p>
             </div>
           </div>
 
-          <Button
-            type="button"
-            onClick={() => {
-              setEditingServer(null);
-              setFormOpen(true);
-            }}
-            disabled={loading}
-            className="shrink-0 gap-1.5"
-          >
-            <Plus className="h-4 w-4" /> Add Server
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setActiveTab("marketplace")}
+              className="gap-1.5 text-xs border-(--chat-dropdown-border) text-indigo-400 hover:text-indigo-300"
+            >
+              <Cloud className="h-3.5 w-3.5" />
+              Cloud Marketplace
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setEditingServer(null);
+                setFormOpen(true);
+              }}
+              disabled={loading}
+              className="shrink-0 gap-1.5"
+            >
+              <Plus className="h-4 w-4" /> Add Server
+            </Button>
+          </div>
         </div>
 
         {/* Content */}
@@ -300,12 +331,12 @@ export function McpServerList({
                         <span className="rounded bg-(--chat-bg) px-2 py-0.5 border border-(--chat-dropdown-border) text-(--chat-brand)">
                           {server.command}
                         </span>
-                        {server.args.length > 0 && (
+                        {server.args && server.args.length > 0 && (
                           <span className="min-w-0 max-w-full flex-1 truncate text-(--chat-text-secondary) sm:max-w-md">
                             {server.args.join(" ")}
                           </span>
                         )}
-                        {Object.keys(server.env || {}).length > 0 && (
+                        {server.env && Object.keys(server.env).length > 0 && (
                           <span className="text-[11px] text-(--chat-text-faint)">
                             • {Object.keys(server.env).length} env var(s)
                           </span>

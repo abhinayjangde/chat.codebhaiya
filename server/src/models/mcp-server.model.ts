@@ -1,22 +1,37 @@
 import mongoose from "mongoose";
 import type { HydratedDocument, Model } from "mongoose";
 
+export type McpServerType = "custom" | "cloud";
+
 export interface IMcpServer {
   _id: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
   name: string;
-  command: string;
-  args: string[];
-  env: Record<string, string>;
+  serverType: McpServerType;
+  command?: string | undefined;
+  args?: string[] | undefined;
+  env?: Record<string, string> | undefined;
+  cloudConnectorId?: string | undefined;
+  cloudConfig?: Record<string, unknown> | undefined;
+  authType?: "oauth" | "api_key" | "connection_string" | "none" | undefined;
+  authData?: Record<string, string> | undefined;
+  metadata?: {
+    icon?: string | undefined;
+    description?: string | undefined;
+    category?: string | undefined;
+    provider?: string | undefined;
+    accountName?: string | undefined;
+    badge?: string | undefined;
+  } | undefined;
   isActive: boolean;
-  lastConnectedAt?: Date;
-  lastError?: string;
+  lastConnectedAt?: Date | undefined;
+  lastError?: string | undefined;
   createdAt: Date;
   updatedAt: Date;
 }
 
 type McpServerModel = Model<IMcpServer, {}, {}>;
-type McpServerDocument = HydratedDocument<IMcpServer>;
+export type McpServerDocument = HydratedDocument<IMcpServer>;
 
 const mcpServerSchema = new mongoose.Schema<IMcpServer, McpServerModel>(
   {
@@ -33,11 +48,14 @@ const mcpServerSchema = new mongoose.Schema<IMcpServer, McpServerModel>(
       minlength: 2,
       maxlength: 100,
     },
+    serverType: {
+      type: String,
+      enum: ["custom", "cloud"],
+      default: "custom",
+    },
     command: {
       type: String,
-      required: true,
       trim: true,
-      minlength: 1,
     },
     args: {
       type: [String],
@@ -46,6 +64,28 @@ const mcpServerSchema = new mongoose.Schema<IMcpServer, McpServerModel>(
     env: {
       type: Map,
       of: String,
+      default: {},
+    },
+    cloudConnectorId: {
+      type: String,
+      trim: true,
+    },
+    cloudConfig: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    authType: {
+      type: String,
+      enum: ["oauth", "api_key", "connection_string", "none"],
+      default: "none",
+    },
+    authData: {
+      type: Map,
+      of: String,
+      default: {},
+    },
+    metadata: {
+      type: mongoose.Schema.Types.Mixed,
       default: {},
     },
     isActive: {
@@ -66,6 +106,7 @@ const mcpServerSchema = new mongoose.Schema<IMcpServer, McpServerModel>(
 
 // A user can have multiple servers but each name should be unique per user.
 mcpServerSchema.index({ userId: 1, name: 1 }, { unique: true });
+mcpServerSchema.index({ userId: 1, cloudConnectorId: 1 });
 
 export const McpServer = mongoose.model<IMcpServer, McpServerModel>(
   "McpServer",

@@ -156,6 +156,11 @@ export function PromptToolsMenu({
                                 )}
                               />
                               <span className="truncate">{server.name}</span>
+                              {server.serverType === "cloud" && (
+                                <span className="rounded bg-indigo-500/10 border border-indigo-500/20 px-1 py-0.2 text-[9px] font-medium text-indigo-400">
+                                  Cloud
+                                </span>
+                              )}
                             </span>
                             {selected && <Check className="h-3.5 w-3.5 shrink-0" />}
                           </button>

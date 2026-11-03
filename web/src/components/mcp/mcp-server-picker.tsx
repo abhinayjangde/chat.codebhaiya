@@ -169,7 +169,7 @@ export function McpServerPicker({
                         />
                         <span className="truncate">{server.name}</span>
                         <span className="text-[10px] text-(--chat-text-faint) font-mono truncate">
-                          {server.command}
+                          {server.serverType === "cloud" ? "☁️ cloud" : server.command}
                         </span>
                       </div>
                       {isChecked && (

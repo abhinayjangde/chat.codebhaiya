@@ -707,9 +707,119 @@ Both endpoints return `404` when the document does not exist or belongs to anoth
 
 ---
 
-## MCP Connectors
+## MCP Connectors & Managed Cloud Marketplace
 
-Users can connect to external Model Context Protocol (MCP) servers so the AI agent can call their tools during chats. MCP servers are configured per-user via `command` + `args` (stdio transport) and optional environment variables.
+Users can connect to external Model Context Protocol (MCP) servers so the AI agent can call their tools during chats.
+The platform supports two deployment models:
+1. **1-Click Managed Cloud Connectors (Zero Terminal Setup)**: Pre-authenticated, cloud-hosted connectors (GitHub Issues, PostgreSQL, MongoDB Atlas, Supabase, Linear, Notion) that users can toggle with OAuth/1-click, requiring no local terminal, CLI, npx, or stdio commands.
+2. **Custom STDIO Servers**: Advanced configurations where power users configure a local process (`command` + `args` + `env`).
+
+### GET /mcp/marketplace
+List all available Managed Cloud MCP connectors from the cloud marketplace catalog along with their connection status for the authenticated user.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "connectors": [
+      {
+        "id": "github",
+        "name": "GitHub Issues & Code",
+        "provider": "GitHub",
+        "tagline": "Track issues, inspect repos, and automate developer workflows.",
+        "description": "Connect your GitHub account...",
+        "category": "Developer Tools",
+        "icon": "github",
+        "badge": "1-Click OAuth",
+        "authTypes": ["oauth", "api_key"],
+        "defaultAuthType": "oauth",
+        "supportsOneClickOAuth": true,
+        "features": ["List open and closed issues", "Create new issues", "Add comments"],
+        "samplePrompts": ["Show all open high-priority issues in my repo"],
+        "isConnected": true,
+        "connectedServerId": "65a1b2c3d4e5f6g7h8i9j0k1",
+        "serverName": "GitHub Issues & Code"
+      }
+    ],
+    "totalCount": 6,
+    "connectedCount": 1
+  }
+}
+```
+
+### POST /mcp/marketplace/connect
+1-Click zero-terminal connection to a managed cloud MCP connector (e.g. GitHub, Postgres, MongoDB Atlas, Supabase, Linear, Notion).
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "connectorId": "postgres",
+  "name": "Production PostgreSQL",
+  "authType": "connection_string",
+  "cloudConfig": {
+    "connectionString": "postgresql://user:pass@host:5432/dbname"
+  }
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Successfully connected PostgreSQL Database!",
+  "data": {
+    "server": {
+      "_id": "65a1b2c3d4e5f6g7h8i9j0k1",
+      "name": "Production PostgreSQL",
+      "serverType": "cloud",
+      "cloudConnectorId": "postgres",
+      "isActive": true
+    },
+    "toolCount": 3,
+    "tools": [
+      { "name": "postgres_query", "description": "Execute a SQL query against PostgreSQL" },
+      { "name": "postgres_list_tables", "description": "List all user tables" },
+      { "name": "postgres_describe_table", "description": "Inspect column schemas" }
+    ]
+  }
+}
+```
+
+### POST /mcp/marketplace/disconnect/:connectorId
+1-Click disconnect / remove a cloud connector.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Disconnected postgres connector."
+}
+```
+
+### GET /mcp/marketplace/oauth/init/:connectorId
+Initiate 1-click cloud OAuth handshake for supported providers.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+```
 
 ### GET /mcp/servers
 List the authenticated user's MCP server configurations.

@@ -10,7 +10,8 @@ import { McpServer } from "../models/mcp-server.model.js";
 import {
   mcpClientRegistry,
   buildLangChainTools,
-  McpClient,
+  createMcpClient,
+  type IMcpClient,
   type McpTool,
 } from "./mcp.js";
 import { ObjectId } from "mongodb";
@@ -304,7 +305,7 @@ export async function getAgent(
 
   // 4. Build the tool list: built-in web search + MCP server tools.
   const tools: any[] = [webSearchTool];
-  const mcpClients = new Map<string, McpClient>();
+  const mcpClients = new Map<string, IMcpClient>();
   let mcpToolDescriptions: string[] = [];
 
   try {
@@ -314,14 +315,12 @@ export async function getAgent(
       }).lean();
 
       for (const server of servers) {
-        const client = new McpClient(
-          server._id.toString(),
-          server.name,
-          server.command,
-          server.args,
-          server.env
-        );
-        await client.connect();
+        let client = mcpClientRegistry.get(server._id.toString());
+        if (!client || !client.isConnected) {
+          client = createMcpClient(server as any);
+          await client.connect();
+          mcpClientRegistry.set(server._id.toString(), client);
+        }
         mcpClients.set(server._id.toString(), client);
 
         const mcpTools = await client.listTools();
@@ -348,16 +347,6 @@ When calling an MCP tool, pass arguments that match the tool's input schema. Aft
     // If MCP setup fails, continue with just the built-in tools rather than
     // failing the whole request. Surface a warning so it's visible in logs.
     console.error("MCP tool setup failed, continuing without MCP tools:", error);
-  } finally {
-    // Disconnect all MCP clients created for this agent run.
-    for (const [serverId, client] of mcpClients) {
-      try {
-        await client.disconnect();
-      } catch {
-        // ignore
-      }
-      mcpClientRegistry.delete(serverId);
-    }
   }
 
   // 5. Create and return the agent

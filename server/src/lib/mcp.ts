@@ -4,6 +4,7 @@ import { Tool } from "@langchain/core/tools";
 import { tool } from "@langchain/core/tools";
 import * as z from "zod";
 import { env } from "../config/env.js";
+import { CloudMcpClient } from "./cloud-mcp/cloud-client.js";
 
 /**
  * Shape of a tool advertised by an MCP server (from `listTools`).
@@ -19,22 +20,46 @@ export interface McpTool {
 }
 
 /**
+ * Common interface shared by STDIO MCP clients and Managed Cloud MCP clients.
+ */
+export interface IMcpClient {
+  serverId: string;
+  name: string;
+  connect(): Promise<void>;
+  listTools(): Promise<McpTool[]>;
+  callTool(
+    toolName: string,
+    args: Record<string, unknown>
+  ): Promise<{
+    content: Array<{ type: string; text?: string | undefined }>;
+    isError?: boolean | undefined;
+  }>;
+  disconnect(): Promise<void>;
+  get isConnected(): boolean;
+}
+
+/**
  * Represents a configured MCP server for a user.
  */
 export interface McpServerConfig {
   id: string;
   userId: string;
   name: string;
-  command: string;
-  args: string[];
-  env: Record<string, string>;
+  serverType?: "custom" | "cloud";
+  command?: string;
+  args?: string[];
+  env?: Record<string, string>;
+  cloudConnectorId?: string;
+  cloudConfig?: Record<string, unknown>;
+  authData?: Record<string, string>;
+  authType?: "oauth" | "api_key" | "connection_string" | "none";
   isActive: boolean;
 }
 
 /**
  * Thin wrapper over an MCP stdio client + its advertised tools.
  */
-export class McpClient {
+export class McpClient implements IMcpClient {
   private client: Client;
   private transport: StdioClientTransport | null = null;
   private connected = false;
@@ -57,6 +82,11 @@ export class McpClient {
    */
   async connect(): Promise<void> {
     if (this.connected) return;
+
+    this.client = new Client({
+      name: "codebhaiya-mcp-client",
+      version: "1.0.0",
+    });
 
     // Build the environment: inherit process env and overlay server-specific vars.
     const mergedEnv: Record<string, string> = {
@@ -212,17 +242,62 @@ export class McpClient {
 }
 
 /**
+ * Creates an IMcpClient instance based on serverType (custom stdio or managed cloud).
+ */
+export function createMcpClient(server: {
+  _id: { toString(): string } | string;
+  name: string;
+  serverType?: "custom" | "cloud" | undefined;
+  command?: string | undefined;
+  args?: string[] | undefined;
+  env?: Record<string, string> | Map<string, string> | undefined;
+  cloudConnectorId?: string | undefined;
+  cloudConfig?: Record<string, unknown> | undefined;
+  authData?: Record<string, string> | Map<string, string> | undefined;
+  authType?: "oauth" | "api_key" | "connection_string" | "none" | undefined;
+  userId?: { toString(): string } | string | undefined;
+}): IMcpClient {
+  if (server.serverType === "cloud" && server.cloudConnectorId) {
+    const authDataObj: Record<string, string> =
+      server.authData instanceof Map
+        ? Object.fromEntries(server.authData.entries())
+        : (server.authData ?? {});
+    return new CloudMcpClient(
+      server._id.toString(),
+      server.name,
+      server.cloudConnectorId,
+      server.cloudConfig ?? {},
+      authDataObj,
+      (server.authType as any) ?? "oauth",
+      server.userId?.toString()
+    );
+  }
+
+  const envObj: Record<string, string> =
+    server.env instanceof Map
+      ? Object.fromEntries(server.env.entries())
+      : (server.env ?? {});
+
+  return new McpClient(
+    server._id.toString(),
+    server.name,
+    server.command || "npx",
+    server.args || [],
+    envObj
+  );
+}
+
+/**
  * Registry of active MCP clients keyed by server id.
- * Connections are short-lived: created per request and closed after the agent run.
  */
 export class McpClientRegistry {
-  private clients = new Map<string, McpClient>();
+  private clients = new Map<string, IMcpClient>();
 
-  get(serverId: string): McpClient | undefined {
+  get(serverId: string): IMcpClient | undefined {
     return this.clients.get(serverId);
   }
 
-  set(serverId: string, client: McpClient): void {
+  set(serverId: string, client: IMcpClient): void {
     this.clients.set(serverId, client);
   }
 
@@ -247,14 +322,14 @@ export const mcpClientRegistry = new McpClientRegistry();
  * Maximum number of MCP servers a user may have connected at once.
  */
 export const MAX_MCP_SERVERS_PER_USER =
-  (env.MAX_MCP_SERVERS_PER_USER as number | undefined) ?? 5;
+  (env.MAX_MCP_SERVERS_PER_USER as number | undefined) ?? 10;
 
 /**
  * Build LangChain tools from a list of MCP tool definitions.
  * Each MCP tool is wrapped so its arguments are forwarded to the MCP server.
  */
 export function buildLangChainTools(
-  clients: Map<string, McpClient>,
+  clients: Map<string, IMcpClient>,
   mcpTools: Array<{ serverId: string; tool: McpTool }>
 ): Tool[] {
   return mcpTools.map(({ serverId, tool: mcpTool }) => {
