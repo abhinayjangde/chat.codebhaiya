@@ -35,6 +35,10 @@ import {
   SunMoon,
   Languages,
   Trash2,
+  ThumbsDown,
+  ThumbsUp,
+  AlertTriangle,
+  Megaphone,
   User,
   X,
   SlidersHorizontal,
@@ -1021,7 +1025,7 @@ export const ChatSidebar = memo(function ChatSidebar({
                         // Mobile: inline accordion expansion
                         "w-full bg-(--chat-dropdown-hover)/40 py-1 my-0.5 space-y-0.5",
                         // Desktop: flyout submenu to the right
-                        "md:absolute md:left-full md:-top-32 md:z-60 md:ml-1 md:w-50 md:space-y-0 md:bg-(--chat-dropdown) md:my-0 md:py-1.5 md:rounded-xl md:border md:border-(--chat-dropdown-border) md:shadow-2xl md:before:absolute md:before:-left-2 md:before:top-0 md:before:bottom-0 md:before:w-2"
+                        "md:absolute md:left-full md:-top-40 md:z-60 md:ml-1 md:w-50 md:space-y-0 md:bg-(--chat-dropdown) md:my-0 md:py-1.5 md:rounded-xl md:border md:border-(--chat-dropdown-border) md:shadow-2xl md:before:absolute md:before:-left-2 md:before:top-0 md:before:bottom-0 md:before:w-2"
                       )}
                     >
                       <Link
@@ -1065,8 +1069,23 @@ export const ChatSidebar = memo(function ChatSidebar({
                           setSettingsMenuOpen(false);
                         }}
                       >
-                        <MessageCircle className="h-[16px] w-[16px] text-(--chat-label)" />
-                        Send feedback
+                        <span className="flex items-center gap-1 text-(--chat-label)">
+                          <Megaphone className="h-[16px] w-[16px]" />
+                        </span>
+                        Feedback
+                      </button>
+                      <button
+                        type="button"
+                        className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text) hover:cursor-pointer md:py-2.5"
+                        onClick={() => {
+                          setActiveSubmenu(null);
+                          setSettingsMenuOpen(false);
+                        }}
+                      >
+                        <span className="flex items-center gap-1 text-(--chat-label)">
+                          <AlertTriangle className="h-[16px] w-[16px]" />
+                        </span>
+                        Report a bug
                       </button>
                     </div>
                   )}
