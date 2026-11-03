@@ -6,6 +6,7 @@ import { createAgent } from "langchain";
 import { type Tool } from "@langchain/core/tools";
 import { env } from "../config/env.js";
 import { webSearchTool } from "./tools.js";
+import { createResumeTool } from "./resume-tool.js";
 import { McpServer } from "../models/mcp-server.model.js";
 import {
   mcpClientRegistry,
@@ -208,11 +209,35 @@ export async function autoSelectModel(message: string, attachments?: Attachment[
   } catch (err) {
     console.error("Auto model selection classification failed, falling back to heuristic", err);
     // Fallback heuristic
-    const complexKeywords = ['debug', 'react', 'python', 'javascript', 'typescript', 'architecture', 'refactor', 'code', 'database', 'sql', 'algorithm'];
+    const complexKeywords = [
+      "debug",
+      "react",
+      "python",
+      "javascript",
+      "typescript",
+      "architecture",
+      "refactor",
+      "code",
+      "database",
+      "sql",
+      "algorithm",
+      "resume",
+      "cv",
+      "curriculum vitae",
+      "cover letter",
+      "portfolio",
+      "job description",
+    ];
     const lowerMsg = message.toLowerCase();
     const isComplex = complexKeywords.some(kw => lowerMsg.includes(kw));
     return isComplex ? heavyModel : cheapModel;
   }
+}
+
+export interface GetAgentOptions {
+  chatId?: string;
+  userId?: string;
+  onResumeUpdated?: (resume: any) => void;
 }
 
 /**
@@ -222,12 +247,15 @@ export async function autoSelectModel(message: string, attachments?: Attachment[
  * @param mcpServerIds - Optional MCP server ids whose tools should be attached
  *   to the agent. Servers are fetched from the DB, connected, and their tools
  *   merged with the built-in web search tool.
+ * @param options - Optional context parameters (chatId, userId, onResumeUpdated)
+ *   enabling the resume building tool and real-time synchronization.
  */
 export async function getAgent(
   modelId?: string,
   language: string = "english",
   customInstructions?: string,
-  mcpServerIds: string[] = []
+  mcpServerIds: string[] = [],
+  options?: GetAgentOptions
 ) {
   const resolvedModelId = modelId ?? DEFAULT_MODEL;
 
@@ -303,8 +331,11 @@ export async function getAgent(
     `;
   }
 
-  // 4. Build the tool list: built-in web search + MCP server tools.
+  // 4. Build the tool list: built-in web search + resume tool + MCP server tools.
   const tools: any[] = [webSearchTool];
+  if (options?.chatId && options?.userId) {
+    tools.push(createResumeTool(options.chatId, options.userId, options.onResumeUpdated));
+  }
   const mcpClients = new Map<string, IMcpClient>();
   let mcpToolDescriptions: string[] = [];
 
@@ -354,6 +385,19 @@ When calling an MCP tool, pass arguments that match the tool's input schema. Aft
     ? `\n\nUser's custom instructions:\n${customInstructions.trim()}`
     : "";
 
+  const resumeInstructions = options?.chatId && options?.userId
+    ? `
+Resume Building & Deep Research Capability:
+- You have the 'save_or_update_resume' tool to create, update, and refine the user's resume in the live side-by-side preview panel.
+- When the user asks to build or update a resume, or provides their profile, career details, target role, or attaches a PDF:
+  1. Deep Research: Identify the target job title, seniority level, and target company/industry. If relevant, use 'web_search' to discover current high-impact ATS keywords, required technologies, and industry expectations.
+  2. Information Extraction: Extract all past achievements, skills, and details from the user's prompt and any attached PDF context.
+  3. Action Formulation: Formulate quantifiable, high-impact bullet points using the Google XYZ formula ("Accomplished [X] by doing [Z], resulting in [Y]").
+  4. Instant Synchronization: ALWAYS call the 'save_or_update_resume' tool with the complete structured JSON object so it immediately updates the user's side-by-side preview panel!
+  5. Chat Summary: In your chat response, concisely explain the research findings, key ATS keywords you infused, and how you strategically optimized their resume.
+`
+    : "";
+
   return createAgent({
     model: llm,
     tools,
@@ -361,6 +405,7 @@ When calling an MCP tool, pass arguments that match the tool's input schema. Aft
 Current model: ${config.displayName}
 
 ${languageInstructions}
+${resumeInstructions}
 
 When answering questions about current events, news, or time-sensitive information, use the web_search tool to get up-to-date information.
 

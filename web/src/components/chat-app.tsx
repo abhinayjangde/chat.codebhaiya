@@ -1,10 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, PanelLeft } from "lucide-react";
+import { Loader2, PanelLeft, Sparkles } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { getTimeGreeting, firstName } from "@/lib/greeting";
+import { apiClient } from "@/lib/api";
+import type { IResumeDoc } from "@/lib/types";
 
 import { useAuthSession } from "@/hooks/use-auth-session";
 import { useChatHistory } from "@/hooks/use-chat-history";
@@ -16,6 +18,8 @@ import { ChatComposer } from "@/components/chat/chat-composer";
 import { ChatAuthForm } from "@/components/chat/chat-auth-form";
 import { DocumentLibrary } from "@/components/documents/document-library";
 import { McpServerList } from "@/components/mcp/mcp-server-list";
+import { ResumeSidePanel } from "@/components/resume/resume-side-panel";
+import { ResumeWizardModal } from "@/components/resume/resume-wizard-modal";
 
 export function ChatApp() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -23,6 +27,12 @@ export function ChatApp() {
   const [showDocuments, setShowDocuments] = useState(false);
   const [showMcpSettings, setShowMcpSettings] = useState(false);
   const [greeting, setGreeting] = useState(getTimeGreeting());
+
+  // Resume Builder state
+  const [resume, setResume] = useState<IResumeDoc | null>(null);
+  const [resumeSidePanelOpen, setResumeSidePanelOpen] = useState(false);
+  const [resumeFullscreen, setResumeFullscreen] = useState(false);
+  const [showResumeWizard, setShowResumeWizard] = useState(false);
 
   const { theme, setTheme } = useTheme();
 
@@ -86,6 +96,11 @@ export function ChatApp() {
     setUser,
   });
 
+  const handleResumeUpdated = useCallback((updated: IResumeDoc) => {
+    setResume(updated);
+    setResumeSidePanelOpen(true);
+  }, []);
+
   // Streaming & Message Generation
   const {
     messages,
@@ -114,7 +129,33 @@ export function ChatApp() {
     collectionId,
     selectedMcpServerIds,
     setChatError,
+    onResumeUpdated: handleResumeUpdated,
   });
+
+  // Fetch resume for active chat session
+  useEffect(() => {
+    if (!tokens || !activeChatId) return;
+
+    let cancelled = false;
+    void runWithSession((token) => apiClient.getResume(activeChatId, token))
+      .then((data) => {
+        if (!cancelled) {
+          setResume(data);
+          if (data) {
+            setResumeSidePanelOpen(true);
+          }
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setResume(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tokens, activeChatId, runWithSession]);
 
   // Keep greeting in sync with local time
   useEffect(() => {
@@ -131,6 +172,9 @@ export function ChatApp() {
     setShowDocuments(false);
     setShowMcpSettings(false);
     setActiveChatId(null);
+    setResume(null);
+    setResumeSidePanelOpen(false);
+    setResumeFullscreen(false);
     clearStreaming();
     setChatError(null);
     setMobileSidebarOpen(false);
@@ -182,7 +226,7 @@ export function ChatApp() {
   }
 
   return (
-    <div className="relative flex h-screen overflow-hidden bg-(--chat-bg) text-(--chat-text)">
+    <div className="relative flex h-screen overflow-hidden bg-(--chat-bg) text-(--chat-text) print:h-auto print:overflow-visible print:bg-white print:block">
       <ChatSidebar
         sidebarOpen={sidebarOpen}
         setSidebarOpen={setSidebarOpen}
@@ -193,6 +237,8 @@ export function ChatApp() {
         onSelectChat={(chatId) => {
           setShowDocuments(false);
           setShowMcpSettings(false);
+          setResume(null);
+          setResumeSidePanelOpen(false);
           setActiveChatId(chatId);
         }}
         onNewChat={handleNewChat}
@@ -255,91 +301,142 @@ export function ChatApp() {
         ) : showDocuments ? (
           <DocumentLibrary embedded onBack={() => setShowDocuments(false)} />
         ) : (
-          <main className="flex-1 overflow-y-auto">
-            <ChatMessageList
-              messages={messages}
-              isLoadingMessages={isLoadingMessages}
-              chatError={chatError}
-              availableModels={availableModels}
-              streamSteps={streamSteps}
-              onEditMessage={handleEditMessage}
-              onRegenerateMessage={handleRegenerateMessage}
-            />
-
-            {messages.length === 0 && !isLoadingMessages && (
-              <div className="flex min-h-[calc(100vh-120px)] flex-col items-center justify-center">
-                <h2
-                  className="mb-10 text-center text-4xl font-light tracking-wide text-(--chat-brand)"
-                  style={{ fontFamily: "var(--font-fraunces), serif" }}
-                >
-                  {greeting}
-                  {user?.name ? `, ${firstName(user.name)}` : ""}
-                </h2>
-
-                <ChatComposer
-                  onSend={(msg, atts) => handleSendPrompt(msg, atts)}
-                  isSending={isSending}
-                  isBootstrapping={isBootstrapping}
+          <div className="flex flex-1 min-h-0 overflow-hidden print:block print:h-auto print:overflow-visible">
+            {/* Chat Column */}
+            <div
+              className={cn(
+                "flex flex-col min-w-0 flex-1 transition-all duration-200 print:hidden",
+                resumeSidePanelOpen && resume && activeChatId && (resumeFullscreen ? "hidden" : "md:w-1/2 lg:w-1/2 border-r border-border")
+              )}
+            >
+              <main className="flex-1 overflow-y-auto">
+                <ChatMessageList
+                  messages={messages}
+                  isLoadingMessages={isLoadingMessages}
+                  chatError={chatError}
                   availableModels={availableModels}
-                  selectedModel={selectedModel}
-                  onModelChange={setSelectedModel}
-                  onUploadFile={handleFileUpload}
-                  onDocumentStatus={handleDocumentStatus}
-                  variant="center"
-                  inputValue={composer}
-                  onInputChange={setComposer}
-                  mcpServers={mcpServers}
-                  selectedMcpServerIds={selectedMcpServerIds}
-                  onMcpServerIdsChange={setSelectedMcpServerIds}
+                  streamSteps={streamSteps}
+                  onEditMessage={handleEditMessage}
+                  onRegenerateMessage={handleRegenerateMessage}
+                  onOpenResume={() => setResumeSidePanelOpen(true)}
                 />
 
-                <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-                  {[
-                    { icon: "❤️", label: "Health" },
-                    { icon: "📋", label: "Plan" },
-                    { icon: "🔍", label: "Research" },
-                    { icon: "📰", label: "Latest News" },
-                    { icon: "📊", label: "Analyze" },
-                  ].map((chip) => (
-                    <button
-                      key={chip.label}
-                      type="button"
-                      className="inline-flex items-center gap-1.5 rounded-full border border-(--chat-chip-border) bg-transparent px-3.5 py-1.5 text-xs text-(--chat-chip-text) transition hover:border-(--chat-dropdown-border) hover:bg-(--chat-dropdown-hover) hover:text-(--chat-chip-text-hover)"
-                      onClick={() => {
-                        setComposer(chip.label + ": ");
-                      }}
+                {messages.length === 0 && !isLoadingMessages && (
+                  <div className="flex min-h-[calc(100vh-140px)] flex-col items-center justify-center">
+                    <h2
+                      className="mb-10 text-center text-4xl font-light tracking-wide text-(--chat-brand)"
+                      style={{ fontFamily: "var(--font-fraunces), serif" }}
                     >
-                      <span>{chip.icon}</span>
-                      {chip.label}
-                    </button>
-                  ))}
-                </div>
+                      {greeting}
+                      {user?.name ? `, ${firstName(user.name)}` : ""}
+                    </h2>
+
+                    <ChatComposer
+                      onSend={(msg, atts) => handleSendPrompt(msg, atts)}
+                      isSending={isSending}
+                      isBootstrapping={isBootstrapping}
+                      availableModels={availableModels}
+                      selectedModel={selectedModel}
+                      onModelChange={setSelectedModel}
+                      onUploadFile={handleFileUpload}
+                      onDocumentStatus={handleDocumentStatus}
+                      variant="center"
+                      inputValue={composer}
+                      onInputChange={setComposer}
+                      mcpServers={mcpServers}
+                      selectedMcpServerIds={selectedMcpServerIds}
+                      onMcpServerIdsChange={setSelectedMcpServerIds}
+                      onOpenResumeWizard={() => setShowResumeWizard(true)}
+                    />
+
+                    <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-(--chat-brand)/40 bg-(--chat-brand)/10 px-3.5 py-1.5 text-xs font-medium text-(--chat-brand) transition hover:bg-(--chat-brand)/20 cursor-pointer"
+                        onClick={() => setShowResumeWizard(true)}
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
+                        Build Resume
+                      </button>
+                      {[
+                        { icon: "❤️", label: "Health" },
+                        { icon: "📋", label: "Plan" },
+                        { icon: "🔍", label: "Research" },
+                        { icon: "📰", label: "Latest News" },
+                        { icon: "📊", label: "Analyze" },
+                      ].map((chip) => (
+                        <button
+                          key={chip.label}
+                          type="button"
+                          className="inline-flex items-center gap-1.5 rounded-full border border-(--chat-chip-border) bg-transparent px-3.5 py-1.5 text-xs text-(--chat-chip-text) transition hover:border-(--chat-dropdown-border) hover:bg-(--chat-dropdown-hover) hover:text-(--chat-chip-text-hover)"
+                          onClick={() => {
+                            setComposer(chip.label + ": ");
+                          }}
+                        >
+                          <span>{chip.icon}</span>
+                          {chip.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </main>
+
+              {messages.length > 0 && (
+                <footer className="bg-(--chat-bg) px-3 py-3 md:px-6">
+                  <ChatComposer
+                    onSend={(msg, atts) => handleSendPrompt(msg, atts)}
+                    onStop={handleStopStreaming}
+                    isSending={isSending}
+                    isBootstrapping={isBootstrapping}
+                    availableModels={availableModels}
+                    selectedModel={selectedModel}
+                    onModelChange={setSelectedModel}
+                    onUploadFile={handleFileUpload}
+                    onDocumentStatus={handleDocumentStatus}
+                    variant="footer"
+                    inputValue={composer}
+                    onInputChange={setComposer}
+                    mcpServers={mcpServers}
+                    selectedMcpServerIds={selectedMcpServerIds}
+                    onMcpServerIdsChange={setSelectedMcpServerIds}
+                    onOpenResumeWizard={() => setShowResumeWizard(true)}
+                  />
+                </footer>
+              )}
+            </div>
+
+            {/* Resume Side Panel Column */}
+            {resumeSidePanelOpen && resume && activeChatId && (
+              <div
+                className={cn(
+                  "min-w-0 flex flex-col transition-all duration-200 print:w-full print:block print:h-auto print:overflow-visible print:m-0 print:p-0",
+                  resumeFullscreen ? "flex-1 w-full" : "w-full md:w-1/2 lg:w-1/2"
+                )}
+              >
+                <ResumeSidePanel
+                  resume={resume}
+                  chatId={activeChatId}
+                  runWithSession={runWithSession}
+                  onClose={() => setResumeSidePanelOpen(false)}
+                  onResumeUpdated={setResume}
+                  isFullscreen={resumeFullscreen}
+                  onToggleFullscreen={() => setResumeFullscreen(!resumeFullscreen)}
+                />
               </div>
             )}
-          </main>
+          </div>
         )}
+      </div>
 
-        {!showMcpSettings && !showDocuments && messages.length > 0 && (
-          <footer className="bg-(--chat-bg) px-3 py-3 md:px-6">
-            <ChatComposer
-              onSend={(msg, atts) => handleSendPrompt(msg, atts)}
-              onStop={handleStopStreaming}
-              isSending={isSending}
-              isBootstrapping={isBootstrapping}
-              availableModels={availableModels}
-              selectedModel={selectedModel}
-              onModelChange={setSelectedModel}
-              onUploadFile={handleFileUpload}
-              onDocumentStatus={handleDocumentStatus}
-              variant="footer"
-              inputValue={composer}
-              onInputChange={setComposer}
-              mcpServers={mcpServers}
-              selectedMcpServerIds={selectedMcpServerIds}
-              onMcpServerIdsChange={setSelectedMcpServerIds}
-            />
-          </footer>
-        )}
+      {/* Resume Wizard Modal */}
+      <div className="print:hidden">
+        <ResumeWizardModal
+          isOpen={showResumeWizard}
+          onClose={() => setShowResumeWizard(false)}
+          onSubmit={(prompt, atts) => handleSendPrompt(prompt, atts)}
+          onUploadFile={handleFileUpload}
+        />
       </div>
     </div>
   );

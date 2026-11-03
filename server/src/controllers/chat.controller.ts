@@ -207,7 +207,8 @@ export async function sendMessage(req: Request, res: Response, next: NextFunctio
       selectedModel,
       language ?? undefined,
       user?.preferences?.systemInstructions,
-      mcpServerIds ?? []
+      mcpServerIds ?? [],
+      { chatId, userId }
     );
     const response = await agent.invoke({ messages: formatted });
     await Message.create({

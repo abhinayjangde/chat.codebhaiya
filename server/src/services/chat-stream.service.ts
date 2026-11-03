@@ -320,11 +320,28 @@ export async function executeChatStream(params: StreamChatParams): Promise<void>
   }
 
   const user = await User.findById(userId).select("preferences.systemInstructions").lean();
+  let lastUpdatedResume: any = null;
+
   const agent = await getAgent(
     selectedModel,
     language ?? undefined,
     user?.preferences?.systemInstructions,
-    mcpServerIds ?? []
+    mcpServerIds ?? [],
+    {
+      chatId,
+      userId,
+      onResumeUpdated: (updatedResume) => {
+        lastUpdatedResume = updatedResume;
+        try {
+          res.write(`data: ${JSON.stringify({
+            type: "resume_update",
+            resume: updatedResume,
+          })}\n\n`);
+        } catch (streamErr) {
+          console.error("Error writing resume_update event to stream:", streamErr);
+        }
+      },
+    }
   );
   const stream = await agent.stream(
     { messages: formatted },
@@ -342,7 +359,7 @@ export async function executeChatStream(params: StreamChatParams): Promise<void>
       const toolCallChunks = messageChunk.tool_call_chunks;
       if (toolCallChunks && Array.isArray(toolCallChunks) && toolCallChunks.length > 0) {
         for (const toolChunk of toolCallChunks) {
-          if (toolChunk.name === "web_search") {
+          if (toolChunk.name === "web_search" || toolChunk.name === "save_or_update_resume") {
             usedTools.push({
               name: toolChunk.name,
               input: toolChunk.args,
@@ -443,6 +460,9 @@ export async function executeChatStream(params: StreamChatParams): Promise<void>
   }
   if (usedTools.length > 0) {
     doneEvent.usedTools = usedTools;
+  }
+  if (lastUpdatedResume) {
+    doneEvent.resume = lastUpdatedResume;
   }
 
   res.write(`data: ${JSON.stringify(doneEvent)}\n\n`);

@@ -7,6 +7,7 @@ import type {
   AuthTokens,
   ChatMessage,
   ChatSummary,
+  IResumeDoc,
   UserProfile,
 } from "@/lib/types";
 import {
@@ -31,6 +32,7 @@ interface UseChatStreamProps {
   collectionId: string | null;
   selectedMcpServerIds: string[];
   setChatError: React.Dispatch<React.SetStateAction<string | null>>;
+  onResumeUpdated?: (resume: IResumeDoc) => void;
 }
 
 export type StreamStep = {
@@ -52,6 +54,7 @@ export function useChatStream({
   collectionId,
   selectedMcpServerIds,
   setChatError,
+  onResumeUpdated,
 }: UseChatStreamProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [composer, setComposer] = useState("");
@@ -269,6 +272,13 @@ export function useChatStream({
             throw new Error(event.error);
           }
 
+          if (event.type === "resume_update") {
+            if (onResumeUpdated && event.resume) {
+              onResumeUpdated(event.resume);
+            }
+            return;
+          }
+
           if (event.type === "token") {
             setStreamSteps(null);
             setMessages((previous) =>
@@ -358,6 +368,9 @@ export function useChatStream({
 
           if (event.type === "done") {
             setStreamSteps(null);
+            if (event.resume && onResumeUpdated) {
+              onResumeUpdated(event.resume);
+            }
             setMessages((previous) =>
               previous.map((message) =>
                 message._id === assistantMessageId
@@ -449,6 +462,7 @@ export function useChatStream({
       setChats,
       setActiveChatId,
       setChatError,
+      onResumeUpdated,
     ]
   );
 

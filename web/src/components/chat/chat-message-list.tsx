@@ -12,6 +12,7 @@ import {
   Share,
   ThumbsDown,
   ThumbsUp,
+  Sparkles,
   ChevronDown,
 } from "lucide-react";
 import { FaBrain } from "react-icons/fa";
@@ -41,6 +42,7 @@ interface ChatMessageListProps {
   streamSteps: { id: "thinking" | "webSearch" | "analyzing"; label: string; status: "pending" | "active" | "complete" }[] | null;
   onEditMessage: (message: ChatMessage) => void;
   onRegenerateMessage: (message: ChatMessage, userMessage: ChatMessage) => void;
+  onOpenResume?: () => void;
 }
 
 export const ChatMessageList = memo(function ChatMessageList({
@@ -51,6 +53,7 @@ export const ChatMessageList = memo(function ChatMessageList({
   streamSteps,
   onEditMessage,
   onRegenerateMessage,
+  onOpenResume,
 }: ChatMessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -225,6 +228,25 @@ export const ChatMessageList = memo(function ChatMessageList({
                       <div className="mt-3 inline-flex items-center gap-2 text-xs text-(--chat-loading)">
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
                         thinking...
+                      </div>
+                    ) : null}
+
+                    {/* Resume Created / Updated Callout Card */}
+                    {message.usedTools?.some((t) => t.name === "save_or_update_resume") && onOpenResume ? (
+                      <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-blue-500/30 bg-blue-500/10 p-3 text-xs text-blue-700 dark:text-blue-300">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                          <span>
+                            <strong>Resume Created & Tailored:</strong> Live preview is ready.
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={onOpenResume}
+                          className="px-2.5 py-1 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition cursor-pointer shrink-0"
+                        >
+                          Open in Side View
+                        </button>
                       </div>
                     ) : null}
 

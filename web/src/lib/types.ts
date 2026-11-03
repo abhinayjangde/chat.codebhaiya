@@ -135,6 +135,12 @@ export interface StreamDoneEvent {
   type: "done";
   sources?: MessageSource[];
   usedTools?: UsedTool[];
+  resume?: IResumeDoc;
+}
+
+export interface StreamResumeUpdateEvent {
+  type: "resume_update";
+  resume: IResumeDoc;
 }
 
 export interface StreamErrorEvent {
@@ -148,6 +154,7 @@ export type StreamEvent =
   | StreamSourcesEvent
   | StreamTokenEvent
   | StreamDoneEvent
+  | StreamResumeUpdateEvent
   | StreamErrorEvent;
 
 // -- MCP types --
@@ -249,3 +256,89 @@ export interface ConnectCloudPayload {
   authData?: Record<string, string>;
   cloudConfig?: Record<string, unknown>;
 }
+
+// -- Resume Builder types --
+
+export type ResumeTemplate = "modern" | "classic" | "minimal" | "executive";
+export type ResumeExportFormat = "docx" | "pdf" | "txt" | "latex";
+
+export interface IResumePersonal {
+  fullName: string;
+  headline?: string;
+  email: string;
+  phone?: string;
+  location?: string;
+  website?: string;
+  linkedin?: string;
+  github?: string;
+}
+
+export interface IResumeExperience {
+  company: string;
+  position: string;
+  location?: string;
+  startDate: string;
+  endDate: string;
+  highlights: string[];
+}
+
+export interface IResumeEducation {
+  institution: string;
+  degree: string;
+  fieldOfStudy?: string;
+  location?: string;
+  startDate?: string;
+  endDate: string;
+  gpa?: string;
+  highlights?: string[];
+}
+
+export interface IResumeSkillCategory {
+  category: string;
+  items: string[];
+}
+
+export interface IResumeProject {
+  name: string;
+  description: string;
+  technologies: string[];
+  link?: string;
+  highlights: string[];
+}
+
+export interface IResumeCertification {
+  name: string;
+  issuer: string;
+  date?: string;
+  url?: string;
+}
+
+export interface IResumeCustomSection {
+  title: string;
+  items: string[];
+}
+
+export interface IResumeData {
+  personalInfo: IResumePersonal;
+  summary: string;
+  skills: IResumeSkillCategory[];
+  experience: IResumeExperience[];
+  education: IResumeEducation[];
+  projects: IResumeProject[];
+  certifications?: IResumeCertification[];
+  customSections?: IResumeCustomSection[];
+}
+
+export interface IResumeDoc {
+  _id: string;
+  chatId: string;
+  userId: string;
+  title: string;
+  template: ResumeTemplate;
+  targetRole?: string;
+  targetCompany?: string;
+  data: IResumeData;
+  createdAt: string;
+  updatedAt: string;
+}
+

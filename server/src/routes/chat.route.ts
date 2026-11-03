@@ -1,6 +1,7 @@
 import express, { type Router } from "express";
 import { authenticateToken } from "../middleware/auth.middleware.js";
 import * as chatController from "../controllers/chat.controller.js";
+import resumeRoutes from "./resume.route.js";
 
 const router: Router = express.Router();
 
@@ -21,5 +22,6 @@ router.delete("/:chatId", chatController.deleteChat);
 
 router.post("/:chatId/stream", chatController.streamChatMessage);
 router.get("/:chatId/pdf", chatController.exportChatPdf);
+router.use("/:chatId/resume", resumeRoutes);
 
 export default router;

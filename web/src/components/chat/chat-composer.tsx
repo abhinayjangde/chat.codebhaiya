@@ -8,6 +8,7 @@ import {
   ChevronRight,
   Cloud,
   Gavel,
+  FileText,
   Image,
   MoreHorizontal,
   Paperclip,
@@ -83,6 +84,7 @@ interface ChatComposerProps {
   mcpServers?: McpServer[];
   selectedMcpServerIds?: string[];
   onMcpServerIdsChange?: (ids: string[]) => void;
+  onOpenResumeWizard?: () => void;
 }
 
 export const ChatComposer = memo(function ChatComposer({
@@ -101,6 +103,7 @@ export const ChatComposer = memo(function ChatComposer({
   mcpServers = [],
   selectedMcpServerIds = [],
   onMcpServerIdsChange,
+  onOpenResumeWizard,
 }: ChatComposerProps) {
   // If controlled props are provided, use them; otherwise use local state
   const [internalComposer, setInternalComposer] = useState("");
@@ -374,6 +377,21 @@ export const ChatComposer = memo(function ChatComposer({
                   </button>
 
                   <div className="my-1 border-t border-(--chat-dropdown-border)" />
+
+                  {/* Build Resume */}
+                  {onOpenResumeWizard && (
+                    <button
+                      type="button"
+                      className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                      onClick={() => {
+                        setPlusMenuOpen(false);
+                        onOpenResumeWizard();
+                      }}
+                    >
+                      <FileText className="h-[18px] w-[18px] text-(--chat-brand)" />
+                      <span>Build Resume (Deep Research)</span>
+                    </button>
+                  )}
 
                   {/* Create images (future) */}
                   <button

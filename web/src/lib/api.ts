@@ -2,6 +2,7 @@ import { authApi } from "./api/auth.api";
 import { chatApi } from "./api/chat.api";
 import { documentApi } from "./api/document.api";
 import { mcpApi } from "./api/mcp.api";
+import { resumeApi } from "./api/resume.api";
 
 export { ApiError, API_BASE_URL } from "./api/http";
 export type { AuthEnvelope } from "./api/auth.api";
@@ -12,4 +13,5 @@ export const apiClient = {
   ...chatApi,
   ...documentApi,
   ...mcpApi,
+  ...resumeApi,
 };
