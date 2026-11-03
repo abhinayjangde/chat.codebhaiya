@@ -326,7 +326,7 @@ export function ResumeSidePanel({
                 setTemplateMenuOpen(false);
               }}
               disabled={isExporting !== null}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-(--chat-brand) text-white font-medium hover:opacity-90 transition disabled:opacity-50"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:cursor-pointer text-white font-medium hover:opacity-90 transition disabled:opacity-50"
             >
               {isExporting ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -351,7 +351,7 @@ export function ResumeSidePanel({
                   <button
                     type="button"
                     onClick={() => handleDownload("pdf")}
-                    className="flex w-full items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-(--chat-dropdown-hover) transition text-left"
+                    className="flex w-full items-center gap-2.5 hover:cursor-pointer px-2.5 py-2 rounded-lg hover:bg-(--chat-dropdown-hover) transition text-left"
                   >
                     <FileText className="h-4 w-4 text-red-500" />
                     <div className="flex flex-col">
@@ -363,7 +363,7 @@ export function ResumeSidePanel({
                   <button
                     type="button"
                     onClick={() => handleDownload("docx")}
-                    className="flex w-full items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-(--chat-dropdown-hover) transition text-left"
+                    className="flex w-full items-center gap-2.5 hover:cursor-pointer px-2.5 py-2 rounded-lg hover:bg-(--chat-dropdown-hover) transition text-left"
                   >
                     <FileSpreadsheet className="h-4 w-4 text-blue-600" />
                     <div className="flex flex-col">
@@ -375,7 +375,7 @@ export function ResumeSidePanel({
                   <button
                     type="button"
                     onClick={() => handleDownload("txt")}
-                    className="flex w-full items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-(--chat-dropdown-hover) transition text-left"
+                    className="flex w-full items-center gap-2.5 hover:cursor-pointer px-2.5 py-2 rounded-lg hover:bg-(--chat-dropdown-hover) transition text-left"
                   >
                     <FileCode className="h-4 w-4 text-emerald-500" />
                     <div className="flex flex-col">
@@ -389,7 +389,7 @@ export function ResumeSidePanel({
                   <button
                     type="button"
                     onClick={() => handleDownload("latex")}
-                    className="flex w-full items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-(--chat-dropdown-hover) transition text-left"
+                    className="flex w-full items-center gap-2.5 hover:cursor-pointer px-2.5 py-2 rounded-lg hover:bg-(--chat-dropdown-hover) transition text-left"
                   >
                     <FileCode className="h-4 w-4 text-amber-500" />
                     <div className="flex flex-col">
@@ -401,7 +401,7 @@ export function ResumeSidePanel({
                   <button
                     type="button"
                     onClick={handleCopyLatex}
-                    className="flex w-full items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-(--chat-dropdown-hover) transition text-left text-muted-foreground hover:text-foreground"
+                    className="flex w-full items-center gap-2.5 hover:cursor-pointer px-2.5 py-1.5 rounded-lg hover:bg-(--chat-dropdown-hover) transition text-left text-muted-foreground hover:text-foreground"
                   >
                     {copiedLatex ? (
                       <Check className="h-3.5 w-3.5 text-emerald-500" />
@@ -414,7 +414,7 @@ export function ResumeSidePanel({
                   <button
                     type="button"
                     onClick={handlePrint}
-                    className="flex w-full items-center gap-2.5 px-2.5 py-1.5 rounded-lg hover:bg-(--chat-dropdown-hover) transition text-left text-muted-foreground hover:text-foreground border-t border-border mt-1 pt-1.5"
+                    className="flex w-full items-center gap-2.5 hover:cursor-pointer px-2.5 py-1.5 rounded-lg hover:bg-(--chat-dropdown-hover) transition text-left text-muted-foreground hover:text-foreground border-t border-border mt-1 pt-1.5"
                   >
                     <Printer className="h-3.5 w-3.5 text-zinc-500" />
                     <span>Print / Print to PDF</span>
@@ -429,7 +429,7 @@ export function ResumeSidePanel({
             <button
               type="button"
               onClick={onToggleFullscreen}
-              className="p-1.5 text-muted-foreground hover:text-foreground rounded-md transition hover:bg-muted"
+              className="p-1.5 text-muted-foreground hover:text-foreground hover:cursor-pointer rounded-md transition hover:bg-muted"
               title={isFullscreen ? "Exit Fullscreen" : "Expand to Fullscreen"}
             >
               {isFullscreen ? (
@@ -444,7 +444,7 @@ export function ResumeSidePanel({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-muted-foreground hover:text-foreground rounded-md transition hover:bg-muted"
+            className="p-1.5 text-muted-foreground hover:cursor-pointer hover:text-foreground rounded-md transition hover:bg-muted"
             title="Close Resume View"
           >
             <X className="h-4 w-4" />

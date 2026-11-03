@@ -481,10 +481,10 @@ Content-Type: application/json
 **Request Body:**
 ```json
 {
-{
-   "message": "What is the weather today?",
-   "model": "groq-llama-3.3-70b" // Optional
- }
+  "message": "What is the weather today?",
+  "model": "groq-llama-3.3-70b", // Optional
+  "regenerateMessageId": "65a1b2c3d4e5f6...", // Optional
+  "editMessageId": "65a1b2c3d4e5f6..." // Optional
 }
 ```
 
@@ -518,7 +518,7 @@ data: {"type":"token","content":" of 72°F."}
 
 **Event: done**
 ```
-data: {"type":"done","sources":[{"title":"Weather Today","link":"https://weather.com"}],"usedTools":[{"name":"web_search","input":{"query":"weather today"}}]}
+data: {"type":"done","messageId":"65a1b2c3d4e5f6...","userMessageId":"65a1b2c3d4e5f7...","sources":[{"title":"Weather Today","link":"https://weather.com"}],"usedTools":[{"name":"web_search","input":{"query":"weather today"}}]}
 ```
 
 **Event: error**

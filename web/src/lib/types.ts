@@ -133,6 +133,8 @@ export interface StreamTokenEvent {
 
 export interface StreamDoneEvent {
   type: "done";
+  messageId?: string;
+  userMessageId?: string;
   sources?: MessageSource[];
   usedTools?: UsedTool[];
   resume?: IResumeDoc;

@@ -54,8 +54,8 @@ export const createChatSchema = z
 export const chatMessageSchema = z
   .object({
     message: z.string().trim().default(""),
-    editMessageId: objectIdSchema.optional(),
-    regenerateMessageId: objectIdSchema.optional(),
+    editMessageId: z.string().trim().optional().nullable(),
+    regenerateMessageId: z.string().trim().optional().nullable(),
     model: z.string().trim().optional().nullable(),
     language: z.string().trim().optional(),
     attachments: z.array(attachmentSchema).optional(),

@@ -169,6 +169,8 @@ export function useChatStream({
       const nowIso = new Date().toISOString();
       const userMessageId = `local-user-${Date.now()}`;
       const assistantMessageId = `local-assistant-${Date.now()}`;
+      let persistedAssistantId: string | null = null;
+      let persistedUserId: string | null = null;
 
       try {
         if (!targetChatId) {
@@ -283,7 +285,8 @@ export function useChatStream({
             setStreamSteps(null);
             setMessages((previous) =>
               previous.map((message) => {
-                if (message._id !== assistantMessageId) return message;
+                const isAssistant = message._id === assistantMessageId || (persistedAssistantId && message._id === persistedAssistantId);
+                if (!isAssistant) return message;
                 let newContent = `${message.content}${event.content}`;
                 if (newContent.startsWith(prompt)) {
                   newContent = newContent.slice(prompt.length);
@@ -297,7 +300,7 @@ export function useChatStream({
           if (event.type === "sources") {
             setMessages((previous) =>
               previous.map((message) =>
-                message._id === assistantMessageId
+                message._id === assistantMessageId || (persistedAssistantId && message._id === persistedAssistantId)
                   ? {
                       ...message,
                       sources: mergeSources(message.sources, event.sources),
@@ -325,7 +328,7 @@ export function useChatStream({
             }
             setMessages((previous) =>
               previous.map((message) =>
-                message._id === assistantMessageId
+                message._id === assistantMessageId || (persistedAssistantId && message._id === persistedAssistantId)
                   ? {
                       ...message,
                       usedTools: mergeUsedTools(message.usedTools, {
@@ -352,7 +355,7 @@ export function useChatStream({
             );
             setMessages((previous) =>
               previous.map((message) =>
-                message._id === assistantMessageId
+                message._id === assistantMessageId || (persistedAssistantId && message._id === persistedAssistantId)
                   ? {
                       ...message,
                       usedTools: mergeUsedTools(message.usedTools, {
@@ -371,40 +374,64 @@ export function useChatStream({
             if (event.resume && onResumeUpdated) {
               onResumeUpdated(event.resume);
             }
+            if (event.messageId) {
+              persistedAssistantId = event.messageId;
+            }
+            if (event.userMessageId) {
+              persistedUserId = event.userMessageId;
+            }
             setMessages((previous) =>
-              previous.map((message) =>
-                message._id === assistantMessageId
-                  ? {
-                      ...message,
-                      sources: event.sources
-                        ? mergeSources(message.sources, event.sources)
-                        : message.sources,
-                      usedTools: event.usedTools
-                        ? event.usedTools.reduce(
-                            (acc, tool) => mergeUsedTools(acc, tool),
-                            message.usedTools
-                          )
-                        : message.usedTools,
-                      isStreaming: false,
-                    }
-                  : message
-              )
+              previous.map((message) => {
+                const isAssistant = message._id === assistantMessageId || (persistedAssistantId && message._id === persistedAssistantId);
+                if (isAssistant) {
+                  return {
+                    ...message,
+                    _id: persistedAssistantId ?? message._id,
+                    sources: event.sources
+                      ? mergeSources(message.sources, event.sources)
+                      : message.sources,
+                    usedTools: event.usedTools
+                      ? event.usedTools.reduce(
+                          (acc, tool) => mergeUsedTools(acc, tool),
+                          message.usedTools
+                        )
+                      : message.usedTools,
+                    isStreaming: false,
+                  };
+                }
+                if (persistedUserId && message._id === userMessageId) {
+                  return {
+                    ...message,
+                    _id: persistedUserId,
+                  };
+                }
+                return message;
+              })
             );
           }
         });
 
         setMessages((previous) =>
-          previous.map((message) =>
-            message._id === assistantMessageId
-              ? {
-                  ...message,
-                  isStreaming: false,
-                  content:
-                    message.content.trim() ||
-                    "I could not generate a response for that prompt.",
-                }
-              : message
-          )
+          previous.map((message) => {
+            const isAssistant = message._id === assistantMessageId || (persistedAssistantId && message._id === persistedAssistantId);
+            if (isAssistant) {
+              return {
+                ...message,
+                _id: persistedAssistantId ?? message._id,
+                isStreaming: false,
+                content:
+                  message.content.trim() ||
+                  "I could not generate a response for that prompt.",
+              };
+            }
+            if (persistedUserId && message._id === userMessageId) {
+              return {
+                ...message,
+                _id: persistedUserId,
+              };
+            }
+            return message;
+          })
         );
 
         await loadChats();
@@ -412,9 +439,10 @@ export function useChatStream({
         if (isAbortError(error)) {
           setMessages((previous) =>
             previous.map((entry) =>
-              entry._id === assistantMessageId
+              (entry._id === assistantMessageId || (persistedAssistantId && entry._id === persistedAssistantId))
                 ? {
                     ...entry,
+                    _id: persistedAssistantId ?? entry._id,
                     isStreaming: false,
                     content: entry.content.trim() || "Generation stopped.",
                   }
@@ -430,9 +458,10 @@ export function useChatStream({
 
         setMessages((previous) =>
           previous.map((entry) =>
-            entry._id === assistantMessageId
+            (entry._id === assistantMessageId || (persistedAssistantId && entry._id === persistedAssistantId))
               ? {
                   ...entry,
+                  _id: persistedAssistantId ?? entry._id,
                   isStreaming: false,
                   content: entry.content.trim() || `Request failed: ${message}`,
                 }
@@ -472,23 +501,36 @@ export function useChatStream({
     }
     replacementRef.current = { editMessageId: message._id };
     setComposer(message.content);
-    setMessages((current) =>
-      current.slice(0, current.findIndex((entry) => entry._id === message._id))
-    );
+    setMessages((current) => {
+      const msgIndex = current.findIndex((entry) => entry._id === message._id);
+      if (msgIndex !== -1) {
+        return current.slice(0, msgIndex);
+      }
+      return current;
+    });
   }, []);
 
   const handleRegenerateMessage = useCallback(
     (message: ChatMessage, userMessage: ChatMessage) => {
-      if (isSendingRef.current || !message._id || !userMessage._id) {
+      if (isSendingRef.current) {
         return;
       }
-      replacementRef.current = { regenerateMessageId: message._id };
-      setMessages((current) =>
-        current.filter((entry) => entry._id !== message._id)
-      );
+      const targetAssistantId = message._id;
+      const targetContent = userMessage.content || "";
+      const targetAttachments = userMessage.attachments;
+
+      replacementRef.current = targetAssistantId ? { regenerateMessageId: targetAssistantId } : undefined;
+      setMessages((current) => {
+        if (!targetAssistantId) return current;
+        const msgIndex = current.findIndex((entry) => entry._id === targetAssistantId);
+        if (msgIndex !== -1) {
+          return current.slice(0, msgIndex);
+        }
+        return current.filter((entry) => entry._id !== targetAssistantId);
+      });
       void handleSendPrompt(
-        userMessage.content,
-        userMessage.attachments,
+        targetContent,
+        targetAttachments,
         replacementRef.current
       );
       replacementRef.current = undefined;

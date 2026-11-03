@@ -69,6 +69,29 @@ describe("chat.schema", () => {
 
       expect(result.success).toBe(true);
     });
+
+    it("accepts regenerateMessageId with valid objectId or local client id", () => {
+      const validObjectId = "507f1f77bcf86cd799439011";
+      const objectIdResult = chatMessageSchema.safeParse({
+        message: "Regenerate please",
+        regenerateMessageId: validObjectId,
+      });
+      expect(objectIdResult.success).toBe(true);
+
+      const localIdResult = chatMessageSchema.safeParse({
+        message: "Regenerate please",
+        regenerateMessageId: "local-assistant-1741234567890",
+      });
+      expect(localIdResult.success).toBe(true);
+    });
+
+    it("accepts editMessageId with valid objectId or local client id", () => {
+      const localEditResult = chatMessageSchema.safeParse({
+        message: "Edited prompt",
+        editMessageId: "local-user-1741234567890",
+      });
+      expect(localEditResult.success).toBe(true);
+    });
   });
 
   describe("renameChatSchema", () => {
