@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  AtSign,
   Check,
   Copy,
   Loader2,
@@ -34,7 +33,7 @@ import { CitationMarker } from "@/components/chat/citation-popover";
 import { ChatLoadingIndicator } from "@/components/chat/chat-loading-indicator";
 import { cn } from "@/lib/utils";
 import { ChatMessage, MessageSource, ModelInfo } from "@/lib/types";
-import { formatSourceHost, formatTime } from "@/lib/chat-utils";
+import { formatTime } from "@/lib/chat-utils";
 
 interface ChatMessageListProps {
   messages: ChatMessage[];
@@ -192,61 +191,50 @@ export const ChatMessageList = memo(function ChatMessageList({
                       </div>
                     ) : null}
 
-                    {message.sources && message.sources.length > 0 ? (
-                      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-                        {message.sources.map((source, sourceIndex) => {
-                          const href = source.url ?? source.link;
-                          const isDocument = source.type === "document";
-                          const sourceCard = (
-                            <>
-                              <p className="font-medium text-(--chat-source-title)">
-                                {source.title || "Source"}
-                              </p>
-                              {isDocument && source.pageNumber ? (
-                                <p className="mt-1 text-[11px] uppercase tracking-wider text-(--chat-source-link)">
-                                  Page {source.pageNumber} · chunk {(source.chunkIndex ?? 0) + 1}
+                    {/* Document sources accordion (web search sources are attached directly on citation line as small icons) */}
+                    {(() => {
+                      const documentSources =
+                        message.sources?.filter((s) => s.type === "document") ?? [];
+                      if (documentSources.length === 0) return null;
+
+                      return (
+                        <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                          {documentSources.map((source, sourceIndex) => {
+                            const sourceCard = (
+                              <>
+                                <p className="font-medium text-(--chat-source-title)">
+                                  {source.title || "Document source"}
                                 </p>
-                              ) : null}
-                              {source.snippet ? (
-                                <p className="mt-1 line-clamp-3 text-(--chat-source-snippet)">
-                                  {source.snippet}
-                                </p>
-                              ) : null}
-                              {href ? (
-                                <p className="mt-2 inline-flex items-center gap-1 text-(--chat-source-link)">
-                                  <AtSign className="h-3 w-3" />
-                                  {formatSourceHost(href)}
-                                </p>
-                              ) : null}
-                            </>
-                          );
-                          return (
-                            isDocument ? (
-                            <details
-                              key={`${source.title}-${sourceIndex}`}
-                              className="group rounded-xl border border-(--chat-dropdown-border) bg-(--chat-source-card) p-3 text-xs transition hover:bg-(--chat-source-card-hover)"
-                            >
-                              <summary className="flex cursor-pointer list-none items-center justify-between font-medium text-(--chat-source-title)">
-                                <span className="truncate">{source.title || "Document source"}</span>
-                                <ChevronDown className="h-3.5 w-3.5 shrink-0 transition group-open:rotate-180" />
-                              </summary>
-                              <div className="mt-2 border-t border-(--chat-dropdown-border) pt-2">{sourceCard}</div>
-                            </details>
-                            ) : (
-                            <a
-                              key={`${source.title}-${sourceIndex}`}
-                              href={href || undefined}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="rounded-xl border border-(--chat-dropdown-border) bg-(--chat-source-card) p-3 text-xs transition hover:bg-(--chat-source-card-hover)"
-                            >
-                              {sourceCard}
-                            </a>
-                            )
-                          );
-                        })}
-                      </div>
-                    ) : null}
+                                {source.pageNumber ? (
+                                  <p className="mt-1 text-[11px] uppercase tracking-wider text-(--chat-source-link)">
+                                    Page {source.pageNumber} · chunk {(source.chunkIndex ?? 0) + 1}
+                                  </p>
+                                ) : null}
+                                {source.snippet ? (
+                                  <p className="mt-1 line-clamp-3 text-(--chat-source-snippet)">
+                                    {source.snippet}
+                                  </p>
+                                ) : null}
+                              </>
+                            );
+                            return (
+                              <details
+                                key={`${source.title}-${sourceIndex}`}
+                                className="group rounded-xl border border-(--chat-dropdown-border) bg-(--chat-source-card) p-3 text-xs transition hover:bg-(--chat-source-card-hover)"
+                              >
+                                <summary className="flex cursor-pointer list-none items-center justify-between font-medium text-(--chat-source-title)">
+                                  <span className="truncate">{source.title || "Document source"}</span>
+                                  <ChevronDown className="h-3.5 w-3.5 shrink-0 transition group-open:rotate-180" />
+                                </summary>
+                                <div className="mt-2 border-t border-(--chat-dropdown-border) pt-2">
+                                  {sourceCard}
+                                </div>
+                              </details>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
 
                     {message.usedTools && message.usedTools.length > 0 ? (
                       <div className="mt-3 flex flex-wrap gap-2">
@@ -383,23 +371,50 @@ function CitationAwareContent({
   content: string;
   sources: MessageSource[];
 }) {
-  // Turn valid citations [1], [2] into markdown links [citation:1](citation:1),
-  // while preserving any citations inside code blocks or inline code snippets.
+  // Turn valid citations into markdown links [citation:1](citation:1),
+  // handling formats like [1], [citation:1], citation:1, [1, 2], and citation links,
+  // while preserving any content inside code blocks or inline code snippets.
   const processedContent = useMemo(() => {
-    if (!sources || sources.length === 0) return content;
-    return content.replace(
-      /(```[\s\S]*?```|`[^`\n]+`)|(?<!\w)\[(\d+)\](?!\w)/g,
-      (match, codeSegment, citationIndex) => {
+    if (!content) return "";
+    let text = content;
+
+    // Clean redundant trailing "Sources:" / "Citations:" list if sources are present
+    if (sources && sources.length > 0) {
+      text = text.replace(
+        /\n+(?:###?\s*)?(?:Sources|Citations|References):\s*(?:\n+[-*•]?\s*(?:\[?(?:citation:\s*)?\d+\]?|[0-9]+\.)[^\n]+)+$/i,
+        ""
+      );
+    }
+
+    if (!sources || sources.length === 0) return text;
+
+    // Expand combined bracket citations e.g. [1, 2] -> [1] [2]
+    text = text.replace(
+      /\[(\d+(?:\s*,\s*\d+)+)\]/g,
+      (_, nums) => nums.split(",").map((n: string) => `[${n.trim()}]`).join(" ")
+    );
+
+    return text.replace(
+      /(```[\s\S]*?```|`[^`\n]+`)|(?:\[(?:citation:\s*)?(\d+)\]\((?:citation:\d+|https?:\/\/[^\s)]+)\))|(?:\[(?:citation:\s*)?(\d+)\])|(?:\(?citation:\s*(\d+)\)?)/gi,
+      (match, codeSegment, linkIndex, bracketIndex, rawIndex) => {
         if (codeSegment) {
           return codeSegment;
         }
-        const idx = parseInt(citationIndex, 10);
+
+        const citationNum = linkIndex || bracketIndex || rawIndex;
+        if (!citationNum) return match;
+
+        const idx = parseInt(citationNum, 10);
+        if (isNaN(idx)) return match;
+
         const hasSource = sources.some(
           (s) => s.position === idx || sources[idx - 1] !== undefined
         );
+
         if (hasSource) {
           return `[citation:${idx}](citation:${idx})`;
         }
+
         return match;
       }
     );
@@ -474,6 +489,18 @@ function CitationAwareContent({
               return <CitationMarker index={index} source={source} />;
             }
           }
+
+          // Fallback if href directly points to a source URL or children is a citation format
+          if (href) {
+            const matchedSource = sources.find(
+              (s) => (s.url && s.url === href) || (s.link && s.link === href)
+            );
+            if (matchedSource) {
+              const index = matchedSource.position ?? (sources.indexOf(matchedSource) + 1);
+              return <CitationMarker index={index} source={matchedSource} />;
+            }
+          }
+
           return (
             <a
               href={href}

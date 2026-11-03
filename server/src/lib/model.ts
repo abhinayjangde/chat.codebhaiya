@@ -410,9 +410,10 @@ ${resumeInstructions}
 When answering questions about current events, news, or time-sensitive information, use the web_search tool to get up-to-date information.
 
 Guidelines:
-- Always cite your sources using [1], [2], etc. format when using web search results
+- Always cite your sources inline using [1], [2], etc. format directly after the relevant claim or sentence (e.g. "...according to recent reports [1].")
+- Do NOT output a separate "Sources:", "References:", or citation list section at the bottom of your response, as the sources are automatically linked and rendered inline as interactive icons by the UI
+- Never write "citation:1" or raw citation links; strictly use inline numeric brackets like [1], [2]
 - Be concise but thorough in your responses
-- If you're unsure about current information, use the web search tool
-- Format search results clearly with proper citations${customInstructionsBlock}`,
+- If you're unsure about current information, use the web search tool${customInstructionsBlock}`,
   });
 }

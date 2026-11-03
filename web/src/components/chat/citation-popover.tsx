@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Globe } from "lucide-react";
 import { MessageSource } from "@/lib/types";
 import { formatSourceHost } from "@/lib/chat-utils";
 
@@ -25,6 +25,8 @@ function getValidUrl(rawHref?: string): string | undefined {
 
 export function CitationMarker({ index, source }: CitationMarkerProps) {
   const [hovered, setHovered] = useState(false);
+  const [badgeIconError, setBadgeIconError] = useState(false);
+  const [popoverIconError, setPopoverIconError] = useState(false);
   const [popoverPosition, setPopoverPosition] = useState<{ x: number; y: number } | null>(null);
 
   const rawHref = source.url ?? source.link;
@@ -32,14 +34,31 @@ export function CitationMarker({ index, source }: CitationMarkerProps) {
   const host = rawHref ? formatSourceHost(rawHref) : "";
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    setPopoverPosition({ x: e.clientX + 12, y: e.clientY - 8 });
+    if (typeof window !== "undefined") {
+      const x = Math.min(e.clientX + 12, window.innerWidth - 300);
+      const y = Math.min(e.clientY - 8, window.innerHeight - 150);
+      setPopoverPosition({ x: Math.max(12, x), y: Math.max(12, y) });
+    } else {
+      setPopoverPosition({ x: e.clientX + 12, y: e.clientY - 8 });
+    }
   };
 
   const badgeContent = (
     <span
-      className="inline-flex items-center justify-center rounded-full border border-(--chat-dropdown-border) bg-(--chat-surface) px-1.5 py-0.5 text-[11px] font-medium text-(--chat-text-secondary) group-hover:border-primary/60 group-hover:bg-primary/15 group-hover:text-primary transition-all shadow-2xs select-none"
+      className="inline-flex items-center gap-1 rounded-full border border-(--chat-dropdown-border) bg-(--chat-surface) px-1.5 py-0.5 text-[11px] font-medium text-(--chat-text-secondary) group-hover:border-primary/60 group-hover:bg-primary/15 group-hover:text-primary transition-all duration-150 shadow-2xs select-none"
     >
-      [{index}]
+      {host && !badgeIconError ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=32`}
+          alt=""
+          className="h-3.5 w-3.5 rounded-full object-cover shrink-0"
+          onError={() => setBadgeIconError(true)}
+        />
+      ) : (
+        <Globe className="h-3 w-3 shrink-0 opacity-70" />
+      )}
+      <span className="text-[10px] font-semibold leading-none">{index}</span>
     </span>
   );
 
@@ -54,20 +73,18 @@ export function CitationMarker({ index, source }: CitationMarkerProps) {
       }}
     >
       <div className="flex items-start gap-2">
-        {rawHref ? (
+        {host && !popoverIconError ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
-            src={`https://www.google.com/s2/favicons?domain=${host}&sz=64`}
+            src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=64`}
             alt=""
             className="h-6 w-6 rounded-sm object-cover shrink-0 mt-0.5"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = "none";
-            }}
+            onError={() => setPopoverIconError(true)}
           />
         ) : (
           <div className="h-6 w-6 rounded-sm bg-(--chat-surface) flex items-center justify-center shrink-0 mt-0.5">
             <span className="text-[10px] font-medium text-(--chat-text-secondary)">
-              {host.charAt(0).toUpperCase()}
+              {host ? host.charAt(0).toUpperCase() : "?"}
             </span>
           </div>
         )}
