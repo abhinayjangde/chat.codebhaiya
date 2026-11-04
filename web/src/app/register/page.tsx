@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { AlertTriangle, Eye, EyeOff, Loader2 } from "lucide-react";
 import { apiClient } from "@/lib/api";
 import { readStoredTokens, writeStoredTokens, writeStoredUser } from "@/lib/storage";
 import type { UserProfile } from "@/lib/types";
@@ -109,8 +109,21 @@ export default function RegisterPage() {
 
           {/* ── Error message ── */}
           {error && (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300">
-              {error}
+            <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-300 space-y-1">
+              <div className="flex items-start gap-1.5">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5 text-red-400" />
+                <span>{error}</span>
+              </div>
+              {error.includes("scheduled for deletion") && (
+                <div className="pt-1 pl-5.5">
+                  <a
+                    href="/login"
+                    className="font-medium text-amber-400 hover:text-amber-300 underline underline-offset-2"
+                  >
+                    Go to Login to recover your account &rarr;
+                  </a>
+                </div>
+              )}
             </div>
           )}
 

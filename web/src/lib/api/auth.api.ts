@@ -81,21 +81,49 @@ export const authApi = {
     });
   },
 
-  async deleteAccount(accessToken: string): Promise<void> {
+  async deleteAccount(
+    accessToken: string,
+    confirmation: string = "confirm"
+  ): Promise<{ message: string; deletionScheduledAt?: string }> {
     const response = await fetch(`${API_BASE_URL}/auth/account`, {
       method: "DELETE",
       headers: authHeaders(accessToken),
+      body: JSON.stringify({ confirmation }),
       cache: "no-store",
     });
 
+    const body = await parseResponseBody(response);
+
     if (!response.ok) {
-      const body = await parseResponseBody(response);
       throw new ApiError(
         pickMessage(body, `Request failed (${response.status})`),
         response.status,
         body
       );
     }
+
+    if (body && typeof body === "object") {
+      const data = (body as Record<string, unknown>).data as Record<string, unknown> | undefined;
+      return {
+        message:
+          ((body as Record<string, unknown>).message as string) ||
+          "Account scheduled for deletion",
+        deletionScheduledAt: data?.deletionScheduledAt as string | undefined,
+      };
+    }
+
+    return { message: "Account scheduled for deletion" };
+  },
+
+  async recoverAccount(payload: {
+    email: string;
+    password: string;
+  }): Promise<AuthEnvelope> {
+    return requestData<AuthEnvelope>("/auth/recover", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify(payload),
+    });
   },
 
   async changePassword(

@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { loginSchema, registerSchema } from "./auth.schema.js";
+import {
+  deleteAccountSchema,
+  loginSchema,
+  recoverAccountSchema,
+  registerSchema,
+} from "./auth.schema.js";
 
 describe("auth.schema", () => {
   describe("registerSchema", () => {
@@ -65,6 +70,53 @@ describe("auth.schema", () => {
       });
 
       expect(result.success).toBe(false);
+    });
+  });
+
+  describe("deleteAccountSchema", () => {
+    it("accepts confirmation as 'confirm' or 'CONFIRM'", () => {
+      const result1 = deleteAccountSchema.safeParse({ confirmation: "confirm" });
+      const result2 = deleteAccountSchema.safeParse({ confirmation: "CONFIRM" });
+      const result3 = deleteAccountSchema.safeParse({ confirmation: "  Confirm  " });
+
+      expect(result1.success).toBe(true);
+      expect(result2.success).toBe(true);
+      expect(result3.success).toBe(true);
+    });
+
+    it("rejects invalid confirmation text", () => {
+      const result1 = deleteAccountSchema.safeParse({ confirmation: "delete" });
+      const result2 = deleteAccountSchema.safeParse({ confirmation: "" });
+      const result3 = deleteAccountSchema.safeParse({});
+
+      expect(result1.success).toBe(false);
+      expect(result2.success).toBe(false);
+      expect(result3.success).toBe(false);
+    });
+  });
+
+  describe("recoverAccountSchema", () => {
+    it("accepts valid email and password for recovery", () => {
+      const result = recoverAccountSchema.safeParse({
+        email: "user@example.com",
+        password: "password123",
+      });
+
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects invalid email or empty password for recovery", () => {
+      const result1 = recoverAccountSchema.safeParse({
+        email: "not-an-email",
+        password: "password123",
+      });
+      const result2 = recoverAccountSchema.safeParse({
+        email: "user@example.com",
+        password: "",
+      });
+
+      expect(result1.success).toBe(false);
+      expect(result2.success).toBe(false);
     });
   });
 });

@@ -2,11 +2,16 @@ import mongoose from "mongoose";
 import type { HydratedDocument, Model } from "mongoose";
 import bcrypt from "bcrypt";
 
+export type UserStatus = "active" | "pending_deletion";
+
 export interface IUser {
   _id: mongoose.Types.ObjectId;
   email: string;
   password: string;
   name: string;
+  status: UserStatus;
+  deletedAt?: Date | null;
+  deletionScheduledAt?: Date | null;
   preferences: {
     theme: "light" | "dark";
     defaultModel: string;
@@ -51,6 +56,21 @@ const userSchema = new mongoose.Schema<IUser, UserModel, IUserMethods>(
       trim: true,
       minlength: 2,
       maxlength: 50,
+    },
+    status: {
+      type: String,
+      enum: ["active", "pending_deletion"],
+      default: "active",
+      index: true,
+    },
+    deletedAt: {
+      type: Date,
+      default: null,
+    },
+    deletionScheduledAt: {
+      type: Date,
+      default: null,
+      index: true,
     },
     preferences: {
       theme: {

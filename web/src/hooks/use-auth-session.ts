@@ -26,6 +26,11 @@ export function useAuthSession() {
   const [password, setPassword] = useState("");
   const [authError, setAuthError] = useState<string | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [pendingRecovery, setPendingRecovery] = useState<{
+    email: string;
+    password: string;
+    deletionScheduledAt?: string;
+  } | null>(null);
 
   const clearSession = useCallback(() => {
     clearStoredSession();
@@ -110,6 +115,7 @@ export function useAuthSession() {
 
       setIsAuthLoading(true);
       setAuthError(null);
+      setPendingRecovery(null);
 
       try {
         const authData =
@@ -138,13 +144,85 @@ export function useAuthSession() {
         setEmail("");
         setPassword("");
       } catch (error) {
-        setAuthError(getErrorMessage(error));
+        if (
+          error instanceof ApiError &&
+          error.status === 403 &&
+          (error.details as Record<string, unknown> | undefined)?.code ===
+            "ACCOUNT_PENDING_DELETION"
+        ) {
+          const details = error.details as Record<string, unknown>;
+          setPendingRecovery({
+            email: email.trim().toLowerCase(),
+            password,
+            deletionScheduledAt: details.deletionScheduledAt as string | undefined,
+          });
+          setAuthError(
+            (details.error as string) ||
+              "Your account is scheduled for deletion. You can recover it within 30 days."
+          );
+        } else {
+          setAuthError(getErrorMessage(error));
+        }
       } finally {
         setIsAuthLoading(false);
       }
     },
     [email, password, authMode, name]
   );
+
+  const handleRecoverAccount = useCallback(
+    async (overrideEmail?: string, overridePassword?: string) => {
+      const targetEmail = (
+        overrideEmail ??
+        pendingRecovery?.email ??
+        email
+      )
+        .trim()
+        .toLowerCase();
+      const targetPassword =
+        overridePassword ?? pendingRecovery?.password ?? password;
+
+      if (!targetEmail || !targetPassword) {
+        setAuthError("Email and password are required to recover account.");
+        return;
+      }
+
+      setIsAuthLoading(true);
+      setAuthError(null);
+
+      try {
+        const authData = await apiClient.recoverAccount({
+          email: targetEmail,
+          password: targetPassword,
+        });
+
+        const nextUser: UserProfile = {
+          ...authData.user,
+          id: authData.user.id ?? authData.user.userId ?? "",
+        };
+
+        setTokens(authData.tokens);
+        setUser(nextUser);
+        writeStoredTokens(authData.tokens);
+        writeStoredUser(nextUser);
+
+        setPendingRecovery(null);
+        setName("");
+        setEmail("");
+        setPassword("");
+        toast.success("Welcome back! Your account has been recovered.");
+      } catch (error) {
+        setAuthError(getErrorMessage(error));
+      } finally {
+        setIsAuthLoading(false);
+      }
+    },
+    [pendingRecovery, email, password]
+  );
+
+  const dismissRecovery = useCallback(() => {
+    setPendingRecovery(null);
+  }, []);
 
   const handleLogout = useCallback(async () => {
     if (tokens) {
@@ -157,17 +235,26 @@ export function useAuthSession() {
     clearSession();
   }, [tokens, clearSession]);
 
-  const handleDeleteAccount = useCallback(async () => {
-    try {
-      await runWithSession((accessToken) => apiClient.deleteAccount(accessToken));
-      toast.success("Account deleted successfully");
-      clearSession();
-    } catch (error) {
-      const errorMessage = getErrorMessage(error);
-      toast.error(errorMessage);
-      throw new Error(errorMessage);
-    }
-  }, [runWithSession, clearSession]);
+  const handleDeleteAccount = useCallback(
+    async (confirmationText: string = "confirm") => {
+      try {
+        const result = await runWithSession((accessToken) =>
+          apiClient.deleteAccount(accessToken, confirmationText)
+        );
+        toast.success(
+          result?.message ||
+            "Account scheduled for deletion. You have 30 days to recover your account."
+        );
+        clearSession();
+        router.replace("/login");
+      } catch (error) {
+        const errorMessage = getErrorMessage(error);
+        toast.error(errorMessage);
+        throw new Error(errorMessage);
+      }
+    },
+    [runWithSession, clearSession, router]
+  );
 
   const handleChangePassword = useCallback(
     async (currentPassword: string, newPassword: string) => {
@@ -212,6 +299,9 @@ export function useAuthSession() {
     authError,
     setAuthError,
     isAuthLoading,
+    pendingRecovery,
+    handleRecoverAccount,
+    dismissRecovery,
     clearSession,
     refreshAccess,
     runWithSession,

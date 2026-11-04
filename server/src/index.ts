@@ -11,6 +11,7 @@ import chatRoutes from "./routes/chat.route.js";
 import documentRoutes from "./routes/documents.route.js";
 import uploadRoutes from "./routes/upload.route.js";
 import mcpRoutes from "./routes/mcp.route.js";
+import { purgeExpiredAccounts } from "./services/auth.service.js";
 import { startDocumentWorker, type DocumentWorkerHandle } from "./workers/document.worker.js";
 
 const app = express();
@@ -89,6 +90,19 @@ app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
 async function bootstrap(): Promise<void> {
   try {
     await db();
+
+    // Run expired account cleanup on startup and schedule periodic sweeps
+    void purgeExpiredAccounts().catch((error) => {
+      console.error("Initial expired accounts purge failed:", error);
+    });
+
+    const purgeInterval = setInterval(() => {
+      void purgeExpiredAccounts().catch((error) => {
+        console.error("Periodic expired accounts purge failed:", error);
+      });
+    }, 24 * 60 * 60 * 1000);
+    purgeInterval.unref();
+
     let documentWorker: DocumentWorkerHandle;
 
     try {
@@ -108,9 +122,11 @@ async function bootstrap(): Promise<void> {
     });
 
     process.once("SIGINT", () => {
+      clearInterval(purgeInterval);
       void documentWorker.close();
     });
     process.once("SIGTERM", () => {
+      clearInterval(purgeInterval);
       void documentWorker.close();
     });
   } catch (error) {

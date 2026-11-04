@@ -49,3 +49,23 @@ export const preferencesSchema = z
       .max(4_000, "Custom instructions must be 4,000 characters or fewer"),
   })
   .passthrough();
+
+export const deleteAccountSchema = z
+  .object({
+    confirmation: z
+      .string()
+      .trim()
+      .refine(
+        (val) => val.toLowerCase() === "confirm",
+        'Please type "confirm" to confirm account deletion'
+      ),
+  })
+  .passthrough();
+
+export const recoverAccountSchema = z
+  .object({
+    email: emailSchema,
+    password: z.string().trim().min(1, "Password is required"),
+  })
+  .passthrough();
+

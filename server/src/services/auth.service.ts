@@ -1,10 +1,14 @@
 import crypto from "node:crypto";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 import type { IUser } from "../models/user.model.js";
 import { User } from "../models/user.model.js";
 import { Chat } from "../models/chat.model.js";
 import { Message } from "../models/message.model.js";
 import { AuthSession } from "../models/auth-session.model.js";
+import { DocumentCollection } from "../models/document-collection.model.js";
+import { McpServer } from "../models/mcp-server.model.js";
+import { Resume } from "../models/resume.model.js";
 import { env } from "../config/env.js";
 import { cleanupDocumentsForUser } from "./document-cleanup.service.js";
 
@@ -12,6 +16,19 @@ const JWT_SECRET = env.JWT_SECRET;
 const JWT_REFRESH_SECRET = env.JWT_REFRESH_SECRET;
 const JWT_ACCESS_EXPIRY = env.JWT_ACCESS_EXPIRY;
 const JWT_REFRESH_EXPIRY = env.JWT_REFRESH_EXPIRY;
+
+export const ACCOUNT_RECOVERY_WINDOW_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+export class AccountPendingDeletionError extends Error {
+  readonly code = "ACCOUNT_PENDING_DELETION";
+  readonly deletionScheduledAt: Date;
+
+  constructor(message: string, deletionScheduledAt: Date) {
+    super(message);
+    this.name = "AccountPendingDeletionError";
+    this.deletionScheduledAt = deletionScheduledAt;
+  }
+}
 
 export interface TokenPayload {
   userId: string;
@@ -29,17 +46,36 @@ export async function registerUser(
   password: string,
   name: string
 ): Promise<{ user: IUser; tokens: AuthTokens }> {
-  const existingUser = await User.findOne({ email });
+  const normalizedEmail = email.toLowerCase().trim();
+  const existingUser = await User.findOne({ email: normalizedEmail });
+
   if (existingUser) {
-    throw new Error("User already exists with this email");
+    if (existingUser.status === "pending_deletion") {
+      if (
+        existingUser.deletionScheduledAt &&
+        existingUser.deletionScheduledAt.getTime() <= Date.now()
+      ) {
+        // Expired pending deletion: purge and allow new registration
+        await permanentlyDeleteUserAccount(existingUser._id.toString());
+      } else {
+        throw new Error(
+          "An account with this email is scheduled for deletion. Please log in to recover it or wait until the 30-day period expires."
+        );
+      }
+    } else {
+      throw new Error("User already exists with this email");
+    }
   }
 
   let user: IUser;
   try {
     user = await User.create({
-      email,
+      email: normalizedEmail,
       password,
       name,
+      status: "active",
+      deletedAt: null,
+      deletionScheduledAt: null,
     });
   } catch (error) {
     if ((error as { code?: number }).code === 11000) {
@@ -56,9 +92,31 @@ export async function loginUser(
   email: string,
   password: string
 ): Promise<{ user: IUser; tokens: AuthTokens }> {
-  const user = await User.findOne({ email }).select("+password");
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = await User.findOne({ email: normalizedEmail }).select("+password");
   if (!user) {
     throw new Error("Invalid credentials");
+  }
+
+  if (user.status === "pending_deletion") {
+    if (
+      user.deletionScheduledAt &&
+      user.deletionScheduledAt.getTime() <= Date.now()
+    ) {
+      // 30-day window expired: permanently delete and reject
+      await permanentlyDeleteUserAccount(user._id.toString());
+      throw new Error("Invalid credentials");
+    }
+
+    const isMatch = await (user as any).comparePassword(password);
+    if (!isMatch) {
+      throw new Error("Invalid credentials");
+    }
+
+    throw new AccountPendingDeletionError(
+      "Your account is deactivated and scheduled for deletion. You can recover it within 30 days.",
+      user.deletionScheduledAt ?? new Date(Date.now() + ACCOUNT_RECOVERY_WINDOW_MS)
+    );
   }
 
   const isMatch = await (user as any).comparePassword(password);
@@ -150,14 +208,23 @@ async function issueTokens(
 export async function isSessionActive(sessionId: string, userId: string): Promise<boolean> {
   const session = await AuthSession.findOne({
     sessionId,
-    userId,
+    userId: new mongoose.Types.ObjectId(userId),
     revokedAt: { $exists: false },
     expiresAt: { $gt: new Date() },
   })
     .select("_id")
     .lean();
 
-  return Boolean(session);
+  if (!session) {
+    return false;
+  }
+
+  const user = await User.findById(userId).select("status").lean();
+  if (!user || user.status === "pending_deletion") {
+    return false;
+  }
+
+  return true;
 }
 
 export async function refreshTokens(refreshToken: string): Promise<AuthTokens> {
@@ -165,8 +232,8 @@ export async function refreshTokens(refreshToken: string): Promise<AuthTokens> {
     const payload = verifyRefreshToken(refreshToken);
     const user = await User.findById(payload.userId);
 
-    if (!user) {
-      throw new Error("User not found");
+    if (!user || user.status === "pending_deletion") {
+      throw new Error("User not found or account is deactivated");
     }
 
     const session = await AuthSession.findOneAndUpdate(
@@ -193,25 +260,134 @@ export async function refreshTokens(refreshToken: string): Promise<AuthTokens> {
 
 export async function revokeSession(sessionId: string, userId: string): Promise<void> {
   await AuthSession.updateOne(
-    { sessionId, userId, revokedAt: { $exists: false } },
+    { sessionId, userId: new mongoose.Types.ObjectId(userId), revokedAt: { $exists: false } },
     { $set: { revokedAt: new Date() } }
   );
 }
 
-export async function deleteUserAccount(userId: string): Promise<void> {
+export async function scheduleUserAccountDeletion(
+  userId: string,
+  confirmation: string = "confirm"
+): Promise<{ message: string; deletionScheduledAt: Date }> {
+  if (confirmation.trim().toLowerCase() !== "confirm") {
+    throw new Error('Please type "confirm" to confirm account deletion');
+  }
+
   const user = await User.findById(userId);
   if (!user) {
     throw new Error("User not found");
   }
 
-  await cleanupDocumentsForUser(userId);
+  const scheduledDate = new Date(Date.now() + ACCOUNT_RECOVERY_WINDOW_MS);
+  user.status = "pending_deletion";
+  user.deletedAt = new Date();
+  user.deletionScheduledAt = scheduledDate;
+  await user.save();
 
-  // Delete all messages and chats owned by this user
-  await Message.deleteMany({ userId });
-  await Chat.deleteMany({ userId });
+  // Revoke all active sessions so user cannot access their account
+  await AuthSession.updateMany(
+    { userId: user._id, revokedAt: { $exists: false } },
+    { $set: { revokedAt: new Date() } }
+  );
 
-  // Delete the user
+  return {
+    message:
+      "Account scheduled for deletion. You will not be able to access your account now. All data will be deleted in 30 days. You can recover your account within 30 days by logging back in.",
+    deletionScheduledAt: scheduledDate,
+  };
+}
+
+export const deleteUserAccount = scheduleUserAccountDeletion;
+
+export async function recoverUserAccount(
+  email: string,
+  password: string
+): Promise<{ user: IUser; tokens: AuthTokens; message: string }> {
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = await User.findOne({ email: normalizedEmail }).select("+password");
+  if (!user) {
+    throw new Error("Invalid credentials");
+  }
+
+  const isMatch = await (user as any).comparePassword(password);
+  if (!isMatch) {
+    throw new Error("Invalid credentials");
+  }
+
+  if (user.status !== "pending_deletion") {
+    const tokens = await issueTokens(user);
+    return {
+      user,
+      tokens,
+      message: "Account is already active.",
+    };
+  }
+
+  if (
+    user.deletionScheduledAt &&
+    user.deletionScheduledAt.getTime() <= Date.now()
+  ) {
+    await permanentlyDeleteUserAccount(user._id.toString());
+    throw new Error(
+      "The 30-day recovery period has expired. This account has been permanently deleted."
+    );
+  }
+
+  // Recover account back to active
+  user.status = "active";
+  user.deletedAt = null;
+  user.deletionScheduledAt = null;
+  await user.save();
+
+  const tokens = await issueTokens(user);
+  return {
+    user,
+    tokens,
+    message: "Welcome back! Your account has been recovered successfully.",
+  };
+}
+
+export async function permanentlyDeleteUserAccount(userId: string): Promise<void> {
+  const user = await User.findById(userId);
+  if (!user) {
+    return;
+  }
+
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+
+  try {
+    await cleanupDocumentsForUser(userId);
+  } catch (error) {
+    console.error(`Failed to cleanup documents for user ${userId}:`, error);
+  }
+
+  await Promise.allSettled([
+    Message.deleteMany({ userId }),
+    Chat.deleteMany({ userId }),
+    AuthSession.deleteMany({ userId: userObjectId }),
+    DocumentCollection.deleteMany({ userId: userObjectId }),
+    McpServer.deleteMany({ userId: userObjectId }),
+    Resume.deleteMany({ userId: userObjectId }),
+  ]);
+
   await User.findByIdAndDelete(userId);
+}
+
+export async function purgeExpiredAccounts(): Promise<number> {
+  const expiredUsers = await User.find({
+    status: "pending_deletion",
+    deletionScheduledAt: { $lte: new Date() },
+  }).select("_id");
+
+  for (const user of expiredUsers) {
+    try {
+      await permanentlyDeleteUserAccount(user._id.toString());
+    } catch (error) {
+      console.error(`Failed to purge expired user ${user._id}:`, error);
+    }
+  }
+
+  return expiredUsers.length;
 }
 
 export async function changePassword(

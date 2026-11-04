@@ -109,6 +109,16 @@ Authenticate and get tokens.
 }
 ```
 
+**Response (403 Forbidden - Account Pending Deletion):**
+```json
+{
+  "success": false,
+  "code": "ACCOUNT_PENDING_DELETION",
+  "error": "Your account is deactivated and scheduled for permanent deletion. You can recover your account within 30 days.",
+  "deletionScheduledAt": "2026-12-04T06:00:00.000Z"
+}
+```
+
 #### POST /auth/refresh
 Refresh access token using refresh token.
 
@@ -201,6 +211,101 @@ Content-Type: application/json
       }
     }
   }
+}
+```
+
+#### DELETE /auth/account
+Schedule user account deletion. This action immediately deactivates the account, revokes all active sessions, and marks all user chats, messages, and uploaded files for permanent deletion after a 30-day grace period. Users cannot access their account while deactivated, but may recover it within 30 days. Requires the confirmation text `"confirm"`.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "confirmation": "confirm"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Account scheduled for deletion. You will not be able to access your account now. All data will be deleted in 30 days. You can recover your account within 30 days by logging back in.",
+  "data": {
+    "deletionScheduledAt": "2026-12-04T06:00:00.000Z"
+  }
+}
+```
+
+**Response (400 Bad Request):**
+```json
+{
+  "success": false,
+  "error": "Please type \"confirm\" to confirm account deletion"
+}
+```
+
+#### POST /auth/recover
+Recover an account scheduled for deletion within the 30-day grace period. Reactivates the account and returns user data and fresh authentication tokens.
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "password": "password123"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Welcome back! Your account has been recovered successfully.",
+  "data": {
+    "user": {
+      "id": "65a1b2c3d4e5f6g7h8i9j0k1",
+      "email": "user@example.com",
+      "name": "John Doe",
+      "status": "active",
+      "preferences": {
+        "theme": "light",
+        "defaultModel": "gpt-5-mini-2025-08-07"
+      }
+    },
+    "tokens": {
+      "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+      "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
+    }
+  }
+}
+```
+
+#### PUT /auth/password
+Change password for authenticated user.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "currentPassword": "currentPassword123",
+  "newPassword": "newPassword123"
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Password changed successfully"
 }
 ```
 

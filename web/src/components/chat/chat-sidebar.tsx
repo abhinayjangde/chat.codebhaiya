@@ -68,7 +68,7 @@ interface ChatSidebarProps {
   onDeleteChat: (chatId: string) => void;
   onRenameChat: (chatId: string, title: string) => void;
   onDownloadPdf: (chatId: string) => void;
-  onDeleteAccount: () => Promise<void>;
+  onDeleteAccount: (confirmationText?: string) => Promise<void>;
   onChangePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   onSaveSystemInstructions: (instructions: string) => Promise<void>;
   user: UserProfile | null;
@@ -389,10 +389,10 @@ export const ChatSidebar = memo(function ChatSidebar({
     setIsConfirmDeleteOpen(true);
   };
 
-  const executeDeleteAccount = async () => {
+  const executeDeleteAccount = async (confirmationText: string = "confirm") => {
     setIsDeletingAccount(true);
     try {
-      await onDeleteAccount();
+      await onDeleteAccount(confirmationText);
       setIsConfirmDeleteOpen(false);
     } catch {
       setIsDeletingAccount(false);

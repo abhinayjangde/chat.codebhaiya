@@ -53,6 +53,9 @@ export function ChatApp() {
     authError,
     setAuthError,
     isAuthLoading,
+    pendingRecovery,
+    handleRecoverAccount,
+    dismissRecovery,
     runWithSession,
     handleAuthSubmit,
     handleLogout,
@@ -219,6 +222,9 @@ export function ChatApp() {
         authError={authError}
         setAuthError={setAuthError}
         isAuthLoading={isAuthLoading}
+        pendingRecovery={pendingRecovery}
+        onRecover={handleRecoverAccount}
+        onDismissRecovery={dismissRecovery}
         onSubmit={handleAuthSubmit}
       />
     );
@@ -248,9 +254,9 @@ export function ChatApp() {
         onDeleteChat={onDeleteChatWithCleanup}
         onRenameChat={handleRenameChat}
         onDownloadPdf={handleDownloadPdf}
-        onDeleteAccount={async () => {
+        onDeleteAccount={async (confirmationText?: string) => {
           clearStreaming();
-          await handleDeleteAccount();
+          await handleDeleteAccount(confirmationText);
         }}
         onChangePassword={handleChangePassword}
         onSaveSystemInstructions={handleSaveSystemInstructions}

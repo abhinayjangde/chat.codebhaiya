@@ -45,20 +45,20 @@ export function CitationMarker({ index, source }: CitationMarkerProps) {
 
   const badgeContent = (
     <span
-      className="inline-flex items-center gap-1 rounded-full border border-(--chat-dropdown-border) bg-(--chat-surface) px-1.5 py-0.5 text-[11px] font-medium text-(--chat-text-secondary) group-hover:border-primary/60 group-hover:bg-primary/15 group-hover:text-primary transition-all duration-150 shadow-2xs select-none"
+      aria-hidden="true"
+      className="inline-flex h-[18px] w-[18px] items-center justify-center rounded-full border border-(--chat-dropdown-border) bg-(--chat-surface) align-[-3px] transition-all duration-150 group-hover:border-primary/60 group-hover:bg-primary/15 group-hover:shadow-sm select-none"
     >
       {host && !badgeIconError ? (
         /* eslint-disable-next-line @next/next/no-img-element */
         <img
           src={`https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=32`}
           alt=""
-          className="h-3.5 w-3.5 rounded-full object-cover shrink-0"
+          className="h-3 w-3 rounded-full object-cover shrink-0"
           onError={() => setBadgeIconError(true)}
         />
       ) : (
-        <Globe className="h-3 w-3 shrink-0 opacity-70" />
+        <Globe className="h-3 w-3 shrink-0 text-(--chat-text-secondary)" />
       )}
-      <span className="text-[10px] font-semibold leading-none">{index}</span>
     </span>
   );
 
@@ -117,7 +117,8 @@ export function CitationMarker({ index, source }: CitationMarkerProps) {
         href={href}
         target="_blank"
         rel="noopener noreferrer"
-        className="relative inline-block align-baseline mx-0.5 cursor-pointer no-underline group"
+        aria-label={`Open source ${index}: ${source.title || host || href}`}
+        className="relative inline-block align-baseline mx-0.5 cursor-pointer rounded-full no-underline outline-none group focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-(--chat-surface)"
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onMouseMove={handleMouseMove}
