@@ -24,8 +24,11 @@ const envSchema = z.object({
   JWT_ACCESS_EXPIRY: z.string().trim().min(1).default("15m"),
   JWT_REFRESH_EXPIRY: z.string().trim().min(1).default("7d"),
   CORS_ORIGINS: z.string().trim().min(1, "CORS_ORIGINS is required"),
-  RESEND_API_KEY: z.string().trim().optional(),
-  AUTH_EMAIL_FROM: z.string().trim().email().optional(),
+  SMTP_HOST: z.string().trim().min(1).default("smtp.gmail.com"),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(587),
+  SMTP_USER: z.string().trim().optional(),
+  SMTP_PASS: z.string().optional(),
+  SMTP_FROM: z.string().trim().email().optional(),
   APP_BASE_URL: z.string().trim().url().optional(),
   GOOGLE_API_KEY: z.string().trim().optional(),
   GOOGLE_IMAGE_MODEL: z.string().trim().default("gemini-3.1-flash-image"),
@@ -67,11 +70,11 @@ const envSchema = z.object({
 
 const parsed = envSchema.superRefine((config, context) => {
   if (config.NODE_ENV === "production") {
-    if (!config.RESEND_API_KEY) {
-      context.addIssue({ code: "custom", path: ["RESEND_API_KEY"], message: "RESEND_API_KEY is required in production" });
+    if (!config.SMTP_USER) {
+      context.addIssue({ code: "custom", path: ["SMTP_USER"], message: "SMTP_USER is required in production" });
     }
-    if (!config.AUTH_EMAIL_FROM) {
-      context.addIssue({ code: "custom", path: ["AUTH_EMAIL_FROM"], message: "AUTH_EMAIL_FROM is required in production" });
+    if (!config.SMTP_PASS) {
+      context.addIssue({ code: "custom", path: ["SMTP_PASS"], message: "SMTP_PASS is required in production" });
     }
     if (!config.APP_BASE_URL) {
       context.addIssue({ code: "custom", path: ["APP_BASE_URL"], message: "APP_BASE_URL is required in production" });
@@ -104,6 +107,7 @@ if (corsOrigins.length === 0) {
 
 export const env = Object.freeze({
   ...parsed.data,
+  SMTP_FROM: parsed.data.SMTP_FROM ?? parsed.data.SMTP_USER,
   corsOrigins,
 });
 

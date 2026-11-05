@@ -87,6 +87,7 @@ interface ChatComposerProps {
   selectedMcpServerIds?: string[];
   onMcpServerIdsChange?: (ids: string[]) => void;
   onOpenResumeWizard?: () => void;
+  onBuildResume?: () => void;
 }
 
 export const ChatComposer = memo(function ChatComposer({
@@ -107,6 +108,7 @@ export const ChatComposer = memo(function ChatComposer({
   selectedMcpServerIds = [],
   onMcpServerIdsChange,
   onOpenResumeWizard,
+  onBuildResume,
 }: ChatComposerProps) {
   // If controlled props are provided, use them; otherwise use local state
   const [internalComposer, setInternalComposer] = useState("");
@@ -437,17 +439,17 @@ export const ChatComposer = memo(function ChatComposer({
                   <div className="my-1 border-t border-(--chat-dropdown-border)" />
 
                   {/* Build Resume */}
-                  {onOpenResumeWizard && (
+                  {(onBuildResume || onOpenResumeWizard) && (
                     <button
                       type="button"
                       className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
                       onClick={() => {
                         setPlusMenuOpen(false);
-                        onOpenResumeWizard();
+                        (onBuildResume || onOpenResumeWizard)?.();
                       }}
                     >
                       <FileText className="h-[18px] w-[18px] text-(--chat-brand)" />
-                      <span>Resume builder</span>
+                      <span>Build Resume</span>
                     </button>
                   )}
 

@@ -157,7 +157,7 @@ Set a new password using the token from the reset email. All existing sessions a
 { "token": "<reset token>", "password": "new-password" }
 ```
 
-Configure `RESEND_API_KEY`, `AUTH_EMAIL_FROM` (a verified sender), and `APP_BASE_URL` in the server environment. Production startup requires all three, and the app URL must use HTTPS.
+Configure `SMTP_USER`, `SMTP_PASS`, and `APP_BASE_URL` in the server environment. `SMTP_HOST` defaults to `smtp.gmail.com`, `SMTP_PORT` defaults to `587`, and `SMTP_FROM` defaults to `SMTP_USER`. Production startup requires SMTP credentials and an HTTPS app URL. Port `465` uses implicit TLS; other ports use STARTTLS when supported by the provider. For Gmail with two-step verification, use a Google App Password.
 
 #### POST /auth/register
 Register a new user account.

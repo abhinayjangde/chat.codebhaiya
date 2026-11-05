@@ -1,7 +1,59 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { firstName, getTimeGreeting } from "./greeting";
+import {
+  firstName,
+  formatGreeting,
+  getRandomGreeting,
+  getTimeGreeting,
+  RANDOM_GREETINGS,
+} from "./greeting";
 
 describe("greeting utilities", () => {
+  describe("RANDOM_GREETINGS", () => {
+    it("contains between 5 and 10 greeting options", () => {
+      expect(RANDOM_GREETINGS.length).toBeGreaterThanOrEqual(5);
+      expect(RANDOM_GREETINGS.length).toBeLessThanOrEqual(10);
+    });
+  });
+
+  describe("getRandomGreeting", () => {
+    it("returns a valid greeting from RANDOM_GREETINGS", () => {
+      const greeting = getRandomGreeting();
+      expect(RANDOM_GREETINGS).toContain(greeting);
+    });
+
+    it("excludes the specified greeting when exclude is provided", () => {
+      const exclude = RANDOM_GREETINGS[0];
+      for (let i = 0; i < 20; i++) {
+        const greeting = getRandomGreeting(exclude);
+        expect(greeting).not.toBe(exclude);
+        expect(RANDOM_GREETINGS).toContain(greeting);
+      }
+    });
+  });
+
+  describe("formatGreeting", () => {
+    it("formats a statement greeting with user first name", () => {
+      expect(formatGreeting("Good to see you", "Abhinay Sharma")).toBe(
+        "Good to see you, Abhinay"
+      );
+    });
+
+    it("formats a question greeting with user first name before question mark", () => {
+      expect(formatGreeting("What's on your mind?", "Abhinay Sharma")).toBe(
+        "What's on your mind, Abhinay?"
+      );
+    });
+
+    it("returns plain greeting if name is null, undefined, or empty", () => {
+      expect(formatGreeting("Welcome back", null)).toBe("Welcome back");
+      expect(formatGreeting("Welcome back", undefined)).toBe("Welcome back");
+      expect(formatGreeting("Welcome back", "   ")).toBe("Welcome back");
+      expect(formatGreeting("What's on your mind?", "")).toBe(
+        "What's on your mind?"
+      );
+    });
+  });
+
   describe("firstName", () => {
     it("extracts the first name from full name", () => {
       expect(firstName("Abhishek Kumar")).toBe("Abhishek");

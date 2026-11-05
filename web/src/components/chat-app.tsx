@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, PanelLeft, Sparkles } from "lucide-react";
+import { Loader2, PanelLeft } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
-import { getTimeGreeting, firstName } from "@/lib/greeting";
+import { getRandomGreeting, formatGreeting } from "@/lib/greeting";
 import { apiClient } from "@/lib/api";
 import type { IResumeDoc } from "@/lib/types";
 
@@ -27,7 +27,7 @@ export function ChatApp() {
   const [showDocuments, setShowDocuments] = useState(false);
   const [showMcpSettings, setShowMcpSettings] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [greeting, setGreeting] = useState(getTimeGreeting());
+  const [greeting, setGreeting] = useState(getRandomGreeting);
 
   // Resume Builder state
   const [resume, setResume] = useState<IResumeDoc | null>(null);
@@ -135,6 +135,27 @@ export function ChatApp() {
     targetMessageId,
   });
 
+  const handleBuildResumeClick = useCallback(() => {
+    const currentText = composer.trim();
+    const prompt = currentText
+      ? `${currentText}\n\nPlease help me build a professional, ATS-optimized resume based on these details. If you need any more necessary details from me (like target role, experience, education, or skills), please ask me, and let me know if I should attach any documents like a PDF.`
+      : "I want to build a professional, ATS-optimized resume. Please guide me through the process: ask me for all the necessary details you need to build my resume, and let me know if I should attach any documents like a PDF of my existing resume or job description if I have them.";
+
+    setComposer(prompt);
+
+    // Focus the textarea so the user can easily customize before sending
+    if (typeof window !== "undefined") {
+      requestAnimationFrame(() => {
+        const textareas = document.querySelectorAll<HTMLTextAreaElement>("textarea");
+        const activeTextarea = Array.from(textareas).find((el) => !el.disabled);
+        if (activeTextarea) {
+          activeTextarea.focus();
+          activeTextarea.setSelectionRange(activeTextarea.value.length, activeTextarea.value.length);
+        }
+      });
+    }
+  }, [composer, setComposer]);
+
   const handleSearchChats = useCallback(
     async (query: string) => {
       return runWithSession((accessToken) => apiClient.searchChats(query, accessToken));
@@ -229,18 +250,9 @@ export function ChatApp() {
     };
   }, [tokens, activeChatId, runWithSession]);
 
-  // Keep greeting in sync with local time
-  useEffect(() => {
-    const refresh = () => setGreeting(getTimeGreeting());
-    const timer = setInterval(refresh, 60_000);
-    document.addEventListener("visibilitychange", refresh);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", refresh);
-    };
-  }, []);
 
   const handleNewChat = useCallback(() => {
+    setGreeting((prev) => getRandomGreeting(prev));
     setShowDocuments(false);
     setShowMcpSettings(false);
     setActiveChatId(null);
@@ -393,11 +405,11 @@ export function ChatApp() {
                 {messages.length === 0 && !isLoadingMessages && (
                   <div className="flex min-h-[calc(100vh-140px)] flex-col items-center justify-center">
                     <h2
+                      suppressHydrationWarning
                       className="mb-10 text-center text-4xl font-light tracking-wide text-(--chat-brand)"
                       style={{ fontFamily: "var(--font-fraunces), serif" }}
                     >
-                      {greeting}
-                      {user?.name ? `, ${firstName(user.name)}` : ""}
+                      {formatGreeting(greeting, user?.name)}
                     </h2>
 
                     <ChatComposer
@@ -416,37 +428,16 @@ export function ChatApp() {
                       mcpServers={mcpServers}
                       selectedMcpServerIds={selectedMcpServerIds}
                       onMcpServerIdsChange={setSelectedMcpServerIds}
-                      onOpenResumeWizard={() => setShowResumeWizard(true)}
+                      onBuildResume={handleBuildResumeClick}
+                      onOpenResumeWizard={handleBuildResumeClick}
                     />
 
-                    <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1.5 rounded-full border border-(--chat-brand)/40 bg-(--chat-brand)/10 px-3.5 py-1.5 text-xs font-medium text-(--chat-brand) transition hover:bg-(--chat-brand)/20 cursor-pointer"
-                        onClick={() => setShowResumeWizard(true)}
-                      >
-                        <Sparkles className="h-3.5 w-3.5" />
-                        Build Resume
-                      </button>
-                      {[
-                        { icon: "❤️", label: "Health" },
-                        { icon: "📋", label: "Plan" },
-                        { icon: "🔍", label: "Research" },
-                        { icon: "📰", label: "Latest News" },
-                        { icon: "📊", label: "Analyze" },
-                      ].map((chip) => (
-                        <button
-                          key={chip.label}
-                          type="button"
-                          className="inline-flex items-center gap-1.5 rounded-full border border-(--chat-chip-border) bg-transparent px-3.5 py-1.5 text-xs text-(--chat-chip-text) transition hover:border-(--chat-dropdown-border) hover:bg-(--chat-dropdown-hover) hover:text-(--chat-chip-text-hover)"
-                          onClick={() => {
-                            setComposer(chip.label + ": ");
-                          }}
-                        >
-                          <span>{chip.icon}</span>
-                          {chip.label}
-                        </button>
-                      ))}
+                    <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+                      
+                      <p className="inline-flex items-center gap-1.5 bg-transparent px-3.5 py-1.5 text-xs text-(--chat-chip-text)">
+                          Codebhaiya is AI and can make mistakes. Please double-check responses.
+                        </p>
+                   
                     </div>
                   </div>
                 )}
@@ -471,7 +462,8 @@ export function ChatApp() {
                     mcpServers={mcpServers}
                     selectedMcpServerIds={selectedMcpServerIds}
                     onMcpServerIdsChange={setSelectedMcpServerIds}
-                    onOpenResumeWizard={() => setShowResumeWizard(true)}
+                    onBuildResume={handleBuildResumeClick}
+                    onOpenResumeWizard={handleBuildResumeClick}
                   />
                 </footer>
               )}

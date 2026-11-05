@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { env } from "../config/env.js";
+import { assertEmailConfigured, sendEmail } from "./email.service.js";
 import { User, hashPassword } from "../models/user.model.js";
 import { AuthSession } from "../models/auth-session.model.js";
 
@@ -10,42 +11,25 @@ function hashResetToken(token: string): string {
 }
 
 async function sendResetEmail(email: string, token: string): Promise<void> {
-  if (!env.RESEND_API_KEY || !env.AUTH_EMAIL_FROM || !env.APP_BASE_URL) {
-    throw new Error("Password reset email is not configured");
-  }
+  assertEmailConfigured();
+  if (!env.APP_BASE_URL) throw new Error("APP_BASE_URL is required to send password reset emails");
 
   const resetUrl = new URL("/reset-password", env.APP_BASE_URL);
   resetUrl.searchParams.set("token", token);
 
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${env.RESEND_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: env.AUTH_EMAIL_FROM,
-      to: [email],
-      subject: "Reset your Codebhaiya password",
-      text: `We received a request to reset your Codebhaiya password. Use this link within 30 minutes:\n\n${resetUrl.toString()}\n\nIf you did not request this, you can ignore this email. Your password will not change.`,
-      html: `<p>We received a request to reset your Codebhaiya password.</p><p><a href="${resetUrl.toString()}">Choose a new password</a></p><p>This link expires in 30 minutes. If you did not request this, you can ignore this email. Your password will not change.</p>`,
-    }),
+  await sendEmail({
+    to: email,
+    subject: "Reset your Codebhaiya password",
+    text: `We received a request to reset your Codebhaiya password. Use this link within 30 minutes:\n\n${resetUrl.toString()}\n\nIf you did not request this, you can ignore this email. Your password will not change.`,
+    html: `<p>We received a request to reset your Codebhaiya password.</p><p><a href="${resetUrl.toString()}">Choose a new password</a></p><p>This link expires in 30 minutes. If you did not request this, you can ignore this email. Your password will not change.</p>`,
   });
-
-  if (!response.ok) {
-    console.error("Password reset email provider rejected the request", {
-      status: response.status,
-    });
-    throw new Error("Password reset email could not be sent");
-  }
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
   // Check configuration before looking up the account so responses do not reveal
   // whether an address exists when email delivery is unavailable.
-  if (!env.RESEND_API_KEY || !env.AUTH_EMAIL_FROM || !env.APP_BASE_URL) {
-    throw new Error("Password reset email is not configured");
-  }
+  assertEmailConfigured();
+  if (!env.APP_BASE_URL) throw new Error("APP_BASE_URL is required to send password reset emails");
 
   const user = await User.findOne({
     email: email.toLowerCase().trim(),

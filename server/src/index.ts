@@ -4,7 +4,7 @@ import mongoose from "mongoose";
 
 import { env } from "./config/env.js";
 import db from "./lib/db.js";
-import { startKeepAlive } from "./lib/keep-alive.js";
+import { startKeepAlive, stopKeepAlive } from "./lib/keep-alive.js";
 import { HttpError } from "./lib/validation.js";
 import authRoutes from "./routes/auth.route.js";
 import chatRoutes from "./routes/chat.route.js";
@@ -118,7 +118,7 @@ async function bootstrap(): Promise<void> {
       process.exit(1);
     }
 
-    app.listen(env.PORT, () => {
+    const server = app.listen(env.PORT, () => {
       console.log(`Server is running on port http://localhost:${env.PORT}`);
 
       // Start the keep-alive self-ping to prevent Render from sleeping
@@ -127,14 +127,53 @@ async function bootstrap(): Promise<void> {
       }
     });
 
-    process.once("SIGINT", () => {
-      clearInterval(purgeInterval);
-      void documentWorker.close();
-    });
-    process.once("SIGTERM", () => {
-      clearInterval(purgeInterval);
-      void documentWorker.close();
-    });
+    let shutdownPromise: Promise<void> | undefined;
+    const shutdown = (signal: NodeJS.Signals): Promise<void> => {
+      if (shutdownPromise) return shutdownPromise;
+
+      shutdownPromise = (async () => {
+        console.log(`Received ${signal}; shutting down gracefully`);
+        const forceExitTimer = setTimeout(() => {
+          console.error("Graceful shutdown timed out; forcing exit");
+          server.closeAllConnections();
+          process.exit(1);
+        }, 30_000);
+
+        clearInterval(purgeInterval);
+        stopKeepAlive();
+        const httpServerClose = new Promise<void>((resolve, reject) => {
+          server.close((error) => error ? reject(error) : resolve());
+        });
+        server.closeIdleConnections();
+
+        let shutdownFailed = false;
+        const attempt = async (label: string, close: () => Promise<unknown>) => {
+          try {
+            await close();
+          } catch (error) {
+            shutdownFailed = true;
+            console.error(`Failed to close ${label}:`, error);
+          }
+        };
+
+        try {
+          await Promise.all([
+            attempt("HTTP server", () => httpServerClose),
+            attempt("document worker", () => documentWorker.close()),
+          ]);
+          await attempt("MongoDB connection", () => mongoose.disconnect());
+          console.log("Graceful shutdown complete");
+          if (shutdownFailed) process.exitCode = 1;
+        } finally {
+          clearTimeout(forceExitTimer);
+        }
+      })();
+
+      return shutdownPromise;
+    };
+
+    process.once("SIGINT", () => void shutdown("SIGINT"));
+    process.once("SIGTERM", () => void shutdown("SIGTERM"));
   } catch (error) {
     console.error("Failed to start server:", error);
     process.exit(1);
