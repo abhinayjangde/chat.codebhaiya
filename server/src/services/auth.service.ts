@@ -565,4 +565,11 @@ export async function changePassword(
   user.passwordResetTokenHash = null;
   user.passwordResetExpiresAt = null;
   await user.save();
+
+  // Revoke every active session so previously issued access and refresh tokens
+  // cannot be used after the password changes.
+  await AuthSession.updateMany(
+    { userId: user._id, revokedAt: { $exists: false } },
+    { $set: { revokedAt: new Date() } }
+  );
 }

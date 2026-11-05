@@ -18,6 +18,7 @@ import { purgeExpiredAccounts } from "./services/auth.service.js";
 import { startDocumentWorker, type DocumentWorkerHandle } from "./workers/document.worker.js";
 
 const app = express();
+app.set("trust proxy", env.TRUST_PROXY);
 const allowedOrigins = new Set(env.corsOrigins);
 const isDevelopmentOrigin = (origin: string) =>
   env.NODE_ENV !== "production" &&

@@ -35,11 +35,7 @@ import { deleteDocumentFromS3, downloadDocumentFromS3, uploadDocumentToS3 } from
 
 function getClientMetadata(req: Request) {
   const userAgent = typeof req.headers["user-agent"] === "string" ? req.headers["user-agent"] : undefined;
-  const forwarded = req.headers["x-forwarded-for"];
-  const ipAddress =
-    (typeof forwarded === "string" ? forwarded.split(",")[0]?.trim() : undefined) ??
-    req.ip ??
-    req.socket?.remoteAddress;
+  const ipAddress = req.ip || req.socket?.remoteAddress;
   return { userAgent, ipAddress };
 }
 

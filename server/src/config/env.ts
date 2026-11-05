@@ -8,6 +8,18 @@ dotenv.config();
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+  TRUST_PROXY: z
+    .string()
+    .trim()
+    .default("1")
+    .transform((val) => {
+      if (!val || val === "1") return 1;
+      if (val === "true") return true;
+      if (val === "false") return false;
+      const num = Number(val);
+      if (!Number.isNaN(num)) return num;
+      return val;
+    }),
   MONGODB_URL: z.string().trim().min(1, "MONGODB_URL is required"),
 
   OPENAI_API_KEY: z.string().trim().optional(),
