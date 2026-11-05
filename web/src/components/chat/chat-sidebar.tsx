@@ -63,6 +63,7 @@ interface ChatSidebarProps {
   chats: ChatSummary[];
   activeChatId: string | null;
   onSelectChat: (chatId: string) => void;
+  onSearch?: (query: string) => Promise<any>;
   onNewChat: () => void;
   onOpenDocuments: () => void;
   onDeleteChat: (chatId: string) => void;
@@ -86,6 +87,7 @@ interface ChatSidebarProps {
   onDuplicateChat: (chatId: string) => void;
   isShowingArchived: boolean;
   setIsShowingArchived: (show: boolean) => void;
+  onOpenSettings?: () => void;
 }
 
 export const ChatSidebar = memo(function ChatSidebar({
@@ -114,6 +116,7 @@ export const ChatSidebar = memo(function ChatSidebar({
   language,
   setLanguage,
   onOpenMcpSettings,
+  onOpenSettings,
   onTogglePin,
   onToggleArchive,
   onDuplicateChat,
@@ -616,6 +619,20 @@ export const ChatSidebar = memo(function ChatSidebar({
           <div className="relative" ref={settingsRef}>
             {settingsMenuOpen && (
               <div className="absolute bottom-full left-0 z-50 mb-1 w-full max-h-[calc(100dvh-120px)] overflow-y-auto rounded-md border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl md:max-h-none md:overflow-visible">
+                {/* Direct Settings Link */}
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text) hover:cursor-pointer"
+                  onClick={() => {
+                    setActiveSubmenu(null);
+                    setSettingsMenuOpen(false);
+                    if (onOpenSettings) onOpenSettings();
+                  }}
+                >
+                  <SlidersHorizontal className="h-4 w-4 text-(--chat-label)" />
+                  Settings & Data
+                </button>
+                <div className="my-1 border-t border-(--chat-dropdown-border)" />
 
                 {/* You section */}
                 <div
@@ -662,11 +679,13 @@ export const ChatSidebar = memo(function ChatSidebar({
                         onClick={() => {
                           setActiveSubmenu(null);
                           setSettingsMenuOpen(false);
-                          toast("Account settings coming soon");
+                          if (onOpenSettings) {
+                            onOpenSettings();
+                          }
                         }}
                       >
                         <User className="h-[16px] w-[16px] text-(--chat-label)" />
-                        Account
+                        Account & Data
                       </button>
 
                       {/* Notifications */}
@@ -683,18 +702,20 @@ export const ChatSidebar = memo(function ChatSidebar({
                         Notifications
                       </button>
 
-                      {/* Privacy */}
+                      {/* Privacy & Sessions */}
                       <button
                         type="button"
                         className="flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text) hover:cursor-pointer md:py-2.5"
                         onClick={() => {
                           setActiveSubmenu(null);
                           setSettingsMenuOpen(false);
-                          toast("Privacy settings coming soon");
+                          if (onOpenSettings) {
+                            onOpenSettings();
+                          }
                         }}
                       >
                         <ShieldCheck className="h-[16px] w-[16px] text-(--chat-label)" />
-                        Privacy
+                        Sessions & Privacy
                       </button>
 
                       {/* Custom instructions */}

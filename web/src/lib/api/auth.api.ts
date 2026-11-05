@@ -1,4 +1,4 @@
-import type { AuthTokens, UserProfile } from "@/lib/types";
+import type { AuthTokens, UserProfile, UserSession } from "@/lib/types";
 import {
   API_BASE_URL,
   ApiError,
@@ -14,6 +14,22 @@ export interface AuthEnvelope {
 }
 
 export const authApi = {
+  async requestPasswordReset(email: string): Promise<{ message: string }> {
+    return requestData<{ message: string }>("/auth/password/reset-request", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ email }),
+    });
+  },
+
+  async resetPassword(token: string, password: string): Promise<{ message: string }> {
+    return requestData<{ message: string }>("/auth/password/reset", {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ token, password }),
+    });
+  },
+
   async register(payload: {
     email: string;
     password: string;
@@ -136,5 +152,37 @@ export const authApi = {
       headers: authHeaders(accessToken),
       body: JSON.stringify({ currentPassword, newPassword }),
     });
+  },
+
+  async listSessions(accessToken: string): Promise<{ sessions: UserSession[] }> {
+    return requestData<{ sessions: UserSession[] }>("/auth/sessions", {
+      method: "GET",
+      headers: authHeaders(accessToken),
+    });
+  },
+
+  async revokeSession(
+    sessionId: string,
+    accessToken: string
+  ): Promise<{ success: boolean; isCurrent?: boolean; sessionId?: string }> {
+    return requestData<{ success: boolean; isCurrent?: boolean; sessionId?: string }>(
+      `/auth/sessions/${encodeURIComponent(sessionId)}`,
+      {
+        method: "DELETE",
+        headers: authHeaders(accessToken),
+      }
+    );
+  },
+
+  async revokeOtherSessions(
+    accessToken: string
+  ): Promise<{ success: boolean; revokedCount: number }> {
+    return requestData<{ success: boolean; revokedCount: number }>(
+      "/auth/sessions/revoke-others",
+      {
+        method: "POST",
+        headers: authHeaders(accessToken),
+      }
+    );
   },
 };

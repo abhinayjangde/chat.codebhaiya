@@ -6,6 +6,9 @@ export interface IAuthSession {
   refreshTokenHash: string;
   expiresAt: Date;
   revokedAt?: Date;
+  userAgent?: string;
+  ipAddress?: string;
+  lastActiveAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,6 +37,15 @@ const authSessionSchema = new mongoose.Schema<IAuthSession>(
       required: true,
     },
     revokedAt: {
+      type: Date,
+    },
+    userAgent: {
+      type: String,
+    },
+    ipAddress: {
+      type: String,
+    },
+    lastActiveAt: {
       type: Date,
     },
   },

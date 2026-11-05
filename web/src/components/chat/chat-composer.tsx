@@ -119,6 +119,7 @@ export const ChatComposer = memo(function ChatComposer({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [failedUploads, setFailedUploads] = useState<Array<{ file: File; message: string }>>([]);
   const [imageGenerationMode, setImageGenerationMode] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -156,30 +157,57 @@ export const ChatComposer = memo(function ChatComposer({
     setUploadError(null);
     setPlusMenuOpen(false);
 
-    try {
-      const uploadedAttachments: Attachment[] = [];
-      for (const file of files) {
+    const failed: Array<{ file: File; message: string }> = [];
+    for (const file of files) {
+      try {
         const result = await onUploadFile(file);
-        uploadedAttachments.push(result);
+        setAttachments((previous) => [...previous, result]);
 
-        if (
-          result.documentId &&
-          result.type === "document" &&
-          result.status !== "ready"
-        ) {
+        if (result.documentId && result.type === "document" && result.status !== "ready") {
           void pollDocumentStatus(result.documentId).catch((error) => {
             setUploadError(error instanceof Error ? error.message : "Unable to check document status");
           });
         }
+      } catch (error) {
+        failed.push({
+          file,
+          message: error instanceof Error ? error.message : "Upload failed",
+        });
       }
-      setAttachments((previous) => [...previous, ...uploadedAttachments]);
+    }
+    if (failed.length > 0) {
+      setFailedUploads((previous) => [...previous, ...failed]);
+      setUploadError(`${failed.length} file${failed.length === 1 ? "" : "s"} could not be uploaded. Retry below.`);
+    }
+    setIsUploading(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const retryUpload = async (index: number) => {
+    const failed = failedUploads[index];
+    if (!failed || !onUploadFile || isUploading) return;
+    setIsUploading(true);
+    setUploadError(null);
+    try {
+      const result = await onUploadFile(failed.file);
+      setAttachments((previous) => [...previous, result]);
+      setFailedUploads((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
+      if (result.documentId && result.type === "document" && result.status !== "ready") {
+        void pollDocumentStatus(result.documentId).catch((error) => {
+          setUploadError(error instanceof Error ? error.message : "Unable to check document status");
+        });
+      }
+      if (failedUploads.length === 1) setUploadError(null);
     } catch (error) {
-      setUploadError(error instanceof Error ? error.message : "Upload failed");
+      const message = error instanceof Error ? error.message : "Upload failed";
+      setFailedUploads((previous) => previous.map((item, itemIndex) =>
+        itemIndex === index ? { ...item, message } : item
+      ));
+      setUploadError(message);
     } finally {
       setIsUploading(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
     }
   };
 
@@ -214,6 +242,10 @@ export const ChatComposer = memo(function ChatComposer({
   };
 
   const submitPrompt = () => {
+    if (failedUploads.length > 0) {
+      setUploadError("Retry or remove failed uploads before sending.");
+      return;
+    }
     if (imageGenerationMode && onGenerateImage) {
       onGenerateImage(composer);
     } else {
@@ -278,7 +310,20 @@ export const ChatComposer = memo(function ChatComposer({
       )}
       <div className="rounded-2xl mx-1 md:mx-0 border border-(--chat-composer-border) bg-(--chat-composer) px-4 pb-2.5 pt-3">
         {uploadError && (
-          <p className="mb-2 text-xs text-red-500" role="status">{uploadError}</p>
+          <p className="mb-2 text-xs text-red-500" role="alert">{uploadError}</p>
+        )}
+        {failedUploads.length > 0 && (
+          <div className="mb-2 space-y-1.5">
+            {failedUploads.map(({ file, message }, index) => (
+              <div key={`${file.name}-${file.lastModified}-${index}`} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-(--chat-error-border) bg-(--chat-error-bg) px-2.5 py-1.5 text-xs text-(--chat-error-text)">
+                <span className="min-w-0 flex-1 truncate" title={message}>{file.name} · {message}</span>
+                <div className="flex shrink-0 gap-2">
+                  <button type="button" onClick={() => void retryUpload(index)} disabled={isUploading} className="font-medium underline underline-offset-2 disabled:opacity-50">Retry upload</button>
+                  <button type="button" onClick={() => setFailedUploads((previous) => previous.filter((_, itemIndex) => itemIndex !== index))} className="underline underline-offset-2">Remove</button>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
         {imageGenerationMode && (
           <div className="mb-2 flex items-center justify-between rounded-lg border border-(--chat-brand)/30 bg-(--chat-brand)/10 px-3 py-2 text-xs text-(--chat-brand)">

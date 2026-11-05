@@ -4,6 +4,9 @@ import type { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
 import multer from "multer";
 import { authenticateToken } from "../middleware/auth.middleware.js";
+import { requireUsage } from "../middleware/usage.middleware.js";
+import { createRateLimiter } from "../lib/rate-limiter.js";
+import { env } from "../config/env.js";
 import { Chat } from "../models/chat.model.js";
 import { objectIdSchema } from "../lib/validation.js";
 import { Document } from "../models/document.model.js";
@@ -101,9 +104,18 @@ function isSupportedFile(filename: string, mimeType: string): boolean {
 
 router.use(authenticateToken);
 
+// Uploads store large blobs in S3 and trigger document processing work.
+const uploadRateLimiter = createRateLimiter({
+  scope: "upload",
+  max: env.RATE_LIMIT_UPLOAD_MAX,
+});
+
 router.post(
   "/",
+  uploadRateLimiter,
   uploadSingleFile,
+  // Runs after multer so the file size is available for the byte quota.
+  requireUsage("upload"),
   async (req: Request, res: Response): Promise<void> => {
     let documentId: mongoose.Types.ObjectId | undefined;
     let s3Key: string | undefined;

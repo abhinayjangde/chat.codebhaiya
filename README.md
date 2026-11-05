@@ -169,6 +169,11 @@ JWT_REFRESH_SECRET=replace_with_another_long_random_secret_32_chars
 JWT_ACCESS_EXPIRY=15m
 JWT_REFRESH_EXPIRY=7d
 
+# Password reset email (Resend; use a verified sender domain)
+RESEND_API_KEY=re_...
+AUTH_EMAIL_FROM=accounts@your-verified-domain.com
+APP_BASE_URL=http://localhost:3000
+
 # LLM — add at least one
 GROQ_API_KEY=gsk_...
 OPENAI_API_KEY=sk-...

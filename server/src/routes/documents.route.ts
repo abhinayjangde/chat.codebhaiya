@@ -3,6 +3,9 @@ import type { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
 import multer from "multer";
 import { authenticateToken } from "../middleware/auth.middleware.js";
+import { requireUsage } from "../middleware/usage.middleware.js";
+import { createRateLimiter } from "../lib/rate-limiter.js";
+import { env } from "../config/env.js";
 import { collectionDocumentsSchema, collectionSchema, documentMetadataSchema, objectIdSchema, parseBody } from "../lib/validation.js";
 import { Document } from "../models/document.model.js";
 import { DocumentCollection } from "../models/document-collection.model.js";
@@ -17,6 +20,15 @@ const router: express.Router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
 router.use(authenticateToken);
+
+const documentUploadLimiter = createRateLimiter({
+  scope: "document-upload",
+  max: env.RATE_LIMIT_UPLOAD_MAX,
+});
+const expensiveModelLimiter = createRateLimiter({
+  scope: "document-model",
+  max: env.RATE_LIMIT_CHAT_MAX,
+});
 
 function ownerId(userId: string): mongoose.Types.ObjectId {
   return new mongoose.Types.ObjectId(userId);
@@ -160,7 +172,7 @@ router.patch("/:documentId", async (req: Request, res: Response, next: NextFunct
   }
 });
 
-router.post("/:documentId/version", upload.single("file"), async (req: Request, res: Response, next: NextFunction) => {
+router.post("/:documentId/version", documentUploadLimiter, upload.single("file"), requireUsage("upload"), async (req: Request, res: Response, next: NextFunction) => {
   let s3Key: string | undefined;
   try {
     const documentId = getDocumentId(req, res);
@@ -229,7 +241,7 @@ router.post("/:documentId/version", upload.single("file"), async (req: Request, 
   }
 });
 
-router.post("/:documentId/summary", async (req: Request, res: Response, next: NextFunction) => {
+router.post("/:documentId/summary", expensiveModelLimiter, requireUsage("expensive_model"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const documentId = getDocumentId(req, res);
     if (!documentId) return;
@@ -255,7 +267,7 @@ router.post("/:documentId/summary", async (req: Request, res: Response, next: Ne
   }
 });
 
-router.post("/:documentId/questions", async (req: Request, res: Response, next: NextFunction) => {
+router.post("/:documentId/questions", expensiveModelLimiter, requireUsage("expensive_model"), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const documentId = getDocumentId(req, res);
     if (!documentId) return;

@@ -36,6 +36,25 @@ export interface TokenPayload {
   sessionId: string;
 }
 
+export interface SessionMetadata {
+  userAgent?: string | undefined;
+  ipAddress?: string | undefined;
+}
+
+export interface FormattedSession {
+  sessionId: string;
+  isCurrent: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  lastActiveAt: Date;
+  expiresAt: Date;
+  userAgent?: string | undefined;
+  ipAddress?: string | undefined;
+  browser: string;
+  os: string;
+  device: string;
+}
+
 export interface AuthTokens {
   accessToken: string;
   refreshToken: string;
@@ -44,7 +63,8 @@ export interface AuthTokens {
 export async function registerUser(
   email: string,
   password: string,
-  name: string
+  name: string,
+  metadata?: SessionMetadata
 ): Promise<{ user: IUser; tokens: AuthTokens }> {
   const normalizedEmail = email.toLowerCase().trim();
   const existingUser = await User.findOne({ email: normalizedEmail });
@@ -84,13 +104,14 @@ export async function registerUser(
     throw error;
   }
 
-  const tokens = await issueTokens(user);
+  const tokens = await issueTokens(user, undefined, metadata);
   return { user, tokens };
 }
 
 export async function loginUser(
   email: string,
-  password: string
+  password: string,
+  metadata?: SessionMetadata
 ): Promise<{ user: IUser; tokens: AuthTokens }> {
   const normalizedEmail = email.toLowerCase().trim();
   const user = await User.findOne({ email: normalizedEmail }).select("+password");
@@ -124,7 +145,7 @@ export async function loginUser(
     throw new Error("Invalid credentials");
   }
 
-  const tokens = await issueTokens(user);
+  const tokens = await issueTokens(user, undefined, metadata);
   return { user, tokens };
 }
 
@@ -187,16 +208,29 @@ export function verifyRefreshToken(token: string): TokenPayload {
 
 async function issueTokens(
   user: IUser,
-  sessionId: string = crypto.randomUUID()
+  sessionId: string = crypto.randomUUID(),
+  metadata?: SessionMetadata
 ): Promise<AuthTokens> {
   const tokens = generateTokens(user, sessionId);
+
+  const setDoc: Record<string, any> = {
+    userId: user._id,
+    refreshTokenHash: hashToken(tokens.refreshToken),
+    expiresAt: getTokenExpiryDate(tokens.refreshToken),
+    lastActiveAt: new Date(),
+  };
+
+  if (metadata?.userAgent) {
+    setDoc.userAgent = metadata.userAgent;
+  }
+  if (metadata?.ipAddress) {
+    setDoc.ipAddress = metadata.ipAddress;
+  }
 
   await AuthSession.findOneAndUpdate(
     { sessionId },
     {
-      userId: user._id,
-      refreshTokenHash: hashToken(tokens.refreshToken),
-      expiresAt: getTokenExpiryDate(tokens.refreshToken),
+      $set: setDoc,
       $unset: { revokedAt: 1 },
     },
     { upsert: true, returnDocument: "after", setDefaultsOnInsert: true }
@@ -212,7 +246,7 @@ export async function isSessionActive(sessionId: string, userId: string): Promis
     revokedAt: { $exists: false },
     expiresAt: { $gt: new Date() },
   })
-    .select("_id")
+    .select("_id lastActiveAt")
     .lean();
 
   if (!session) {
@@ -224,10 +258,18 @@ export async function isSessionActive(sessionId: string, userId: string): Promis
     return false;
   }
 
+  const now = Date.now();
+  if (!session.lastActiveAt || now - new Date(session.lastActiveAt).getTime() > 60_000) {
+    void AuthSession.updateOne({ _id: session._id }, { $set: { lastActiveAt: new Date() } }).exec();
+  }
+
   return true;
 }
 
-export async function refreshTokens(refreshToken: string): Promise<AuthTokens> {
+export async function refreshTokens(
+  refreshToken: string,
+  metadata?: SessionMetadata
+): Promise<AuthTokens> {
   try {
     const payload = verifyRefreshToken(refreshToken);
     const user = await User.findById(payload.userId);
@@ -252,10 +294,104 @@ export async function refreshTokens(refreshToken: string): Promise<AuthTokens> {
       throw new Error("Refresh token has been revoked");
     }
 
-    return issueTokens(user, payload.sessionId);
+    return issueTokens(user, payload.sessionId, metadata);
   } catch (error) {
     throw new Error("Invalid refresh token");
   }
+}
+
+export function parseUserAgentString(ua?: string): { browser: string; os: string; device: string } {
+  if (!ua) {
+    return { browser: "Unknown browser", os: "Unknown OS", device: "Desktop" };
+  }
+
+  let browser = "Unknown browser";
+  if (ua.includes("Firefox/")) {
+    browser = "Firefox";
+  } else if (ua.includes("Edg/")) {
+    browser = "Microsoft Edge";
+  } else if (ua.includes("Chrome/") && !ua.includes("Chromium/")) {
+    browser = "Chrome";
+  } else if (ua.includes("Safari/") && !ua.includes("Chrome/")) {
+    browser = "Safari";
+  } else if (ua.includes("Opera/") || ua.includes("OPR/")) {
+    browser = "Opera";
+  }
+
+  let os = "Unknown OS";
+  if (ua.includes("Windows NT 10.0") || ua.includes("Windows NT 11.0")) {
+    os = "Windows 10/11";
+  } else if (ua.includes("Windows")) {
+    os = "Windows";
+  } else if (ua.includes("iPhone") || ua.includes("iPad") || ua.includes("iPod")) {
+    os = "iOS";
+  } else if (ua.includes("Android")) {
+    os = "Android";
+  } else if (ua.includes("Macintosh") || ua.includes("Mac OS X")) {
+    os = "macOS";
+  } else if (ua.includes("Linux")) {
+    os = "Linux";
+  }
+
+  let device = "Desktop";
+  if (/mobile|android|iphone|ipod/i.test(ua)) {
+    device = "Mobile";
+  } else if (/ipad|tablet/i.test(ua)) {
+    device = "Tablet";
+  }
+
+  return { browser, os, device };
+}
+
+export async function getUserSessions(userId: string, currentSessionId: string): Promise<FormattedSession[]> {
+  const sessions = await AuthSession.find({
+    userId: new mongoose.Types.ObjectId(userId),
+    revokedAt: { $exists: false },
+    expiresAt: { $gt: new Date() },
+  })
+    .sort({ lastActiveAt: -1, updatedAt: -1, createdAt: -1 })
+    .lean();
+
+  return sessions.map((s) => {
+    const parsed = parseUserAgentString(s.userAgent);
+    return {
+      sessionId: s.sessionId,
+      isCurrent: s.sessionId === currentSessionId,
+      createdAt: s.createdAt,
+      updatedAt: s.updatedAt,
+      lastActiveAt: s.lastActiveAt ?? s.updatedAt ?? s.createdAt,
+      expiresAt: s.expiresAt,
+      ...(s.userAgent ? { userAgent: s.userAgent } : {}),
+      ...(s.ipAddress ? { ipAddress: s.ipAddress } : {}),
+      browser: parsed.browser,
+      os: parsed.os,
+      device: parsed.device,
+    };
+  });
+}
+
+export async function revokeUserSession(sessionId: string, userId: string): Promise<boolean> {
+  const result = await AuthSession.updateOne(
+    {
+      sessionId,
+      userId: new mongoose.Types.ObjectId(userId),
+      revokedAt: { $exists: false },
+    },
+    { $set: { revokedAt: new Date() } }
+  );
+  return result.modifiedCount > 0;
+}
+
+export async function revokeAllOtherSessions(currentSessionId: string, userId: string): Promise<number> {
+  const result = await AuthSession.updateMany(
+    {
+      userId: new mongoose.Types.ObjectId(userId),
+      sessionId: { $ne: currentSessionId },
+      revokedAt: { $exists: false },
+    },
+    { $set: { revokedAt: new Date() } }
+  );
+  return result.modifiedCount;
 }
 
 export async function revokeSession(sessionId: string, userId: string): Promise<void> {
@@ -282,6 +418,8 @@ export async function scheduleUserAccountDeletion(
   user.status = "pending_deletion";
   user.deletedAt = new Date();
   user.deletionScheduledAt = scheduledDate;
+  user.passwordResetTokenHash = null;
+  user.passwordResetExpiresAt = null;
   await user.save();
 
   // Revoke all active sessions so user cannot access their account
@@ -301,7 +439,8 @@ export const deleteUserAccount = scheduleUserAccountDeletion;
 
 export async function recoverUserAccount(
   email: string,
-  password: string
+  password: string,
+  metadata?: SessionMetadata
 ): Promise<{ user: IUser; tokens: AuthTokens; message: string }> {
   const normalizedEmail = email.toLowerCase().trim();
   const user = await User.findOne({ email: normalizedEmail }).select("+password");
@@ -315,7 +454,7 @@ export async function recoverUserAccount(
   }
 
   if (user.status !== "pending_deletion") {
-    const tokens = await issueTokens(user);
+    const tokens = await issueTokens(user, undefined, metadata);
     return {
       user,
       tokens,
@@ -337,9 +476,11 @@ export async function recoverUserAccount(
   user.status = "active";
   user.deletedAt = null;
   user.deletionScheduledAt = null;
+  user.passwordResetTokenHash = null;
+  user.passwordResetExpiresAt = null;
   await user.save();
 
-  const tokens = await issueTokens(user);
+  const tokens = await issueTokens(user, undefined, metadata);
   return {
     user,
     tokens,
@@ -414,5 +555,7 @@ export async function changePassword(
 
   // Save the new password; the pre-save hook hashes it when modified
   user.password = newPassword;
+  user.passwordResetTokenHash = null;
+  user.passwordResetExpiresAt = null;
   await user.save();
 }

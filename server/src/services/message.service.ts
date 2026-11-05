@@ -5,6 +5,7 @@ export interface PaginationParams {
   limit: number;
   before?: string | undefined;
   after?: string | undefined;
+  around?: string | undefined;
 }
 
 export interface PaginatedMessages {
@@ -19,8 +20,59 @@ export async function getPaginatedMessages(
   userId: string,
   params: PaginationParams
 ): Promise<PaginatedMessages> {
-  const { limit = 20, before, after } = params;
+  const { limit = 20, before, after, around } = params;
   const maxLimit = Math.min(limit, 50);
+
+  // If around is provided, retrieve a window centered on the target message
+  if (around) {
+    try {
+      const targetMessage = await Message.findOne({
+        _id: new ObjectId(around),
+        chatId: new ObjectId(chatId),
+        userId: new ObjectId(userId),
+      });
+
+      if (targetMessage) {
+        const half = Math.max(1, Math.floor(maxLimit / 2));
+        const [olderMessages, newerMessages, total] = await Promise.all([
+          Message.find({
+            chatId: new ObjectId(chatId),
+            userId: new ObjectId(userId),
+            _id: { $lt: targetMessage._id },
+          })
+            .sort({ _id: -1 })
+            .limit(half),
+          Message.find({
+            chatId: new ObjectId(chatId),
+            userId: new ObjectId(userId),
+            _id: { $gt: targetMessage._id },
+          })
+            .sort({ _id: 1 })
+            .limit(half),
+          Message.countDocuments({
+            chatId: new ObjectId(chatId),
+            userId: new ObjectId(userId),
+          }),
+        ]);
+
+        const orderedMessages = [...olderMessages.reverse(), targetMessage, ...newerMessages];
+        const firstMessage = orderedMessages[0];
+        const nextCursor =
+          total > orderedMessages.length && firstMessage && firstMessage._id
+            ? firstMessage._id.toString()
+            : null;
+
+        return {
+          messages: orderedMessages,
+          nextCursor,
+          hasMore: total > orderedMessages.length,
+          total,
+        };
+      }
+    } catch {
+      // If around was invalid, fall through to default cursor query
+    }
+  }
 
   // Build query
   const query: any = { 

@@ -4,13 +4,13 @@ const messageSchema = new mongoose.Schema({
     chatId: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: "Chat",
-        required: true,
+        required: true, 
         index: true 
     },
     userId: { 
         type: mongoose.Schema.Types.ObjectId, 
         ref: "User",
-        required: true,
+        required: true, 
         index: true 
     },
     role: { 
@@ -46,5 +46,7 @@ const messageSchema = new mongoose.Schema({
     }],
     createdAt: { type: Date, default: Date.now }
 });
+
+messageSchema.index({ userId: 1, createdAt: -1 });
 
 export const Message = mongoose.model("Message", messageSchema);

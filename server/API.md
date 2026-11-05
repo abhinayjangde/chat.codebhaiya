@@ -21,6 +21,72 @@ Authorization: Bearer <access_token>
 
 ---
 
+## API protection (rate limits and usage quotas)
+
+### Rate limiting
+
+Requests are limited with a fixed-window limiter. Responses include `RateLimit-Limit`, `RateLimit-Remaining`, and `RateLimit-Reset` headers; excess requests receive:
+
+```json
+429 Too Many Requests
+{ "success": false, "error": "Too many requests. Please slow down and try again shortly." }
+```
+
+with a `Retry-After` header (seconds). Limits are configured via env vars (`RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_AUTH_MAX`, `RATE_LIMIT_CHAT_MAX`, `RATE_LIMIT_UPLOAD_MAX`, `RATE_LIMIT_READ_MAX`) and can be disabled with `RATE_LIMITING_ENABLED=false`.
+
+| Scope | Key | Limit (per window) |
+| --- | --- | --- |
+| Auth (`/auth/login`, `/register`, `/recover`, `/refresh`) | Client IP | `RATE_LIMIT_AUTH_MAX` (default 10) |
+| Chat generation (`POST /chat`, `POST /chat/:id`, `POST /chat/:id/stream`) | User | `RATE_LIMIT_CHAT_MAX` (default 20) |
+| Uploads (`/upload`, document version re-upload) | User | `RATE_LIMIT_UPLOAD_MAX` (default 10) |
+| Image generation (`POST /images/generate`) | User | min(10, `RATE_LIMIT_CHAT_MAX`) |
+| Document summary / Q&A | User | `RATE_LIMIT_CHAT_MAX` (default 20) |
+| Reads (chat list, messages, PDF export, duplicate) | User | `RATE_LIMIT_READ_MAX` (default 120) |
+
+### Monthly usage quotas
+
+Per-account monthly counters (calendar month, UTC) are enforced before billable operations. Exceeding a quota returns:
+
+```json
+429 Too Many Requests
+{ "success": false, "error": "Monthly message limit of 1000 reached. Limits reset at the start of each month." }
+```
+
+Quotas are configured via `USAGE_MAX_MESSAGES_PER_MONTH` (default 1000), `USAGE_MAX_UPLOADS_PER_MONTH` (200), `USAGE_MAX_UPLOAD_BYTES_PER_MONTH` (2 GB), `USAGE_MAX_IMAGE_GENERATIONS_PER_MONTH` (100), and `USAGE_MAX_EXPENSIVE_MODEL_CALLS_PER_MONTH` (500). Image generation and document summary/Q&A also count toward expensive model calls. A chat turn counts one message unit at request time; provider-reported input/output tokens are tracked additionally when available.
+
+### Usage dashboard
+
+#### GET /usage
+Returns the current month's usage and quotas for the account. Requires a Bearer token.
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "period": "2026-11",
+    "usage": {
+      "messages": 12,
+      "inputTokens": 3400,
+      "outputTokens": 890,
+      "uploads": 3,
+      "uploadBytes": 1048576,
+      "imageGenerations": 1,
+      "expensiveModelCalls": 2
+    },
+    "quotas": {
+      "messages": 1000,
+      "uploads": 200,
+      "uploadBytes": 2147483648,
+      "imageGenerations": 100,
+      "expensiveModelCalls": 500
+    }
+  }
+}
+```
+
+---
+
 ## Endpoints
 
 ### Image generation
@@ -59,6 +125,26 @@ Readiness and liveness check.
 ---
 
 ### Authentication
+
+#### POST /auth/password/reset-request
+Request a password reset email. The API returns the same confirmation for known and unknown email addresses.
+
+**Request Body:**
+```json
+{ "email": "user@example.com" }
+```
+
+Reset links expire after 30 minutes, are single-use, and are sent only for active accounts.
+
+#### POST /auth/password/reset
+Set a new password using the token from the reset email. All existing sessions are revoked after a successful reset.
+
+**Request Body:**
+```json
+{ "token": "<reset token>", "password": "new-password" }
+```
+
+Configure `RESEND_API_KEY`, `AUTH_EMAIL_FROM` (a verified sender), and `APP_BASE_URL` in the server environment. Production startup requires all three, and the app URL must use HTTPS.
 
 #### POST /auth/register
 Register a new user account.
@@ -173,6 +259,77 @@ Authorization: Bearer <access_token>
 {
   "success": true,
   "message": "Logged out successfully"
+}
+```
+
+#### GET /auth/sessions
+List all active login sessions for the authenticated user with device, browser, IP, and activity metadata.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "sessions": [
+      {
+        "sessionId": "49b4c0e6-816d-4720-bc2f-3cf4c75de825",
+        "isCurrent": true,
+        "createdAt": "2026-11-05T12:00:00.000Z",
+        "updatedAt": "2026-11-05T12:00:00.000Z",
+        "lastActiveAt": "2026-11-05T12:30:00.000Z",
+        "expiresAt": "2026-11-12T12:00:00.000Z",
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)...",
+        "ipAddress": "127.0.0.1",
+        "browser": "Chrome",
+        "os": "Windows 10/11",
+        "device": "Desktop"
+      }
+    ]
+  }
+}
+```
+
+#### POST /auth/sessions/revoke-others
+Revoke all other active sessions except the current one.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "All other sessions have been revoked",
+  "data": {
+    "revokedCount": 2
+  }
+}
+```
+
+#### DELETE /auth/sessions/:sessionId
+Revoke a specific session by its session ID.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Session revoked successfully",
+  "data": {
+    "isCurrent": false,
+    "sessionId": "49b4c0e6-816d-4720-bc2f-3cf4c75de825"
+  }
 }
 ```
 
@@ -388,6 +545,53 @@ Authorization: Bearer <access_token>
 }
 ```
 
+#### GET /chat/search
+Search conversation titles and message content across all chats owned by the authenticated user, including archived chats.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Query Parameters:**
+- `q` (required): Search keyword or phrase (1-200 characters). Matches titles and message text case-insensitively.
+- `limit` (optional): Maximum items to return for chats and messages (default: 30, max: 100).
+
+**Example Request:**
+```http
+GET /chat/search?q=docker&limit=20
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "chats": [
+      {
+        "_id": "65a1b2c3d4e5f6g7h8i9j0k1",
+        "title": "Docker Setup and Deployment",
+        "isArchived": false,
+        "isPinned": false,
+        "createdAt": "2026-02-13T10:30:00.000Z",
+        "updatedAt": "2026-02-13T10:35:00.000Z"
+      }
+    ],
+    "messages": [
+      {
+        "_id": "65a1b2c3d4e5f6g7h8i9j0k3",
+        "chatId": "65a1b2c3d4e5f6g7h8i9j0k1",
+        "chatTitle": "Docker Setup and Deployment",
+        "role": "user",
+        "contentSnippet": "How can I configure docker compose for local development?",
+        "isArchived": false,
+        "createdAt": "2026-02-13T10:31:00.000Z"
+      }
+    ]
+  }
+}
+```
+
 #### POST /chat
 Create a new chat.
 
@@ -494,6 +698,65 @@ Authorization: Bearer <access_token>
 }
 ```
 
+#### GET /chat/export
+Export all chat conversations and messages for the authenticated user as a downloadable JSON file.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Response (200 OK):**
+Content-Type: `application/json; charset=utf-8`
+Content-Disposition: `attachment; filename="chat-history-export-YYYY-MM-DD.json"`
+
+```json
+{
+  "version": "1.0",
+  "exportedAt": "2026-11-05T12:00:00.000Z",
+  "userId": "65a1b2c3d4e5f6g7h8i9j0k1",
+  "totalChats": 1,
+  "chats": [
+    {
+      "id": "65a1b2c3d4e5f6g7h8i9j0k2",
+      "title": "React Performance Tips",
+      "isPinned": false,
+      "isArchived": false,
+      "createdAt": "2026-11-05T10:00:00.000Z",
+      "updatedAt": "2026-11-05T10:30:00.000Z",
+      "messages": [
+        {
+          "id": "65a1b2c3d4e5f6g7h8i9j0k3",
+          "role": "user",
+          "content": "How do I optimize React re-renders?",
+          "createdAt": "2026-11-05T10:00:00.000Z"
+        }
+      ]
+    }
+  ]
+}
+```
+
+#### DELETE /chat
+Delete all chat history and messages for the authenticated user permanently without deleting the user's account.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "message": "Chat history deleted successfully",
+  "data": {
+    "deletedChatsCount": 14,
+    "deletedMessagesCount": 82
+  }
+}
+```
+
 ---
 
 ### Messages
@@ -510,6 +773,7 @@ Authorization: Bearer <access_token>
 - `limit` (optional): Number of messages to return (default: 20, max: 50)
 - `before` (optional): Cursor for pagination (message ID to fetch messages before)
 - `after` (optional): Cursor for pagination (message ID to fetch messages after)
+- `around` (optional): Target message ID to fetch a window of messages centered on this message (useful when jumping to search results)
 
 **Example Request:**
 ```http

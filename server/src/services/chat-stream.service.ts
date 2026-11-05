@@ -6,6 +6,7 @@ import { Message } from "../models/message.model.js";
 import { User } from "../models/user.model.js";
 import { autoSelectModel, getAgent } from "../lib/model.js";
 import { HttpError } from "../lib/validation.js";
+import { recordUsage } from "./usage.service.js";
 import { downloadDocumentFromS3 } from "./storage.service.js";
 import { listReadyDocumentIdsForCollection, retrieveRelevantChunks, type RetrievedChunk } from "./retrieval.service.js";
 import type { SearchResult } from "./search.service.js";
@@ -335,6 +336,7 @@ export async function executeChatStream(params: StreamChatParams): Promise<void>
   let fullResponse = "";
   const usedTools: any[] = [];
   const sources: Array<SearchResult | DocumentSource> = [...documentSources];
+  let usageMetadata: { input_tokens?: number; output_tokens?: number } | undefined;
 
   let selectedModel = model ?? undefined;
   if (selectedModel === "auto" || !selectedModel) {
@@ -378,6 +380,11 @@ export async function executeChatStream(params: StreamChatParams): Promise<void>
     const msgType = messageChunk._getType?.() ?? messageChunk.constructor?.name ?? "";
 
     if (msgType === "ai" || msgType === "AIMessageChunk") {
+      const metadata = messageChunk.usage_metadata;
+      if (metadata && typeof metadata.input_tokens === "number" && typeof metadata.output_tokens === "number") {
+        usageMetadata = metadata;
+      }
+
       const toolCallChunks = messageChunk.tool_call_chunks;
       if (toolCallChunks && Array.isArray(toolCallChunks) && toolCallChunks.length > 0) {
         for (const toolChunk of toolCallChunks) {
@@ -495,6 +502,21 @@ export async function executeChatStream(params: StreamChatParams): Promise<void>
   await Chat.findByIdAndUpdate(chatId, {
     updatedAt: new Date(),
   });
+
+  // Record token accounting when the provider reports usage metadata.
+  // The message itself was already counted at the usage gate.
+  if (usageMetadata) {
+    void recordUsage(userId, {
+      ...(typeof usageMetadata.input_tokens === "number"
+        ? { inputTokens: usageMetadata.input_tokens }
+        : {}),
+      ...(typeof usageMetadata.output_tokens === "number"
+        ? { outputTokens: usageMetadata.output_tokens }
+        : {}),
+    }).catch((error) => {
+      console.error("Failed to record token usage:", error);
+    });
+  }
 
   const doneEvent: any = {
     type: "done",

@@ -37,6 +37,30 @@ export interface ChatSummary {
   updatedAt: string;
 }
 
+export interface SearchResultChat {
+  _id: string;
+  title: string;
+  isArchived: boolean;
+  isPinned: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SearchResultMessage {
+  _id: string;
+  chatId: string;
+  chatTitle: string;
+  role: "user" | "assistant";
+  contentSnippet: string;
+  isArchived: boolean;
+  createdAt: string;
+}
+
+export interface SearchChatsResponse {
+  chats: SearchResultChat[];
+  messages: SearchResultMessage[];
+}
+
 export interface MessageSource {
   type?: "web" | "document";
   title: string;
@@ -111,6 +135,7 @@ export interface ChatMessage {
   isStreaming?: boolean;
   activeTool?: string;
   modelName?: string;
+  errorMessage?: string;
 }
 
 export interface StreamToolStartEvent {
@@ -345,5 +370,47 @@ export interface IResumeDoc {
   data: IResumeData;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface UserSession {
+  sessionId: string;
+  isCurrent: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  lastActiveAt?: string;
+  expiresAt: string;
+  userAgent?: string;
+  ipAddress?: string;
+  browser?: string;
+  os?: string;
+  device?: string;
+}
+
+export interface ChatExportMessage {
+  id: string;
+  role: string;
+  content: string;
+  createdAt: string;
+  modelName?: string;
+  attachments?: unknown[];
+  sources?: unknown[];
+}
+
+export interface ChatExportItem {
+  id: string;
+  title: string;
+  isPinned: boolean;
+  isArchived: boolean;
+  createdAt: string;
+  updatedAt: string;
+  messages: ChatExportMessage[];
+}
+
+export interface ChatHistoryExport {
+  version: string;
+  exportedAt: string;
+  userId: string;
+  totalChats: number;
+  chats: ChatExportItem[];
 }
 

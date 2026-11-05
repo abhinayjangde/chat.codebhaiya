@@ -12,6 +12,7 @@ import documentRoutes from "./routes/documents.route.js";
 import imageRoutes from "./routes/images.route.js";
 import uploadRoutes from "./routes/upload.route.js";
 import mcpRoutes from "./routes/mcp.route.js";
+import usageRoutes from "./routes/usage.route.js";
 import { purgeExpiredAccounts } from "./services/auth.service.js";
 import { startDocumentWorker, type DocumentWorkerHandle } from "./workers/document.worker.js";
 
@@ -56,6 +57,7 @@ app.use("/api/documents", documentRoutes);
 app.use("/api/images", imageRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/mcp", mcpRoutes);
+app.use("/api/usage", usageRoutes);
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({

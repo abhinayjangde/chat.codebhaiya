@@ -33,6 +33,7 @@ interface UseChatStreamProps {
   selectedMcpServerIds: string[];
   setChatError: React.Dispatch<React.SetStateAction<string | null>>;
   onResumeUpdated?: (resume: IResumeDoc) => void;
+  targetMessageId?: string | null;
 }
 
 export function useChatStream({
@@ -49,11 +50,13 @@ export function useChatStream({
   selectedMcpServerIds,
   setChatError,
   onResumeUpdated,
+  targetMessageId,
 }: UseChatStreamProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [composer, setComposer] = useState("");
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [canRetry, setCanRetry] = useState(false);
 
   const streamAbortRef = useRef<AbortController | null>(null);
   const skipNextFetchRef = useRef(false);
@@ -61,6 +64,15 @@ export function useChatStream({
   const replacementRef = useRef<
     { editMessageId?: string; regenerateMessageId?: string } | undefined
   >(undefined);
+  const retryRequestRef = useRef<{
+    prompt: string;
+    attachments?: Attachment[];
+    replacement?: { editMessageId?: string; regenerateMessageId?: string };
+    userMessageId: string;
+    assistantMessageId: string;
+    chatId: string | null;
+    imageGeneration?: boolean;
+  } | null>(null);
 
   // Fetch messages when activeChatId changes
   useEffect(() => {
@@ -80,12 +92,21 @@ export function useChatStream({
       return;
     }
 
+    // If targetMessageId is already loaded in messages, skip re-fetching
+    if (targetMessageId && messages.length > 0 && messages.some((m) => m._id === targetMessageId)) {
+      return;
+    }
+
     let cancelled = false;
     setIsLoadingMessages(true);
     setChatError(null);
 
     void runWithSession((accessToken) =>
-      apiClient.listMessages(activeChatId, accessToken)
+      apiClient.listMessages(
+        activeChatId,
+        accessToken,
+        targetMessageId ? { around: targetMessageId } : undefined
+      )
     )
       .then((data) => {
         if (cancelled) return;
@@ -112,7 +133,7 @@ export function useChatStream({
     return () => {
       cancelled = true;
     };
-  }, [tokens, activeChatId, runWithSession, setChatError]);
+  }, [tokens, activeChatId, targetMessageId, runWithSession, setChatError]);
 
   const handleFileUpload = useCallback(
     async (file: File): Promise<Attachment> => {
@@ -143,10 +164,19 @@ export function useChatStream({
 
     setComposer("");
     setChatError(null);
+    setCanRetry(false);
     setIsSending(true);
     isSendingRef.current = true;
     const nowIso = new Date().toISOString();
     let targetChatId = activeChatId;
+    const retryRequest = {
+      prompt,
+      userMessageId: `local-user-${Date.now()}`,
+      assistantMessageId: `local-assistant-${Date.now()}`,
+      chatId: targetChatId,
+      imageGeneration: true,
+    };
+    retryRequestRef.current = retryRequest;
 
     try {
       if (!targetChatId) {
@@ -154,6 +184,9 @@ export function useChatStream({
           apiClient.createChat(prompt, accessToken, selectedModel, undefined, language)
         );
         targetChatId = String(created.chatId);
+        if (retryRequestRef.current) {
+          retryRequestRef.current.chatId = targetChatId;
+        }
         const provisionalChat: ChatSummary = {
           _id: targetChatId,
           userId: user?.id ?? user?.userId ?? "",
@@ -188,9 +221,12 @@ export function useChatStream({
         ? { ...chat, title: chat.title || prompt.slice(0, 60), updatedAt: new Date().toISOString() }
         : chat
       ));
+      retryRequestRef.current = null;
+      setCanRetry(false);
     } catch (error) {
       setComposer(prompt);
       setChatError(getErrorMessage(error));
+      setCanRetry(true);
     } finally {
       skipNextFetchRef.current = false;
       isSendingRef.current = false;
@@ -202,7 +238,8 @@ export function useChatStream({
     async (
       promptOverride?: string,
       attachments?: Attachment[],
-      replacement?: { editMessageId?: string; regenerateMessageId?: string }
+      replacement?: { editMessageId?: string; regenerateMessageId?: string },
+      retryContext?: { userMessageId: string; assistantMessageId: string; chatId: string | null }
     ) => {
       if (!tokens || isSendingRef.current) {
         return;
@@ -216,15 +253,28 @@ export function useChatStream({
 
       setComposer("");
       setChatError(null);
+      setCanRetry(false);
       setIsSending(true);
       isSendingRef.current = true;
 
-      let targetChatId = activeChatId;
+      let targetChatId = retryContext?.chatId ?? activeChatId;
       const nowIso = new Date().toISOString();
-      const userMessageId = `local-user-${Date.now()}`;
-      const assistantMessageId = `local-assistant-${Date.now()}`;
+      const userMessageId = retryContext?.userMessageId ?? `local-user-${Date.now()}`;
+      const assistantMessageId = retryContext?.assistantMessageId ?? `local-assistant-${Date.now()}`;
       let persistedAssistantId: string | null = null;
       let persistedUserId: string | null = null;
+      let receivedToken = false;
+
+      if (!retryContext) {
+        retryRequestRef.current = {
+          prompt,
+          attachments,
+          replacement: activeReplacement,
+          userMessageId,
+          assistantMessageId,
+          chatId: targetChatId,
+        };
+      }
 
       try {
         if (!targetChatId) {
@@ -240,6 +290,9 @@ export function useChatStream({
             )
           );
           targetChatId = String(created.chatId);
+          if (retryRequestRef.current?.assistantMessageId === assistantMessageId) {
+            retryRequestRef.current.chatId = targetChatId;
+          }
 
           const provisionalChat: ChatSummary = {
             _id: targetChatId,
@@ -293,11 +346,25 @@ export function useChatStream({
           modelName: selectedModel || undefined,
         };
 
-        setMessages((previous) =>
-          activeReplacement?.regenerateMessageId
-            ? [...previous, assistantMessage]
-            : [...previous, userMessage, assistantMessage]
-        );
+        if (retryContext) {
+          setMessages((previous) => {
+            if (previous.some((message) => message._id === assistantMessageId)) {
+              return previous.map((message) => message._id === assistantMessageId
+                ? { ...message, isStreaming: true, errorMessage: undefined, activeTool: undefined }
+                : message
+              );
+            }
+            return activeReplacement?.regenerateMessageId
+              ? [...previous, assistantMessage]
+              : [...previous, userMessage, assistantMessage];
+          });
+        } else {
+          setMessages((previous) =>
+            activeReplacement?.regenerateMessageId
+              ? [...previous, assistantMessage]
+              : [...previous, userMessage, assistantMessage]
+          );
+        }
 
         const controller = new AbortController();
         streamAbortRef.current = controller;
@@ -334,7 +401,8 @@ export function useChatStream({
               previous.map((message) => {
                 const isAssistant = message._id === assistantMessageId || (persistedAssistantId && message._id === persistedAssistantId);
                 if (!isAssistant) return message;
-                let newContent = `${message.content}${event.content}`;
+                let newContent = `${receivedToken ? message.content : ""}${event.content}`;
+                receivedToken = true;
                 if (newContent.startsWith(prompt)) {
                   newContent = newContent.slice(prompt.length);
                 }
@@ -460,8 +528,11 @@ export function useChatStream({
         );
 
         await loadChats();
+        retryRequestRef.current = null;
+        setCanRetry(false);
       } catch (error) {
         if (isAbortError(error)) {
+          setCanRetry(false);
           setMessages((previous) =>
             previous.map((entry) =>
               (entry._id === assistantMessageId || (persistedAssistantId && entry._id === persistedAssistantId))
@@ -479,7 +550,9 @@ export function useChatStream({
         }
 
         const message = getErrorMessage(error);
-        setChatError(message);
+        if (retryRequestRef.current?.assistantMessageId === assistantMessageId) {
+          retryRequestRef.current.chatId = targetChatId;
+        }
 
         setMessages((previous) =>
           previous.map((entry) =>
@@ -489,11 +562,18 @@ export function useChatStream({
                   _id: persistedAssistantId ?? entry._id,
                   isStreaming: false,
                   activeTool: undefined,
-                  content: entry.content.trim() || `Request failed: ${message}`,
+                  errorMessage: message,
                 }
               : entry
           )
         );
+        if (!targetChatId) {
+          setChatError(message);
+        }
+        setCanRetry(true);
+        if (!retryContext) {
+          setComposer(prompt);
+        }
       } finally {
         streamAbortRef.current = null;
         replacementRef.current = undefined;
@@ -520,11 +600,29 @@ export function useChatStream({
     ]
   );
 
+  const handleRetry = useCallback(() => {
+    const request = retryRequestRef.current;
+    if (!request || isSendingRef.current) return;
+    if (request.imageGeneration) {
+      void handleGenerateImage(request.prompt);
+      return;
+    }
+    setChatError(null);
+    void handleSendPrompt(request.prompt, request.attachments, request.replacement, {
+      userMessageId: request.userMessageId,
+      assistantMessageId: request.assistantMessageId,
+      chatId: request.chatId,
+    });
+  }, [handleSendPrompt, handleGenerateImage, setChatError]);
+
   const handleEditMessage = useCallback((message: ChatMessage) => {
     if (isSendingRef.current || !message._id) {
       return;
     }
     replacementRef.current = { editMessageId: message._id };
+    retryRequestRef.current = null;
+    setCanRetry(false);
+    setChatError(null);
     setComposer(message.content);
     setMessages((current) => {
       const msgIndex = current.findIndex((entry) => entry._id === message._id);
@@ -533,7 +631,7 @@ export function useChatStream({
       }
       return current;
     });
-  }, []);
+  }, [setChatError]);
 
   const handleRegenerateMessage = useCallback(
     (message: ChatMessage, userMessage: ChatMessage) => {
@@ -567,6 +665,7 @@ export function useChatStream({
     streamAbortRef.current?.abort();
     streamAbortRef.current = null;
     setIsSending(false);
+    setCanRetry(false);
     setMessages((previous) =>
       previous.map((message) =>
         message.isStreaming
@@ -586,6 +685,8 @@ export function useChatStream({
     setMessages([]);
     setIsSending(false);
     setIsLoadingMessages(false);
+    setCanRetry(false);
+    retryRequestRef.current = null;
   }, []);
 
   return {
@@ -595,7 +696,9 @@ export function useChatStream({
     setComposer,
     isLoadingMessages,
     isSending,
+    canRetry,
     handleSendPrompt,
+    handleRetry,
     handleGenerateImage,
     handleEditMessage,
     handleRegenerateMessage,

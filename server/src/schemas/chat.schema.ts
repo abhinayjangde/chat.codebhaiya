@@ -99,3 +99,12 @@ export const listChatsQuerySchema = z
   .passthrough();
 
 export const chatIdParamSchema = objectIdSchema;
+
+export const searchChatsQuerySchema = z
+  .object({
+    q: z.string().trim().min(1, "Search query is required").max(200),
+    limit: z.coerce.number().int().min(1).max(100).default(30).optional(),
+  })
+  .passthrough();
+
+export type SearchChatsQuery = z.infer<typeof searchChatsQuerySchema>;

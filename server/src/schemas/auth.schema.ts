@@ -69,3 +69,14 @@ export const recoverAccountSchema = z
   })
   .passthrough();
 
+export const requestPasswordResetSchema = z
+  .object({ email: emailSchema })
+  .passthrough();
+
+export const resetPasswordSchema = z
+  .object({
+    token: z.string().regex(/^[A-Za-z0-9_-]{43}$/, "Invalid or expired reset link"),
+    password: passwordSchema,
+  })
+  .passthrough();
+

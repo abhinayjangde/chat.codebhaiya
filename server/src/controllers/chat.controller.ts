@@ -13,13 +13,16 @@ import {
   paginationQuerySchema,
   parseBody,
   renameChatSchema,
+  searchChatsQuerySchema,
   updateChatSchema,
 } from "../lib/validation.js";
 import { generateChatTitle } from "../services/chat.service.js";
 import { cleanupDocumentsForChat } from "../services/document-cleanup.service.js";
+import { searchChatsAndMessages } from "../services/chat-search.service.js";
 import { getPaginatedMessages } from "../services/message.service.js";
+import { recordUsage } from "../services/usage.service.js";
 import { downloadDocumentFromS3 } from "../services/storage.service.js";
-import { exportChatAsPdf } from "../services/chat-export.service.js";
+import { exportChatAsPdf, exportAllChatsAsJson } from "../services/chat-export.service.js";
 import {
   buildMessageContent,
   executeChatStream,
@@ -67,6 +70,29 @@ export async function listChats(req: Request, res: Response, next: NextFunction)
   }
 }
 
+export async function searchChats(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        error: "User not authenticated",
+      });
+      return;
+    }
+
+    const { q, limit } = parseBody(searchChatsQuerySchema, req.query);
+    const result = await searchChatsAndMessages(userId, q, limit);
+
+    res.status(200).json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function getChatMessages(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const rawChatId = Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId;
@@ -85,6 +111,7 @@ export async function getChatMessages(req: Request, res: Response, next: NextFun
     const limit = query.limit ?? 20;
     const before = query.before;
     const after = query.after;
+    const around = query.around;
 
     const chat = await Chat.findOne({
       _id: new ObjectId(chatId),
@@ -103,6 +130,7 @@ export async function getChatMessages(req: Request, res: Response, next: NextFun
       limit,
       before,
       after,
+      around,
     });
 
     const generatedImageIds = result.messages.flatMap((message) =>
@@ -265,6 +293,21 @@ export async function sendMessage(req: Request, res: Response, next: NextFunctio
     await Chat.findByIdAndUpdate(chatId, {
       updatedAt: new Date(),
     });
+
+    // Tokens are tracked in addition to the message unit reserved at the gate.
+    const lastMessage = response.messages[response.messages.length - 1] as any;
+    if (
+      lastMessage?.usage_metadata &&
+      typeof lastMessage.usage_metadata.input_tokens === "number" &&
+      typeof lastMessage.usage_metadata.output_tokens === "number"
+    ) {
+      void recordUsage(userId, {
+        inputTokens: lastMessage.usage_metadata.input_tokens,
+        outputTokens: lastMessage.usage_metadata.output_tokens,
+      }).catch((error) => {
+        console.error("Failed to record token usage:", error);
+      });
+    }
 
     res.status(200).json({
       success: true,
@@ -493,5 +536,61 @@ export async function exportChatPdf(req: Request, res: Response, next: NextFunct
     if (!res.headersSent) {
       next(error);
     }
+  }
+}
+
+export async function exportAllChats(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ success: false, error: "User not authenticated" });
+      return;
+    }
+
+    const exportData = await exportAllChatsAsJson(userId);
+    const filename = `chat-history-export-${new Date().toISOString().slice(0, 10)}.json`;
+
+    res.setHeader("Content-Type", "application/json; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.status(200).send(JSON.stringify(exportData, null, 2));
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function deleteAllChats(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      res.status(401).json({ success: false, error: "User not authenticated" });
+      return;
+    }
+
+    const userObjectId = new ObjectId(userId);
+    const userChats = await Chat.find({ userId: userObjectId }).select("_id").lean();
+
+    for (const chat of userChats) {
+      try {
+        await cleanupDocumentsForChat(userId, chat._id.toString());
+      } catch (err) {
+        console.error(`Failed to cleanup documents for chat ${chat._id}:`, err);
+      }
+    }
+
+    const [deletedMessages, deletedChats] = await Promise.all([
+      Message.deleteMany({ userId: userObjectId }),
+      Chat.deleteMany({ userId: userObjectId }),
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: "Chat history deleted successfully",
+      data: {
+        deletedChatsCount: deletedChats.deletedCount,
+        deletedMessagesCount: deletedMessages.deletedCount,
+      },
+    });
+  } catch (error) {
+    next(error);
   }
 }

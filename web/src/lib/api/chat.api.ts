@@ -1,8 +1,10 @@
 import type {
   Attachment,
+  ChatHistoryExport,
   ChatMessage,
   ChatSummary,
   ModelInfo,
+  SearchChatsResponse,
 } from "@/lib/types";
 import {
   API_BASE_URL,
@@ -58,11 +60,31 @@ export const chatApi = {
     });
   },
 
+  async searchChats(
+    query: string,
+    accessToken: string,
+    limit = 30
+  ): Promise<SearchChatsResponse> {
+    const qs = new URLSearchParams({ q: query, limit: String(limit) }).toString();
+    return requestData<SearchChatsResponse>(`/chat/search?${qs}`, {
+      method: "GET",
+      headers: authHeaders(accessToken),
+    });
+  },
+
   async listMessages(
     chatId: string,
-    accessToken: string
+    accessToken: string,
+    params?: { limit?: number; before?: string; after?: string; around?: string }
   ): Promise<MessagesEnvelope> {
-    return requestData<MessagesEnvelope>(`/chat/${chatId}/messages`, {
+    const query = new URLSearchParams();
+    if (params?.limit) query.set("limit", String(params.limit));
+    if (params?.before) query.set("before", params.before);
+    if (params?.after) query.set("after", params.after);
+    if (params?.around) query.set("around", params.around);
+    const qs = query.toString();
+    const url = `/chat/${chatId}/messages${qs ? `?${qs}` : ""}`;
+    return requestData<MessagesEnvelope>(url, {
       method: "GET",
       headers: authHeaders(accessToken),
     });
@@ -169,5 +191,38 @@ export const chatApi = {
     }
 
     return response.body;
+  },
+
+  async exportAllChats(accessToken: string): Promise<ChatHistoryExport> {
+    const response = await fetch(`${API_BASE_URL}/chat/export`, {
+      method: "GET",
+      headers: authHeaders(accessToken),
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const body = await parseResponseBody(response);
+      throw new ApiError(
+        pickMessage(body, `Request failed (${response.status})`),
+        response.status,
+        body
+      );
+    }
+
+    return response.json();
+  },
+
+  async deleteAllChats(
+    accessToken: string
+  ): Promise<{ success: boolean; message: string; data?: { deletedChatsCount: number; deletedMessagesCount: number } }> {
+    return requestData<{
+      success: boolean;
+      message: string;
+      data?: { deletedChatsCount: number; deletedMessagesCount: number };
+    }>("/chat", {
+      method: "DELETE",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify({}),
+    });
   },
 };

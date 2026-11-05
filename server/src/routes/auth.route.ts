@@ -7,9 +7,14 @@ import {
   recoverUserAccount,
   changePassword,
   revokeSession,
+  getUserSessions,
+  revokeUserSession,
+  revokeAllOtherSessions,
   AccountPendingDeletionError,
 } from "../services/auth.service.js";
 import { authenticateToken } from "../middleware/auth.middleware.js";
+import { createRateLimiter } from "../lib/rate-limiter.js";
+import { env } from "../config/env.js";
 import {
   parseBody,
   registerSchema,
@@ -19,16 +24,35 @@ import {
   preferencesSchema,
   deleteAccountSchema,
   recoverAccountSchema,
+  requestPasswordResetSchema,
+  resetPasswordSchema,
 } from "../lib/validation.js";
 import { User } from "../models/user.model.js";
+import { requestPasswordReset, resetPassword } from "../services/password-reset.service.js";
+
+function getClientMetadata(req: Request) {
+  const userAgent = typeof req.headers["user-agent"] === "string" ? req.headers["user-agent"] : undefined;
+  const forwarded = req.headers["x-forwarded-for"];
+  const ipAddress =
+    (typeof forwarded === "string" ? forwarded.split(",")[0]?.trim() : undefined) ??
+    req.ip ??
+    req.socket?.remoteAddress;
+  return { userAgent, ipAddress };
+}
 
 const router: Router = express.Router();
 
-router.post("/register", async (req: Request, res: Response, next: NextFunction) => {
+// Protect credential endpoints from brute-force and credential stuffing.
+const authRateLimiter = createRateLimiter({
+  scope: "auth",
+  max: env.RATE_LIMIT_AUTH_MAX,
+});
+
+router.post("/register", authRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password, name } = parseBody(registerSchema, req.body);
 
-    const { user, tokens } = await registerUser(email, password, name);
+    const { user, tokens } = await registerUser(email, password, name, getClientMetadata(req));
 
     res.status(201).json({
       success: true,
@@ -58,11 +82,11 @@ router.post("/register", async (req: Request, res: Response, next: NextFunction)
   }
 });
 
-router.post("/login", async (req: Request, res: Response, next: NextFunction) => {
+router.post("/login", authRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password } = parseBody(loginSchema, req.body);
 
-    const { user, tokens } = await loginUser(email, password);
+    const { user, tokens } = await loginUser(email, password, getClientMetadata(req));
 
     res.status(200).json({
       success: true,
@@ -109,10 +133,40 @@ router.post("/login", async (req: Request, res: Response, next: NextFunction) =>
   }
 });
 
-router.post("/recover", async (req: Request, res: Response, next: NextFunction) => {
+router.post("/password/reset-request", authRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { email } = parseBody(requestPasswordResetSchema, req.body);
+    await requestPasswordReset(email);
+    res.status(202).json({
+      success: true,
+      message: "If an account exists for that email, a reset link has been sent.",
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/password/reset", authRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { token, password } = parseBody(resetPasswordSchema, req.body);
+    await resetPassword(token, password);
+    res.status(200).json({
+      success: true,
+      message: "Your password has been reset. Sign in with your new password.",
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Invalid or expired reset link") {
+      res.status(400).json({ success: false, error: error.message });
+      return;
+    }
+    next(error);
+  }
+});
+
+router.post("/recover", authRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password } = parseBody(recoverAccountSchema, req.body);
-    const { user, tokens, message } = await recoverUserAccount(email, password);
+    const { user, tokens, message } = await recoverUserAccount(email, password, getClientMetadata(req));
 
     res.status(200).json({
       success: true,
@@ -154,11 +208,11 @@ router.post("/recover", async (req: Request, res: Response, next: NextFunction) 
   }
 });
 
-router.post("/refresh", async (req: Request, res: Response, next: NextFunction) => {
+router.post("/refresh", authRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { refreshToken } = parseBody(refreshTokenSchema, req.body);
 
-    const tokens = await refreshTokens(refreshToken);
+    const tokens = await refreshTokens(refreshToken, getClientMetadata(req));
 
     res.status(200).json({
       success: true,
@@ -183,6 +237,60 @@ router.post("/logout", authenticateToken, async (req: Request, res: Response) =>
     success: true,
     message: "Logged out successfully",
   });
+});
+
+router.get("/sessions", authenticateToken, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.userId;
+    const currentSessionId = req.user!.sessionId;
+    const sessions = await getUserSessions(userId, currentSessionId);
+
+    res.status(200).json({
+      success: true,
+      data: { sessions },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post("/sessions/revoke-others", authenticateToken, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req.user!.userId;
+    const currentSessionId = req.user!.sessionId;
+    const revokedCount = await revokeAllOtherSessions(currentSessionId, userId);
+
+    res.status(200).json({
+      success: true,
+      message: "All other sessions have been revoked",
+      data: { revokedCount },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.delete("/sessions/:sessionId", authenticateToken, async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const rawSessionId = Array.isArray(req.params.sessionId) ? req.params.sessionId[0] : req.params.sessionId;
+    const targetSessionId = typeof rawSessionId === "string" ? rawSessionId.trim() : "";
+    if (!targetSessionId) {
+      res.status(400).json({ success: false, error: "Session ID is required" });
+      return;
+    }
+
+    const userId = req.user!.userId;
+    const isCurrent = req.user!.sessionId === targetSessionId;
+    await revokeUserSession(targetSessionId, userId);
+
+    res.status(200).json({
+      success: true,
+      message: isCurrent ? "Current session revoked" : "Session revoked successfully",
+      data: { isCurrent, sessionId: targetSessionId },
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 router.delete("/account", authenticateToken, async (req: Request, res: Response, next: NextFunction) => {

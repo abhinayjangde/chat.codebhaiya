@@ -12,6 +12,8 @@ export interface IUser {
   status: UserStatus;
   deletedAt?: Date | null;
   deletionScheduledAt?: Date | null;
+  passwordResetTokenHash?: string | null;
+  passwordResetExpiresAt?: Date | null;
   preferences: {
     theme: "light" | "dark";
     defaultModel: string;
@@ -71,6 +73,16 @@ const userSchema = new mongoose.Schema<IUser, UserModel, IUserMethods>(
       type: Date,
       default: null,
       index: true,
+    },
+    passwordResetTokenHash: {
+      type: String,
+      default: null,
+      select: false,
+    },
+    passwordResetExpiresAt: {
+      type: Date,
+      default: null,
+      select: false,
     },
     preferences: {
       theme: {

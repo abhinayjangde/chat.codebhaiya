@@ -44,7 +44,9 @@ interface ChatMessageListProps {
   streamSteps?: { id: "thinking" | "webSearch" | "analyzing"; label: string; status: "pending" | "active" | "complete" }[] | null;
   onEditMessage: (message: ChatMessage) => void;
   onRegenerateMessage: (message: ChatMessage, userMessage: ChatMessage) => void;
+  onRetry?: () => void;
   onOpenResume?: () => void;
+  targetMessageId?: string | null;
 }
 
 export const ChatMessageList = memo(function ChatMessageList({
@@ -54,18 +56,30 @@ export const ChatMessageList = memo(function ChatMessageList({
   availableModels,
   onEditMessage,
   onRegenerateMessage,
+  onRetry,
   onOpenResume,
+  targetMessageId,
 }: ChatMessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [feedbackMap, setFeedbackMap] = useState<Record<string, "like" | "dislike">>({});
 
   useEffect(() => {
+    if (targetMessageId) {
+      const element = document.getElementById(`message-${targetMessageId}`);
+      if (element) {
+        element.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+        return;
+      }
+    }
     messagesEndRef.current?.scrollIntoView({
       behavior: "smooth",
       block: "end",
     });
-  }, [messages]);
+  }, [messages, targetMessageId]);
 
   // Strip user prompt from AI response if echoed
   const getDisplayContent = (message: ChatMessage, index: number) => {
@@ -115,8 +129,13 @@ export const ChatMessageList = memo(function ChatMessageList({
   return (
     <div className="mx-auto w-full max-w-3xl px-4 py-6 md:px-6">
       {chatError ? (
-        <div className="mb-4 rounded-lg border border-(--chat-error-border) bg-(--chat-error-bg) px-3 py-2 text-sm text-(--chat-error-text)">
-          {chatError}
+        <div className="mb-4 flex items-center justify-between gap-3 rounded-lg border border-(--chat-error-border) bg-(--chat-error-bg) px-3 py-2 text-sm text-(--chat-error-text)" role="alert">
+          <span>{chatError}</span>
+          {onRetry ? (
+            <button type="button" onClick={onRetry} className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 font-medium transition hover:bg-(--chat-error-text)/10">
+              <RefreshCw className="h-3.5 w-3.5" /> Retry
+            </button>
+          ) : null}
         </div>
       ) : null}
 
@@ -131,11 +150,17 @@ export const ChatMessageList = memo(function ChatMessageList({
             const isUser = message.role === "user";
             const displayContent = getDisplayContent(message, index);
             const messageId = message._id ?? `msg-${index}`;
+            const isTarget = Boolean(targetMessageId && (message._id === targetMessageId || messageId === targetMessageId));
 
             return (
               <div
                 key={messageId}
-                className={cn("flex", isUser ? "justify-end" : "justify-start")}
+                id={`message-${messageId}`}
+                className={cn(
+                  "flex transition-all duration-700 rounded-2xl",
+                  isTarget && "ring-2 ring-amber-500/80 bg-amber-500/10 dark:bg-amber-400/15 dark:ring-amber-400 p-2.5",
+                  isUser ? "justify-end" : "justify-start"
+                )}
               >
                 {isUser ? (
                   /* ── User bubble: dark-blue pill, right-aligned ── */
@@ -189,6 +214,17 @@ export const ChatMessageList = memo(function ChatMessageList({
                           content={displayContent}
                           sources={message.sources ?? []}
                         />
+                      </div>
+                    ) : null}
+
+                    {message.errorMessage ? (
+                      <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-(--chat-error-border) bg-(--chat-error-bg) px-3 py-2 text-sm text-(--chat-error-text)" role="alert">
+                        <span className="min-w-0 flex-1">{message.errorMessage}</span>
+                        {onRetry ? (
+                          <button type="button" onClick={onRetry} className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 font-medium transition hover:bg-(--chat-error-text)/10">
+                            <RefreshCw className="h-3.5 w-3.5" /> Retry
+                          </button>
+                        ) : null}
                       </div>
                     ) : null}
 

@@ -19,12 +19,14 @@ import { DocumentLibrary } from "@/components/documents/document-library";
 import { McpServerList } from "@/components/mcp/mcp-server-list";
 import { ResumeSidePanel } from "@/components/resume/resume-side-panel";
 import { ResumeWizardModal } from "@/components/resume/resume-wizard-modal";
+import { SettingsView } from "@/components/settings/settings-view";
 
 export function ChatApp() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [showDocuments, setShowDocuments] = useState(false);
   const [showMcpSettings, setShowMcpSettings] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [greeting, setGreeting] = useState(getTimeGreeting());
 
   // Resume Builder state
@@ -88,6 +90,16 @@ export function ChatApp() {
     setResumeSidePanelOpen(true);
   }, []);
 
+  const [targetMessageId, setTargetMessageId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!targetMessageId) return;
+    const timer = setTimeout(() => {
+      setTargetMessageId(null);
+    }, 4000);
+    return () => clearTimeout(timer);
+  }, [targetMessageId]);
+
   // Streaming & Message Generation
   const {
     messages,
@@ -95,10 +107,12 @@ export function ChatApp() {
     setComposer,
     isLoadingMessages,
     isSending,
+    canRetry,
     handleSendPrompt,
     handleGenerateImage,
     handleEditMessage,
     handleRegenerateMessage,
+    handleRetry,
     handleStopStreaming,
     handleFileUpload,
     handleDocumentStatus,
@@ -117,7 +131,37 @@ export function ChatApp() {
     selectedMcpServerIds,
     setChatError,
     onResumeUpdated: handleResumeUpdated,
+    targetMessageId,
   });
+
+  const handleSearchChats = useCallback(
+    async (query: string) => {
+      return runWithSession((accessToken) => apiClient.searchChats(query, accessToken));
+    },
+    [runWithSession]
+  );
+
+  const handleSelectChat = useCallback(
+    (chatId: string, messageId?: string, isArchived?: boolean) => {
+      setShowDocuments(false);
+      setShowMcpSettings(false);
+      setShowSettings(false);
+      setResume(null);
+      setResumeSidePanelOpen(false);
+
+      if (isArchived !== undefined) {
+        if (isArchived && !isShowingArchived) {
+          setIsShowingArchived(true);
+        } else if (!isArchived && isShowingArchived) {
+          setIsShowingArchived(false);
+        }
+      }
+
+      setTargetMessageId(messageId ?? null);
+      setActiveChatId(chatId);
+    },
+    [isShowingArchived, setIsShowingArchived, setActiveChatId]
+  );
 
   // Fetch resume for active chat session
   useEffect(() => {
@@ -202,17 +246,16 @@ export function ChatApp() {
         setMobileSidebarOpen={setMobileSidebarOpen}
         chats={chats}
         activeChatId={activeChatId}
-        onSelectChat={(chatId) => {
-          setShowDocuments(false);
-          setShowMcpSettings(false);
-          setResume(null);
-          setResumeSidePanelOpen(false);
-          setActiveChatId(chatId);
+        onSelectChat={handleSelectChat}
+        onSearch={handleSearchChats}
+        onNewChat={() => {
+          setShowSettings(false);
+          handleNewChat();
         }}
-        onNewChat={handleNewChat}
         onOpenDocuments={() => {
           setShowDocuments(true);
           setShowMcpSettings(false);
+          setShowSettings(false);
         }}
         onDeleteChat={onDeleteChatWithCleanup}
         onRenameChat={handleRenameChat}
@@ -235,6 +278,12 @@ export function ChatApp() {
         onOpenMcpSettings={() => {
           setShowMcpSettings(true);
           setShowDocuments(false);
+          setShowSettings(false);
+        }}
+        onOpenSettings={() => {
+          setShowSettings(true);
+          setShowDocuments(false);
+          setShowMcpSettings(false);
         }}
         onTogglePin={handleTogglePin}
         onToggleArchive={handleToggleArchive}
@@ -260,7 +309,16 @@ export function ChatApp() {
           </button>
         )}
 
-        {showMcpSettings ? (
+        {showSettings ? (
+          <SettingsView
+            embedded
+            onBack={() => setShowSettings(false)}
+            onAllChatsDeleted={() => {
+              setChats([]);
+              setActiveChatId(null);
+            }}
+          />
+        ) : showMcpSettings ? (
           <McpServerList
             runWithSession={runWithSession}
             onServersChange={setMcpServers}
@@ -285,7 +343,9 @@ export function ChatApp() {
                   availableModels={availableModels}
                   onEditMessage={handleEditMessage}
                   onRegenerateMessage={handleRegenerateMessage}
+                  onRetry={canRetry ? handleRetry : undefined}
                   onOpenResume={() => setResumeSidePanelOpen(true)}
+                  targetMessageId={targetMessageId}
                 />
 
                 {messages.length === 0 && !isLoadingMessages && (

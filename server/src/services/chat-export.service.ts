@@ -69,3 +69,91 @@ export async function exportChatAsPdf(
 
   doc.end();
 }
+
+export interface ExportMessageData {
+  id: string;
+  role: string;
+  content: string;
+  createdAt: string;
+  modelName?: string;
+  attachments?: unknown[];
+  sources?: unknown[];
+}
+
+export interface ExportChatData {
+  id: string;
+  title: string;
+  isPinned: boolean;
+  isArchived: boolean;
+  createdAt: string;
+  updatedAt: string;
+  messages: ExportMessageData[];
+}
+
+export interface AllChatsExportData {
+  version: string;
+  exportedAt: string;
+  userId: string;
+  totalChats: number;
+  chats: ExportChatData[];
+}
+
+/**
+ * Exports all chat conversations and messages for a user as structured JSON data.
+ */
+export async function exportAllChatsAsJson(userId: string): Promise<AllChatsExportData> {
+  const userObjectId = new ObjectId(userId);
+
+  const chats = await Chat.find({ userId: userObjectId }).sort({ createdAt: -1 }).lean();
+  const chatIds = chats.map((c) => c._id);
+
+  const messages = await Message.find({
+    userId: userObjectId,
+    chatId: { $in: chatIds },
+  })
+    .sort({ createdAt: 1 })
+    .lean();
+
+  const messagesByChatId = new Map<string, ExportMessageData[]>();
+  for (const msg of messages) {
+    const cId = msg.chatId.toString();
+    let contentStr = "";
+    if (typeof msg.content === "string") {
+      contentStr = msg.content;
+    } else {
+      contentStr = JSON.stringify(msg.content);
+    }
+
+    const exportMsg: ExportMessageData = {
+      id: msg._id.toString(),
+      role: msg.role,
+      content: contentStr,
+      createdAt: msg.createdAt ? new Date(msg.createdAt).toISOString() : new Date().toISOString(),
+      modelName: (msg as any).modelName,
+      attachments: msg.attachments,
+      sources: (msg as any).sources,
+    };
+
+    const existing = messagesByChatId.get(cId) ?? [];
+    existing.push(exportMsg);
+    messagesByChatId.set(cId, existing);
+  }
+
+  const exportChats: ExportChatData[] = chats.map((chat) => ({
+    id: chat._id.toString(),
+    title: chat.title || "Untitled Chat",
+    isPinned: Boolean(chat.isPinned),
+    isArchived: Boolean(chat.isArchived),
+    createdAt: chat.createdAt ? new Date(chat.createdAt).toISOString() : new Date().toISOString(),
+    updatedAt: chat.updatedAt ? new Date(chat.updatedAt).toISOString() : new Date().toISOString(),
+    messages: messagesByChatId.get(chat._id.toString()) ?? [],
+  }));
+
+  return {
+    version: "1.0",
+    exportedAt: new Date().toISOString(),
+    userId,
+    totalChats: exportChats.length,
+    chats: exportChats,
+  };
+}

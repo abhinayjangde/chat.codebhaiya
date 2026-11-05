@@ -4,6 +4,9 @@ import { z } from "zod";
 import { Chat } from "../models/chat.model.js";
 import { parseBody } from "../lib/validation.js";
 import { authenticateToken } from "../middleware/auth.middleware.js";
+import { requireUsage } from "../middleware/usage.middleware.js";
+import { createRateLimiter } from "../lib/rate-limiter.js";
+import { env } from "../config/env.js";
 import { runImageGenerationGraph } from "../services/image-generation.service.js";
 
 const router: express.Router = express.Router();
@@ -15,7 +18,17 @@ const generateImageSchema = z.object({
 
 router.use(authenticateToken);
 
-router.post("/generate", async (req, res, next) => {
+// Image renders are costly provider calls; rate limit them aggressively.
+const imageGenerationLimiter = createRateLimiter({
+  scope: "image-generation",
+  max: Math.min(10, env.RATE_LIMIT_CHAT_MAX),
+});
+
+router.post(
+  "/generate",
+  imageGenerationLimiter,
+  requireUsage("image_generation"),
+  async (req, res, next) => {
   try {
     const { chatId, prompt, provider } = parseBody(generateImageSchema, req.body);
     const userId = req.user!.userId;

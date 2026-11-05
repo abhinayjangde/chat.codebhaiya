@@ -4,6 +4,7 @@ import {
   createChatSchema,
   listChatsQuerySchema,
   renameChatSchema,
+  searchChatsQuerySchema,
   updateChatSchema,
 } from "./chat.schema.js";
 import { paginationQuerySchema } from "./common.schema.js";
@@ -202,10 +203,72 @@ describe("chat.schema", () => {
       }
     });
 
+    it("accepts around parameter", () => {
+      const result = paginationQuerySchema.safeParse({
+        around: validObjectId1,
+        limit: "15",
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.around).toBe(validObjectId1);
+        expect(result.data.limit).toBe(15);
+      }
+    });
+
     it("rejects passing both before and after simultaneously", () => {
       const result = paginationQuerySchema.safeParse({
         before: validObjectId1,
         after: validObjectId2,
+      });
+
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe("searchChatsQuerySchema", () => {
+    it("accepts valid query string", () => {
+      const result = searchChatsQuerySchema.safeParse({
+        q: "hello world",
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.q).toBe("hello world");
+        expect(result.data.limit).toBe(30);
+      }
+    });
+
+    it("accepts query with custom limit", () => {
+      const result = searchChatsQuerySchema.safeParse({
+        q: "search term",
+        limit: "50",
+      });
+
+      expect(result.success).toBe(true);
+      if (result.success) {
+        expect(result.data.limit).toBe(50);
+      }
+    });
+
+    it("rejects empty query", () => {
+      const result = searchChatsQuerySchema.safeParse({
+        q: "   ",
+      });
+
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects missing query", () => {
+      const result = searchChatsQuerySchema.safeParse({});
+
+      expect(result.success).toBe(false);
+    });
+
+    it("rejects limit greater than 100", () => {
+      const result = searchChatsQuerySchema.safeParse({
+        q: "query",
+        limit: "150",
       });
 
       expect(result.success).toBe(false);

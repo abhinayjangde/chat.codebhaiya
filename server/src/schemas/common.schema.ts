@@ -32,6 +32,7 @@ export const paginationQuerySchema = z
     limit: z.coerce.number().int().min(1).max(200).default(20).optional(),
     before: objectIdSchema.optional(),
     after: objectIdSchema.optional(),
+    around: objectIdSchema.optional(),
   })
   .refine(({ before, after }) => !(before && after), {
     message: "Use either before or after, not both",
