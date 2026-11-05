@@ -57,7 +57,7 @@ Quotas are configured via `USAGE_MAX_MESSAGES_PER_MONTH` (default 1000), `USAGE_
 ### Usage dashboard
 
 #### GET /usage
-Returns the current month's usage and quotas for the account. Requires a Bearer token.
+Returns today's activity (UTC), current-month usage, and monthly quotas for the account. Requires a Bearer token.
 
 **Response (200 OK):**
 ```json
@@ -65,6 +65,18 @@ Returns the current month's usage and quotas for the account. Requires a Bearer 
   "success": true,
   "data": {
     "period": "2026-11",
+    "daily": {
+      "period": "2026-11-05",
+      "usage": {
+        "messages": 2,
+        "inputTokens": 580,
+        "outputTokens": 140,
+        "uploads": 1,
+        "uploadBytes": 524288,
+        "imageGenerations": 0,
+        "expensiveModelCalls": 1
+      }
+    },
     "usage": {
       "messages": 12,
       "inputTokens": 3400,

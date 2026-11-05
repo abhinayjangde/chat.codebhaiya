@@ -2,6 +2,7 @@ import { ObjectId } from "mongodb";
 import { env } from "../config/env.js";
 import { HttpError } from "../lib/validation.js";
 import { UsagePeriod } from "../models/usage.model.js";
+import { UsageDay } from "../models/usage-day.model.js";
 
 export interface UsageCounters {
   messageCount: number;
@@ -37,23 +38,34 @@ export interface MonthlyQuota {
   expensiveModelCalls: number;
 }
 
+export interface UsageMetrics {
+  messages: number;
+  inputTokens: number;
+  outputTokens: number;
+  uploads: number;
+  uploadBytes: number;
+  imageGenerations: number;
+  expensiveModelCalls: number;
+}
+
 export interface UsageSummary {
   period: string;
-  usage: {
-    messages: number;
-    inputTokens: number;
-    outputTokens: number;
-    uploads: number;
-    uploadBytes: number;
-    imageGenerations: number;
-    expensiveModelCalls: number;
+  daily: {
+    period: string;
+    usage: UsageMetrics;
   };
+  usage: UsageMetrics;
   quotas: MonthlyQuota;
 }
 
 /** "YYYY-MM" period string (UTC) for a given date. */
 export function getUsagePeriod(date: Date = new Date()): string {
   return date.toISOString().slice(0, 7);
+}
+
+/** "YYYY-MM-DD" period string (UTC) for a given date. */
+export function getUsageDay(date: Date = new Date()): string {
+  return date.toISOString().slice(0, 10);
 }
 
 export function getMonthlyQuota(): MonthlyQuota {
@@ -118,34 +130,58 @@ export async function enforceUsageQuota(
  */
 export async function recordUsage(userId: string, delta: UsageDelta): Promise<void> {
   const period = getUsagePeriod();
+  const day = getUsageDay();
+  const increments = {
+    ...(delta.messageCount ? { messageCount: delta.messageCount } : {}),
+    ...(delta.inputTokens ? { inputTokens: delta.inputTokens } : {}),
+    ...(delta.outputTokens ? { outputTokens: delta.outputTokens } : {}),
+    ...(delta.uploadCount ? { uploadCount: delta.uploadCount } : {}),
+    ...(delta.uploadBytes ? { uploadBytes: delta.uploadBytes } : {}),
+    ...(delta.imageGenerationCount
+      ? { imageGenerationCount: delta.imageGenerationCount }
+      : {}),
+    ...(delta.expensiveModelCallCount
+      ? { expensiveModelCallCount: delta.expensiveModelCallCount }
+      : {}),
+  };
 
-  await UsagePeriod.findOneAndUpdate(
-    { userId: new ObjectId(userId), period },
-    {
-      $inc: {
-        ...(delta.messageCount ? { messageCount: delta.messageCount } : {}),
-        ...(delta.inputTokens ? { inputTokens: delta.inputTokens } : {}),
-        ...(delta.outputTokens ? { outputTokens: delta.outputTokens } : {}),
-        ...(delta.uploadCount ? { uploadCount: delta.uploadCount } : {}),
-        ...(delta.uploadBytes ? { uploadBytes: delta.uploadBytes } : {}),
-        ...(delta.imageGenerationCount
-          ? { imageGenerationCount: delta.imageGenerationCount }
-          : {}),
-        ...(delta.expensiveModelCallCount
-          ? { expensiveModelCallCount: delta.expensiveModelCallCount }
-          : {}),
-      },
-    },
-    { upsert: true, new: true }
-  );
+  const ownerId = new ObjectId(userId);
+  await Promise.all([
+    UsagePeriod.findOneAndUpdate(
+      { userId: ownerId, period },
+      { $inc: increments },
+      { upsert: true, new: true }
+    ),
+    UsageDay.findOneAndUpdate(
+      { userId: ownerId, day },
+      { $inc: increments },
+      { upsert: true, new: true }
+    ),
+  ]);
 }
 
 export async function getUsageSummary(userId: string): Promise<UsageSummary> {
   const period = getUsagePeriod();
-  const current = await getUsageDocument(userId, period);
+  const day = getUsageDay();
+  const [current, today] = await Promise.all([
+    getUsageDocument(userId, period),
+    UsageDay.findOne({ userId: new ObjectId(userId), day })
+      .lean<UsageCounters | null>(),
+  ]);
+
+  const todayUsage = {
+    messages: today?.messageCount ?? 0,
+    inputTokens: today?.inputTokens ?? 0,
+    outputTokens: today?.outputTokens ?? 0,
+    uploads: today?.uploadCount ?? 0,
+    uploadBytes: today?.uploadBytes ?? 0,
+    imageGenerations: today?.imageGenerationCount ?? 0,
+    expensiveModelCalls: today?.expensiveModelCallCount ?? 0,
+  };
 
   return {
     period,
+    daily: { period: day, usage: todayUsage },
     usage: {
       messages: current.messageCount,
       inputTokens: current.inputTokens,

@@ -53,6 +53,8 @@ export function useChatStream({
   targetMessageId,
 }: UseChatStreamProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const messagesRef = useRef<ChatMessage[]>(messages);
+  messagesRef.current = messages;
   const [composer, setComposer] = useState("");
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -93,7 +95,11 @@ export function useChatStream({
     }
 
     // If targetMessageId is already loaded in messages, skip re-fetching
-    if (targetMessageId && messages.length > 0 && messages.some((m) => m._id === targetMessageId)) {
+    if (
+      targetMessageId &&
+      messagesRef.current.length > 0 &&
+      messagesRef.current.some((m) => m._id === targetMessageId)
+    ) {
       return;
     }
 
