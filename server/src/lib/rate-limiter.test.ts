@@ -73,6 +73,41 @@ describe("rate-limiter", () => {
     expect(calls.statuses).toEqual([429]);
   });
 
+  it("ignores raw X-Forwarded-For headers and relies on req.ip to prevent rate-limit bypass", () => {
+    const limiter = createRateLimiter({ scope: "auth", max: 1, windowMs: 60_000 });
+
+    const req1 = {
+      headers: { "x-forwarded-for": "1.1.1.1" },
+      ip: "10.0.0.1",
+    } as unknown as Request;
+
+    const req2 = {
+      headers: { "x-forwarded-for": "1.1.1.2" }, // Spoofed X-Forwarded-For header
+      ip: "10.0.0.1", // Same real client IP determined by Express
+    } as unknown as Request;
+
+    limiter(req1, makeResponse().res, () => {});
+
+    const { res, calls } = makeResponse();
+    limiter(req2, res, () => {});
+    expect(calls.statuses).toEqual([429]);
+  });
+
+  it("falls back to socket.remoteAddress or 'unknown' when req.ip is undefined", () => {
+    const limiter = createRateLimiter({ scope: "auth", max: 1, windowMs: 60_000 });
+
+    const reqWithSocket = {
+      headers: {},
+      socket: { remoteAddress: "127.0.0.1" },
+    } as unknown as Request;
+
+    limiter(reqWithSocket, makeResponse().res, () => {});
+
+    const { res, calls } = makeResponse();
+    limiter(reqWithSocket, res, () => {});
+    expect(calls.statuses).toEqual([429]);
+  });
+
   it("keys authenticated requests per user, not per IP", () => {
     const limiter = createRateLimiter({ scope: "chat", max: 1, windowMs: 60_000 });
 

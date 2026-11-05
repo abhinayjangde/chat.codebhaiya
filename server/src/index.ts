@@ -1,5 +1,6 @@
 import cors from "cors";
 import express, { type NextFunction, type Request, type Response } from "express";
+import helmet from "helmet";
 import mongoose from "mongoose";
 
 import { env } from "./config/env.js";
@@ -19,6 +20,7 @@ import { startDocumentWorker, type DocumentWorkerHandle } from "./workers/docume
 
 const app = express();
 app.set("trust proxy", env.TRUST_PROXY);
+app.use(helmet());
 const allowedOrigins = new Set(env.corsOrigins);
 const isDevelopmentOrigin = (origin: string) =>
   env.NODE_ENV !== "production" &&
