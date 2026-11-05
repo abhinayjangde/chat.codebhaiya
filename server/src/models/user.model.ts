@@ -9,6 +9,9 @@ export interface IUser {
   email: string;
   password: string;
   name: string;
+  profilePictureKey?: string | null;
+  profilePictureContentType?: string | null;
+  profilePictureUpdatedAt?: Date | null;
   status: UserStatus;
   deletedAt?: Date | null;
   deletionScheduledAt?: Date | null;
@@ -58,6 +61,21 @@ const userSchema = new mongoose.Schema<IUser, UserModel, IUserMethods>(
       trim: true,
       minlength: 2,
       maxlength: 50,
+    },
+    profilePictureKey: {
+      type: String,
+      default: null,
+      select: false,
+    },
+    profilePictureContentType: {
+      type: String,
+      enum: ["image/jpeg", "image/png", "image/webp", null],
+      default: null,
+      select: false,
+    },
+    profilePictureUpdatedAt: {
+      type: Date,
+      default: null,
     },
     status: {
       type: String,

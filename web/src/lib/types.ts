@@ -22,6 +22,7 @@ export interface UserProfile {
   userId?: string;
   email: string;
   name?: string;
+  profilePictureUpdatedAt?: string | null;
   status?: "active" | "pending_deletion";
   deletionScheduledAt?: string | null;
   preferences?: UserPreferences;

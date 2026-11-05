@@ -11,6 +11,7 @@ import { McpServer } from "../models/mcp-server.model.js";
 import { Resume } from "../models/resume.model.js";
 import { env } from "../config/env.js";
 import { cleanupDocumentsForUser } from "./document-cleanup.service.js";
+import { deleteDocumentFromS3 } from "./storage.service.js";
 
 const JWT_SECRET = env.JWT_SECRET;
 const JWT_REFRESH_SECRET = env.JWT_REFRESH_SECRET;
@@ -489,7 +490,7 @@ export async function recoverUserAccount(
 }
 
 export async function permanentlyDeleteUserAccount(userId: string): Promise<void> {
-  const user = await User.findById(userId);
+  const user = await User.findById(userId).select("+profilePictureKey");
   if (!user) {
     return;
   }
@@ -500,6 +501,12 @@ export async function permanentlyDeleteUserAccount(userId: string): Promise<void
     await cleanupDocumentsForUser(userId);
   } catch (error) {
     console.error(`Failed to cleanup documents for user ${userId}:`, error);
+  }
+
+  if (user.profilePictureKey) {
+    await deleteDocumentFromS3(user.profilePictureKey).catch((error: unknown) => {
+      console.error(`Failed to cleanup profile picture for user ${userId}:`, error);
+    });
   }
 
   await Promise.allSettled([

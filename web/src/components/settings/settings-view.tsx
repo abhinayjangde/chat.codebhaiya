@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
   AlertTriangle,
   ArrowLeft,
   Calendar,
+  Camera,
   Check,
   Clock,
   Database,
@@ -41,6 +42,7 @@ import { cn } from "@/lib/utils";
 import { ChangePasswordModal } from "@/components/chat/sidebar/change-password-modal";
 import { CustomInstructionsModal } from "@/components/chat/sidebar/custom-instructions-modal";
 import { DeleteAccountModal } from "@/components/chat/sidebar/delete-account-modal";
+import { ProfileAvatar } from "@/components/profile-avatar";
 
 interface SettingsViewProps {
   embedded?: boolean;
@@ -56,6 +58,8 @@ export function SettingsView({
   const router = useRouter();
   const [tokens, setTokens] = useState<AuthTokens | null>(() => readStoredTokens());
   const [user, setUser] = useState<UserProfile | null>(() => readStoredUser());
+  const profilePictureInputRef = useRef<HTMLInputElement>(null);
+  const [isUploadingProfilePicture, setIsUploadingProfilePicture] = useState(false);
   const [activeTab, setActiveTab] = useState<"data" | "sessions" | "account">("data");
 
   // Sessions state
@@ -74,6 +78,36 @@ export function SettingsView({
   // Account modals state
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
+
+  const handleProfilePictureSelected = async (file: File | undefined) => {
+    if (!file || !tokens?.accessToken) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      toast.error("Choose a JPEG, PNG, or WebP image.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Profile pictures must be 5 MB or smaller.");
+      return;
+    }
+
+    setIsUploadingProfilePicture(true);
+    try {
+      const result = await apiClient.uploadProfilePicture(file, tokens.accessToken);
+      setUser((current) => {
+        if (!current) return current;
+        const updatedUser = { ...current, profilePictureUpdatedAt: result.profilePictureUpdatedAt };
+        writeStoredUser(updatedUser);
+        return updatedUser;
+      });
+      window.dispatchEvent(new Event("profile-picture-updated"));
+      toast.success("Profile picture updated.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Profile picture upload failed.");
+    } finally {
+      setIsUploadingProfilePicture(false);
+      if (profilePictureInputRef.current) profilePictureInputRef.current.value = "";
+    }
+  };
 
   // Load user details & sessions
   const loadUser = useCallback(async () => {
@@ -266,10 +300,10 @@ export function SettingsView({
           )}
           <div>
             <h1 className="text-base font-semibold leading-tight text-(--chat-text)">
-              Settings & Privacy
+              Settings
             </h1>
             <p className="text-xs text-(--chat-text-muted)">
-              Manage your data, export conversations, and review active sessions
+              Manage your settings, data, and active sessions
             </p>
           </div>
         </div>
@@ -279,20 +313,20 @@ export function SettingsView({
       <div className="flex flex-1 min-h-0 flex-col md:flex-row overflow-hidden">
         {/* Navigation Sidebar */}
         <nav className="flex shrink-0 flex-row border-b border-(--chat-dropdown-border) bg-(--chat-surface)/30 p-2 md:w-64 md:flex-col md:border-b-0 md:border-r md:p-4 gap-1">
-          <button
+         
+           <button
             type="button"
-            onClick={() => setActiveTab("data")}
+            onClick={() => setActiveTab("account")}
             className={cn(
               "flex flex-1 md:flex-none items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-medium transition hover:cursor-pointer",
-              activeTab === "data"
+              activeTab === "account"
                 ? "bg-(--chat-brand)/10 text-(--chat-brand) font-semibold"
                 : "text-(--chat-text-secondary) hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text)"
             )}
           >
-            <Database className="h-4 w-4 shrink-0" />
-            <span>Data Controls</span>
+            <User className="h-4 w-4 shrink-0" />
+            <span>Account & Security</span>
           </button>
-
           <button
             type="button"
             onClick={() => setActiveTab("sessions")}
@@ -314,18 +348,19 @@ export function SettingsView({
             )}
           </button>
 
-          <button
+         
+           <button
             type="button"
-            onClick={() => setActiveTab("account")}
+            onClick={() => setActiveTab("data")}
             className={cn(
               "flex flex-1 md:flex-none items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-medium transition hover:cursor-pointer",
-              activeTab === "account"
+              activeTab === "data"
                 ? "bg-(--chat-brand)/10 text-(--chat-brand) font-semibold"
                 : "text-(--chat-text-secondary) hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text)"
             )}
           >
-            <User className="h-4 w-4 shrink-0" />
-            <span>Account & Security</span>
+            <Database className="h-4 w-4 shrink-0" />
+            <span>Data Controls</span>
           </button>
         </nav>
 
@@ -587,16 +622,35 @@ export function SettingsView({
                 {/* Profile Card */}
                 <div className="rounded-xl border border-(--chat-dropdown-border) bg-(--chat-surface) p-5 space-y-4">
                   <div className="flex items-center gap-3.5">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-(--chat-brand)/10 text-lg font-semibold text-(--chat-brand)">
-                      {user?.name ? user.name[0]?.toUpperCase() : "U"}
-                    </div>
-                    <div>
-                      <h3 className="text-sm font-semibold text-(--chat-text)">
-                        {user?.name || "Codebhaiya User"}
-                      </h3>
+                    <ProfileAvatar
+                      accessToken={tokens?.accessToken}
+                      updatedAt={user?.profilePictureUpdatedAt}
+                      name={user?.name}
+                      className="h-12 w-12 bg-(--chat-brand)/10 text-lg font-semibold text-(--chat-brand)"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-sm font-semibold text-(--chat-text)">{user?.name || "Codebhaiya User"}</h3>
                       <p className="text-xs text-(--chat-text-muted)">{user?.email}</p>
+                      <input
+                        ref={profilePictureInputRef}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="hidden"
+                        aria-label="Choose a profile picture"
+                        onChange={(event) => void handleProfilePictureSelected(event.target.files?.[0])}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => profilePictureInputRef.current?.click()}
+                        disabled={isUploadingProfilePicture}
+                        className="mt-2 inline-flex h-7 items-center gap-1.5 rounded-lg border border-(--chat-dropdown-border) px-2.5 text-[11px] font-medium text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) disabled:cursor-wait disabled:opacity-60"
+                      >
+                        {isUploadingProfilePicture ? <Loader2 className="h-3 w-3 animate-spin" /> : <Camera className="h-3 w-3" />}
+                        {isUploadingProfilePicture ? "Uploading…" : "Change picture"}
+                      </button>
                     </div>
                   </div>
+                  <p className="text-[11px] text-(--chat-text-muted)">JPEG, PNG, or WebP · up to 5 MB</p>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs">
                     <div className="rounded-lg border border-(--chat-dropdown-border) bg-(--chat-surface)/50 p-3">

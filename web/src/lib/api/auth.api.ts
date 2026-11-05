@@ -14,6 +14,36 @@ export interface AuthEnvelope {
 }
 
 export const authApi = {
+  async uploadProfilePicture(file: File, accessToken: string): Promise<{ profilePictureUpdatedAt: string }> {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await fetch(`${API_BASE_URL}/auth/profile-picture`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${accessToken}` },
+      body: formData,
+      cache: "no-store",
+    });
+    const body = await parseResponseBody(response);
+    if (!response.ok) {
+      throw new ApiError(pickMessage(body, `Request failed (${response.status})`), response.status, body);
+    }
+    const data = (body as { data?: { profilePictureUpdatedAt?: string } } | null)?.data;
+    if (!data?.profilePictureUpdatedAt) throw new ApiError("The uploaded picture could not be confirmed", response.status, body);
+    return { profilePictureUpdatedAt: data.profilePictureUpdatedAt };
+  },
+
+  async getProfilePicture(accessToken: string): Promise<Blob> {
+    const response = await fetch(`${API_BASE_URL}/auth/profile-picture`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      const body = await parseResponseBody(response);
+      throw new ApiError(pickMessage(body, `Request failed (${response.status})`), response.status, body);
+    }
+    return response.blob();
+  },
+
   async requestPasswordReset(email: string): Promise<{ message: string }> {
     return requestData<{ message: string }>("/auth/password/reset-request", {
       method: "POST",

@@ -57,6 +57,7 @@ import { ChangePasswordModal } from "./sidebar/change-password-modal";
 import { CustomInstructionsModal } from "./sidebar/custom-instructions-modal";
 import { DeleteAccountModal } from "./sidebar/delete-account-modal";
 import { FeedbackModal, type FeedbackType } from "@/components/feedback/feedback-modal";
+import { ProfileAvatar } from "@/components/profile-avatar";
 
 function HighlightMatch({ text, query }: { text: string; query: string }) {
   if (!query.trim() || !text) return <>{text}</>;
@@ -971,7 +972,7 @@ export const ChatSidebar = memo(function ChatSidebar({
                         // Mobile: inline accordion expansion
                         "w-full bg-(--chat-dropdown-hover)/40 py-1 my-0.5 space-y-0.5",
                         // Desktop: flyout submenu to the right
-                        "md:absolute md:left-full md:-top-36 md:z-60 md:ml-1 md:w-50 md:space-y-0 md:bg-(--chat-dropdown) md:my-0 md:py-1.5 md:rounded-xl md:border md:border-(--chat-dropdown-border) md:shadow-2xl md:before:absolute md:before:-left-2 md:before:top-0 md:before:bottom-0 md:before:w-2"
+                        "md:absolute md:left-full md:-top-25 md:z-60 md:ml-1 md:w-50 md:space-y-0 md:bg-(--chat-dropdown) md:my-0 md:py-1.5 md:rounded-xl md:border md:border-(--chat-dropdown-border) md:shadow-2xl md:before:absolute md:before:-left-2 md:before:top-0 md:before:bottom-0 md:before:w-2"
                       )}
                     >
                       {/* Account */}
@@ -987,7 +988,7 @@ export const ChatSidebar = memo(function ChatSidebar({
                         }}
                       >
                         <User className="h-[16px] w-[16px] text-(--chat-label)" />
-                        Account & Data
+                        Account
                       </button>
 
                       {/* Notifications */}
@@ -1549,12 +1550,11 @@ export const ChatSidebar = memo(function ChatSidebar({
             type="button"
             className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 transition hover:bg-(--chat-sidebar-text-hover)"
           >
-            <Image
-              src="https://avatars.githubusercontent.com/u/166032907?v=4"
-              alt="Avatar"
-              className="h-7 w-7 shrink-0 rounded-full"
-              width={28}
-              height={28}
+            <ProfileAvatar
+              accessToken={readStoredTokens()?.accessToken}
+              updatedAt={user?.profilePictureUpdatedAt}
+              name={user?.name}
+              className="h-7 w-7 bg-(--chat-brand)/10 text-xs font-semibold text-(--chat-brand)"
             />
             <span className="truncate text-sm text-(--chat-text-secondary)">
               {user?.email || user?.name || "Account"}

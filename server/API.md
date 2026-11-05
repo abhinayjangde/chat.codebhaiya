@@ -39,6 +39,7 @@ with a `Retry-After` header (seconds). Limits are configured via env vars (`RATE
 | Auth (`/auth/login`, `/register`, `/recover`, `/refresh`) | Client IP | `RATE_LIMIT_AUTH_MAX` (default 10) |
 | Chat generation (`POST /chat`, `POST /chat/:id`, `POST /chat/:id/stream`) | User | `RATE_LIMIT_CHAT_MAX` (default 20) |
 | Uploads (`/upload`, document version re-upload) | User | `RATE_LIMIT_UPLOAD_MAX` (default 10) |
+| Profile picture upload (`/auth/profile-picture`) | User | `RATE_LIMIT_UPLOAD_MAX` (default 10) |
 | Image generation (`POST /images/generate`) | User | min(10, `RATE_LIMIT_CHAT_MAX`) |
 | Document summary / Q&A | User | `RATE_LIMIT_CHAT_MAX` (default 20) |
 | Reads (chat list, messages, PDF export, duplicate) | User | `RATE_LIMIT_READ_MAX` (default 120) |
@@ -344,6 +345,37 @@ Authorization: Bearer <access_token>
   }
 }
 ```
+
+#### PUT /auth/profile-picture
+Upload or replace the authenticated user's profile picture. The file is stored privately in S3 and is limited to 5 MB. Supported image types are JPEG, PNG, and WebP; the server checks the file signature as well as the declared MIME type.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+Content-Type: multipart/form-data
+```
+
+**Multipart field:** `file`
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "profilePictureUpdatedAt": "2026-11-05T12:00:00.000Z"
+  }
+}
+```
+
+#### GET /auth/profile-picture
+Retrieve the authenticated user's profile picture. The response is the original image bytes with its validated image content type; the S3 object key is never exposed.
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+```
+
+**Response:** `200 OK` with `image/jpeg`, `image/png`, or `image/webp` content type. Returns `404` when no picture is set.
 
 #### GET /auth/me
 Get current authenticated user info.
