@@ -9,7 +9,7 @@ import { env } from "../config/env.js";
  * by the server entry point so all resources can close in order.
  * 
  * @returns {Promise<void>} A promise that resolves when the database connection is established.
- * @throws Logs error and exits process with code 1 if connection fails.
+ * @throws Logs and rethrows errors if the initial connection fails.
  * 
  * @example
  * await db();
