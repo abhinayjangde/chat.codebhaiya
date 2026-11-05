@@ -16,6 +16,7 @@ import {
 } from "../lib/mcp.js";
 import { CLOUD_MCP_CATALOG, getConnectorById } from "../lib/cloud-mcp/catalog.js";
 import { ObjectId } from "mongodb";
+import { env } from "../config/env.js";
 
 const router: Router = express.Router();
 
@@ -302,6 +303,10 @@ router.post("/servers", async (req: Request, res: Response, next: NextFunction) 
 
     const body = parseBody(mcpServerSchema, req.body);
 
+    if (body.serverType === "custom" && !env.ALLOW_CUSTOM_MCP_STDIO) {
+      throw new HttpError(403, "Custom STDIO MCP servers are disabled on this deployment.");
+    }
+
     // Enforce a per-user cap on configured servers.
     const existingCount = await McpServer.countDocuments({
       userId: new ObjectId(userId),
@@ -389,6 +394,10 @@ router.patch(
         Array.isArray(req.params.id) ? req.params.id[0] : req.params.id
       );
       const body = parseBody(mcpServerSchema, req.body);
+
+      if (body.serverType === "custom" && !env.ALLOW_CUSTOM_MCP_STDIO) {
+        throw new HttpError(403, "Custom STDIO MCP servers are disabled on this deployment.");
+      }
 
       const server = await McpServer.findOneAndUpdate(
         { _id: new ObjectId(serverId), userId: new ObjectId(userId) },

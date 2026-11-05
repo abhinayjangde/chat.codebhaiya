@@ -4,6 +4,8 @@ const USER_KEY = "chat.codebhaiya.user";
 const LEGACY_TOKENS_KEY = "chat.codebhaiya.tokens";
 let memoryTokens: AuthTokens | null = null;
 
+clearLegacyStoredTokens();
+
 function safeRead<T>(key: string): T | null {
   if (typeof window === "undefined") {
     return null;
@@ -22,7 +24,6 @@ function safeRead<T>(key: string): T | null {
 }
 
 export function readStoredTokens(): AuthTokens | null {
-  clearLegacyStoredTokens();
   return memoryTokens;
 }
 

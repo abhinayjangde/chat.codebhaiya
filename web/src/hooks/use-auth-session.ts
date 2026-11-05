@@ -6,7 +6,6 @@ import toast from "react-hot-toast";
 import { ApiError, apiClient } from "@/lib/api";
 import {
   clearStoredSession,
-  clearLegacyStoredTokens,
   readStoredTokens,
   readStoredUser,
   writeStoredTokens,
@@ -17,9 +16,9 @@ import { getErrorMessage } from "@/lib/chat-utils";
 
 export function useAuthSession() {
   const router = useRouter();
-  const [hydrated, setHydrated] = useState(false);
-  const [tokens, setTokens] = useState<AuthTokens | null>(null);
-  const [user, setUser] = useState<UserProfile | null>(null);
+  const [tokens, setTokens] = useState<AuthTokens | null>(() => readStoredTokens());
+  const [hydrated, setHydrated] = useState(() => Boolean(readStoredTokens()));
+  const [user, setUser] = useState<UserProfile | null>(() => readStoredUser());
 
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [name, setName] = useState("");
@@ -79,26 +78,20 @@ export function useAuthSession() {
   );
 
   useEffect(() => {
-    clearLegacyStoredTokens();
-    const storedTokens = readStoredTokens();
-    const storedUser = readStoredUser();
+    if (readStoredTokens()) return;
 
-    if (storedTokens) {
-      setTokens(storedTokens);
-      setHydrated(true);
-    } else {
-      void apiClient.refresh().then((refreshed) => {
-        setTokens(refreshed);
-        writeStoredTokens(refreshed);
-      }).catch(() => {
-        clearSession();
-      }).finally(() => {
-        setHydrated(true);
-      });
-    }
-    if (storedUser) {
-      setUser(storedUser);
-    }
+    let active = true;
+    void apiClient.refresh().then((refreshed) => {
+      if (!active) return;
+      setTokens(refreshed);
+      writeStoredTokens(refreshed);
+    }).catch(() => {
+      if (active) clearSession();
+    }).finally(() => {
+      if (active) setHydrated(true);
+    });
+
+    return () => { active = false; };
   }, [clearSession]);
 
   useEffect(() => {

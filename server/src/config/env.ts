@@ -58,6 +58,12 @@ const envSchema = z.object({
   SARVAM_API_KEY: z.string().trim().optional(),
   MODEL_NAME: z.string().trim().optional(),
   MAX_MCP_SERVERS_PER_USER: z.coerce.number().int().min(1).max(20).default(5),
+  // Custom STDIO servers execute local processes. Keep this opt-in and never
+  // permit it on a shared production deployment.
+  ALLOW_CUSTOM_MCP_STDIO: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   // Render sets this automatically for every deployed service
   RENDER_EXTERNAL_URL: z.string().trim().optional(),
 
@@ -82,6 +88,13 @@ const envSchema = z.object({
 
 const parsed = envSchema.superRefine((config, context) => {
   if (config.NODE_ENV === "production") {
+    if (config.ALLOW_CUSTOM_MCP_STDIO) {
+      context.addIssue({
+        code: "custom",
+        path: ["ALLOW_CUSTOM_MCP_STDIO"],
+        message: "Custom STDIO MCP servers cannot be enabled in production",
+      });
+    }
     if (!config.SMTP_USER) {
       context.addIssue({ code: "custom", path: ["SMTP_USER"], message: "SMTP_USER is required in production" });
     }

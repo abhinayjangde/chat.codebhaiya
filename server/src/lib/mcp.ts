@@ -88,11 +88,14 @@ export class McpClient implements IMcpClient {
       version: "1.0.0",
     });
 
-    // Build the environment: inherit process env and overlay server-specific vars.
-    const mergedEnv: Record<string, string> = {
-      ...(process.env as Record<string, string>),
-      ...this.env,
-    };
+    // Only pass OS essentials and variables explicitly configured for this MCP
+    // server. Never expose API keys or other secrets from the API process.
+    const childEnv: Record<string, string> = {};
+    for (const key of ["PATH", "SystemRoot", "WINDIR", "TEMP", "TMP"]) {
+      const value = process.env[key];
+      if (value) childEnv[key] = value;
+    }
+    Object.assign(childEnv, this.env);
 
     let stderrOutput = "";
     let connectError: Error | null = null;
@@ -130,7 +133,7 @@ export class McpClient implements IMcpClient {
       this.transport = new StdioClientTransport({
         command: spawnCommand,
         args: spawnArgs,
-        env: mergedEnv,
+        env: childEnv,
         stderr: "pipe",
       });
 
@@ -257,7 +260,10 @@ export function createMcpClient(server: {
   authType?: "oauth" | "api_key" | "connection_string" | "none" | undefined;
   userId?: { toString(): string } | string | undefined;
 }): IMcpClient {
-  if (server.serverType === "cloud" && server.cloudConnectorId) {
+  if (server.serverType === "cloud") {
+    if (!server.cloudConnectorId) {
+      throw new Error("Cloud MCP server is missing its connector ID");
+    }
     const authDataObj: Record<string, string> =
       server.authData instanceof Map
         ? Object.fromEntries(server.authData.entries())
@@ -271,6 +277,14 @@ export function createMcpClient(server: {
       (server.authType as any) ?? "oauth",
       server.userId?.toString()
     );
+  }
+
+  if (server.serverType !== "custom") {
+    throw new Error(`Unsupported MCP server type: ${String(server.serverType)}`);
+  }
+
+  if (!env.ALLOW_CUSTOM_MCP_STDIO) {
+    throw new Error("Custom STDIO MCP servers are disabled on this deployment");
   }
 
   const envObj: Record<string, string> =
