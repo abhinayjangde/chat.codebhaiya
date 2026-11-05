@@ -88,7 +88,7 @@ export async function updateResume(
           createdAt: new Date(),
         },
       },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: "after" }
     ).lean();
 
     res.status(200).json({

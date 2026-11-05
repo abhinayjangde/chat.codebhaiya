@@ -169,7 +169,7 @@ export async function setMessageFeedback(
         userId: new ObjectId(userId),
       },
       { $unset: { feedback: 1 } },
-      { new: true }
+      { returnDocument: "after" }
     );
   }
 
@@ -189,6 +189,6 @@ export async function setMessageFeedback(
         "feedback.createdAt": now,
       },
     },
-    { new: true }
+    { returnDocument: "after" }
   );
 }

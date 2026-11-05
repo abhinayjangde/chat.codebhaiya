@@ -355,7 +355,7 @@ export async function updateChat(req: Request, res: Response, next: NextFunction
     if (isPinned !== undefined) updates.isPinned = isPinned;
     if (isArchived !== undefined) updates.isArchived = isArchived;
 
-    const updatedChat = await Chat.findByIdAndUpdate(chatId, updates, { new: true });
+    const updatedChat = await Chat.findByIdAndUpdate(chatId, updates, { returnDocument: "after" });
 
     res.status(200).json({
       success: true,

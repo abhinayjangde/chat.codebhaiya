@@ -288,7 +288,7 @@ export async function refreshTokens(
         expiresAt: { $gt: new Date() },
       },
       { $set: { revokedAt: new Date() } },
-      { new: false }
+      { returnDocument: "before" }
     );
 
     if (!session) {

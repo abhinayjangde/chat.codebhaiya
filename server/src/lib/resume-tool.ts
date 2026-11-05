@@ -32,7 +32,7 @@ export function createResumeTool(
             createdAt: new Date(),
           },
         },
-        { upsert: true, new: true }
+        { upsert: true, returnDocument: "after" }
       ).lean();
 
       if (onResumeUpdated) {

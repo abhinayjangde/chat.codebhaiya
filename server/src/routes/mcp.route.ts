@@ -404,7 +404,7 @@ router.patch(
           authData: body.authData,
           isActive: body.isActive,
         },
-        { new: true }
+        { returnDocument: "after" }
       );
 
       if (!server) {

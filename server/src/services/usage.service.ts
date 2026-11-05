@@ -150,12 +150,12 @@ export async function recordUsage(userId: string, delta: UsageDelta): Promise<vo
     UsagePeriod.findOneAndUpdate(
       { userId: ownerId, period },
       { $inc: increments },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: "after" }
     ),
     UsageDay.findOneAndUpdate(
       { userId: ownerId, day },
       { $inc: increments },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: "after" }
     ),
   ]);
 }
