@@ -1,5 +1,6 @@
 import express, { type NextFunction, type Request, type Response, type Router } from "express";
 import crypto from "node:crypto";
+import jwt from "jsonwebtoken";
 import multer from "multer";
 import {
   registerUser,
@@ -21,7 +22,6 @@ import {
   parseBody,
   registerSchema,
   loginSchema,
-  refreshTokenSchema,
   passwordChangeSchema,
   preferencesSchema,
   deleteAccountSchema,
@@ -40,6 +40,44 @@ function getClientMetadata(req: Request) {
 }
 
 const router: Router = express.Router();
+const REFRESH_COOKIE = "refresh_token";
+const REFRESH_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: true,
+  sameSite: "strict" as const,
+  path: "/api/auth",
+};
+
+function setRefreshCookie(res: Response, refreshToken: string): void {
+  const decoded = jwt.decode(refreshToken);
+  const expiresAt = decoded && typeof decoded === "object" && typeof decoded.exp === "number"
+    ? decoded.exp * 1_000
+    : undefined;
+  res.cookie(REFRESH_COOKIE, refreshToken, {
+    ...REFRESH_COOKIE_OPTIONS,
+    ...(expiresAt ? { expires: new Date(expiresAt) } : {}),
+  });
+}
+
+function clearRefreshCookie(res: Response): void {
+  res.clearCookie(REFRESH_COOKIE, REFRESH_COOKIE_OPTIONS);
+}
+
+function readRefreshCookie(req: Request): string | null {
+  const cookieHeader = req.headers.cookie;
+  if (!cookieHeader) return null;
+  const pair = cookieHeader.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${REFRESH_COOKIE}=`));
+  if (!pair) return null;
+  try {
+    return decodeURIComponent(pair.slice(REFRESH_COOKIE.length + 1)) || null;
+  } catch {
+    return null;
+  }
+}
+
+function clientTokens(tokens: { accessToken: string; refreshToken: string }) {
+  return { accessToken: tokens.accessToken };
+}
 
 // Protect credential endpoints from brute-force and credential stuffing.
 const authRateLimiter = createRateLimiter({
@@ -81,6 +119,7 @@ router.post("/register", authRateLimiter, async (req: Request, res: Response, ne
     const { email, password, name } = parseBody(registerSchema, req.body);
 
     const { user, tokens } = await registerUser(email, password, name, getClientMetadata(req));
+    setRefreshCookie(res, tokens.refreshToken);
 
     res.status(201).json({
       success: true,
@@ -93,7 +132,7 @@ router.post("/register", authRateLimiter, async (req: Request, res: Response, ne
           preferences: user.preferences,
           status: user.status,
         },
-        tokens,
+        tokens: clientTokens(tokens),
       },
     });
   } catch (error) {
@@ -116,6 +155,7 @@ router.post("/login", authRateLimiter, async (req: Request, res: Response, next:
     const { email, password } = parseBody(loginSchema, req.body);
 
     const { user, tokens } = await loginUser(email, password, getClientMetadata(req));
+    setRefreshCookie(res, tokens.refreshToken);
 
     res.status(200).json({
       success: true,
@@ -128,7 +168,7 @@ router.post("/login", authRateLimiter, async (req: Request, res: Response, next:
           preferences: user.preferences,
           status: user.status,
         },
-        tokens,
+        tokens: clientTokens(tokens),
       },
     });
   } catch (error) {
@@ -197,6 +237,7 @@ router.post("/recover", authRateLimiter, async (req: Request, res: Response, nex
   try {
     const { email, password } = parseBody(recoverAccountSchema, req.body);
     const { user, tokens, message } = await recoverUserAccount(email, password, getClientMetadata(req));
+    setRefreshCookie(res, tokens.refreshToken);
 
     res.status(200).json({
       success: true,
@@ -210,7 +251,7 @@ router.post("/recover", authRateLimiter, async (req: Request, res: Response, nex
           preferences: user.preferences,
           status: user.status,
         },
-        tokens,
+        tokens: clientTokens(tokens),
       },
     });
   } catch (error) {
@@ -241,16 +282,23 @@ router.post("/recover", authRateLimiter, async (req: Request, res: Response, nex
 
 router.post("/refresh", authRateLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { refreshToken } = parseBody(refreshTokenSchema, req.body);
+    const refreshToken = readRefreshCookie(req);
+    if (!refreshToken) {
+      clearRefreshCookie(res);
+      res.status(403).json({ success: false, error: "Invalid refresh token" });
+      return;
+    }
 
     const tokens = await refreshTokens(refreshToken, getClientMetadata(req));
+    setRefreshCookie(res, tokens.refreshToken);
 
     res.status(200).json({
       success: true,
-      data: { tokens },
+      data: { tokens: clientTokens(tokens) },
     });
   } catch (error) {
     if (error instanceof Error && error.message === "Invalid refresh token") {
+      clearRefreshCookie(res);
       res.status(403).json({
         success: false,
         error: error.message,
@@ -264,6 +312,7 @@ router.post("/refresh", authRateLimiter, async (req: Request, res: Response, nex
 
 router.post("/logout", authenticateToken, async (req: Request, res: Response) => {
   await revokeSession(req.user!.sessionId, req.user!.userId);
+  clearRefreshCookie(res);
   res.status(200).json({
     success: true,
     message: "Logged out successfully",
@@ -329,6 +378,7 @@ router.delete("/account", authenticateToken, async (req: Request, res: Response,
     const { confirmation } = parseBody(deleteAccountSchema, req.body ?? {});
     const userId = req.user!.userId;
     const result = await scheduleUserAccountDeletion(userId, confirmation);
+    clearRefreshCookie(res);
     res.status(200).json({
       success: true,
       message: result.message,

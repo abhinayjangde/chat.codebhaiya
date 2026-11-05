@@ -6,6 +6,7 @@ import toast from "react-hot-toast";
 import { ApiError, apiClient } from "@/lib/api";
 import {
   clearStoredSession,
+  clearLegacyStoredTokens,
   readStoredTokens,
   readStoredUser,
   writeStoredTokens,
@@ -39,12 +40,8 @@ export function useAuthSession() {
   }, []);
 
   const refreshAccess = useCallback(async (): Promise<AuthTokens | null> => {
-    if (!tokens) {
-      return null;
-    }
-
     try {
-      const refreshed = await apiClient.refresh(tokens.refreshToken);
+      const refreshed = await apiClient.refresh();
       setTokens(refreshed);
       writeStoredTokens(refreshed);
       return refreshed;
@@ -52,7 +49,7 @@ export function useAuthSession() {
       clearSession();
       return null;
     }
-  }, [tokens, clearSession]);
+  }, [clearSession]);
 
   const runWithSession = useCallback(
     async <T,>(operation: (accessToken: string) => Promise<T>): Promise<T> => {
@@ -82,17 +79,27 @@ export function useAuthSession() {
   );
 
   useEffect(() => {
-    setHydrated(true);
+    clearLegacyStoredTokens();
     const storedTokens = readStoredTokens();
     const storedUser = readStoredUser();
 
     if (storedTokens) {
       setTokens(storedTokens);
+      setHydrated(true);
+    } else {
+      void apiClient.refresh().then((refreshed) => {
+        setTokens(refreshed);
+        writeStoredTokens(refreshed);
+      }).catch(() => {
+        clearSession();
+      }).finally(() => {
+        setHydrated(true);
+      });
     }
     if (storedUser) {
       setUser(storedUser);
     }
-  }, []);
+  }, [clearSession]);
 
   useEffect(() => {
     if (hydrated && !tokens) {

@@ -164,6 +164,7 @@ export const chatApi = {
   ): Promise<ReadableStream<Uint8Array>> {
     const response = await fetch(`${API_BASE_URL}/chat/${chatId}/stream`, {
       method: "POST",
+      credentials: "include",
       headers: authHeaders(accessToken),
       body: JSON.stringify({
         message,
@@ -197,6 +198,7 @@ export const chatApi = {
   async exportAllChats(accessToken: string): Promise<ChatHistoryExport> {
     const response = await fetch(`${API_BASE_URL}/chat/export`, {
       method: "GET",
+      credentials: "include",
       headers: authHeaders(accessToken),
       cache: "no-store",
     });

@@ -81,6 +81,7 @@ export async function requestData<T>(path: string, init: RequestInit): Promise<T
   try {
     response = await fetch(`${API_BASE_URL}${path}`, {
       ...init,
+      credentials: "include",
       cache: "no-store",
     });
   } catch (error) {

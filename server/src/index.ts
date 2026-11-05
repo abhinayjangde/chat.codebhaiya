@@ -28,6 +28,7 @@ const isDevelopmentOrigin = (origin: string) =>
 
 app.use(
   cors({
+    credentials: true,
     origin(origin, callback) {
       if (!origin || allowedOrigins.has(origin) || isDevelopmentOrigin(origin)) {
         callback(null, true);

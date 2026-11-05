@@ -4,6 +4,8 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { createReadStream } from "node:fs";
+import { createHash } from "node:crypto";
 import { env } from "../config/env.js";
 
 const s3Client = new S3Client({
@@ -34,6 +36,33 @@ export async function uploadDocumentToS3(input: {
       Metadata: input.metadata,
     })
   );
+}
+
+export async function uploadDocumentFileToS3(input: {
+  key: string;
+  path: string;
+  size: number;
+  contentType: string;
+  metadata?: Record<string, string>;
+}): Promise<string> {
+  const hash = createHash("sha256");
+  for await (const chunk of createReadStream(input.path)) {
+    hash.update(chunk);
+  }
+  const checksum = hash.digest("hex");
+
+  await s3Client.send(
+    new PutObjectCommand({
+      Bucket: getBucket(),
+      Key: input.key,
+      Body: createReadStream(input.path),
+      ContentLength: input.size,
+      ContentType: input.contentType,
+      Metadata: { ...input.metadata, checksum },
+    })
+  );
+
+  return checksum;
 }
 
 export async function deleteDocumentFromS3(key: string): Promise<void> {

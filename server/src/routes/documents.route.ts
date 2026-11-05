@@ -1,7 +1,6 @@
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
-import multer from "multer";
 import { authenticateToken } from "../middleware/auth.middleware.js";
 import { requireUsage } from "../middleware/usage.middleware.js";
 import { createRateLimiter } from "../lib/rate-limiter.js";
@@ -10,14 +9,13 @@ import { collectionDocumentsSchema, collectionSchema, documentMetadataSchema, ob
 import { Document } from "../models/document.model.js";
 import { DocumentCollection } from "../models/document-collection.model.js";
 import { deleteDocumentVectors } from "../services/document-processing.service.js";
-import { deleteDocumentFromS3, downloadDocumentFromS3, uploadDocumentToS3 } from "../services/storage.service.js";
+import { deleteDocumentFromS3, downloadDocumentFromS3, uploadDocumentFileToS3 } from "../services/storage.service.js";
+import { uploadSingleDocumentFile } from "../middleware/document-upload.middleware.js";
 import { enqueueDocumentProcessing } from "../queues/document.queue.js";
-import crypto from "node:crypto";
 import { autoSelectModel, getAgent } from "../lib/model.js";
 import { retrieveRelevantChunks } from "../services/retrieval.service.js";
 
 const router: express.Router = express.Router();
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
 router.use(authenticateToken);
 
@@ -172,7 +170,7 @@ router.patch("/:documentId", async (req: Request, res: Response, next: NextFunct
   }
 });
 
-router.post("/:documentId/version", documentUploadLimiter, upload.single("file"), requireUsage("upload"), async (req: Request, res: Response, next: NextFunction) => {
+router.post("/:documentId/version", documentUploadLimiter, uploadSingleDocumentFile, requireUsage("upload"), async (req: Request, res: Response, next: NextFunction) => {
   let s3Key: string | undefined;
   try {
     const documentId = getDocumentId(req, res);
@@ -194,15 +192,14 @@ router.post("/:documentId/version", documentUploadLimiter, upload.single("file")
     const filename = req.file.originalname.replace(/[/\\]/g, "_").trim() || previous.filename;
     const nextDocumentId = new mongoose.Types.ObjectId();
     s3Key = `documents/${req.user!.userId}/${nextDocumentId.toString()}/${filename}`;
-    const checksum = crypto.createHash("sha256").update(req.file.buffer).digest("hex");
-    await uploadDocumentToS3({
+    const checksum = await uploadDocumentFileToS3({
       key: s3Key,
-      body: req.file.buffer,
+      path: req.file.path,
+      size: req.file.size,
       contentType: req.file.mimetype,
       metadata: {
         documentId: nextDocumentId.toString(),
         userId: req.user!.userId,
-        checksum,
       },
     });
 

@@ -19,6 +19,7 @@ export const authApi = {
     formData.append("file", file);
     const response = await fetch(`${API_BASE_URL}/auth/profile-picture`, {
       method: "PUT",
+      credentials: "include",
       headers: { Authorization: `Bearer ${accessToken}` },
       body: formData,
       cache: "no-store",
@@ -34,6 +35,7 @@ export const authApi = {
 
   async getProfilePicture(accessToken: string): Promise<Blob> {
     const response = await fetch(`${API_BASE_URL}/auth/profile-picture`, {
+      credentials: "include",
       headers: { Authorization: `Bearer ${accessToken}` },
       cache: "no-store",
     });
@@ -83,11 +85,10 @@ export const authApi = {
     });
   },
 
-  async refresh(refreshToken: string): Promise<AuthTokens> {
+  async refresh(): Promise<AuthTokens> {
     const data = await requestData<{ tokens: AuthTokens }>("/auth/refresh", {
       method: "POST",
       headers: authHeaders(),
-      body: JSON.stringify({ refreshToken }),
     });
     return data.tokens;
   },
@@ -95,6 +96,7 @@ export const authApi = {
   async logout(accessToken: string): Promise<void> {
     const response = await fetch(`${API_BASE_URL}/auth/logout`, {
       method: "POST",
+      credentials: "include",
       headers: authHeaders(accessToken),
       cache: "no-store",
     });
@@ -133,6 +135,7 @@ export const authApi = {
   ): Promise<{ message: string; deletionScheduledAt?: string }> {
     const response = await fetch(`${API_BASE_URL}/auth/account`, {
       method: "DELETE",
+      credentials: "include",
       headers: authHeaders(accessToken),
       body: JSON.stringify({ confirmation }),
       cache: "no-store",

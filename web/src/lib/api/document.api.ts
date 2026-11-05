@@ -25,6 +25,7 @@ export const documentApi = {
 
     const response = await fetch(`${API_BASE_URL}/upload`, {
       method: "POST",
+      credentials: "include",
       headers,
       body: formData,
     });
@@ -102,6 +103,7 @@ export const documentApi = {
     formData.append("file", file);
     const response = await fetch(`${API_BASE_URL}/documents/${documentId}/version`, {
       method: "POST",
+      credentials: "include",
       headers: accessToken ? { Authorization: "Bearer " + accessToken } : {},
       body: formData,
       cache: "no-store",

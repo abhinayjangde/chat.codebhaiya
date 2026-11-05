@@ -1,8 +1,6 @@
-import crypto from "node:crypto";
 import express from "express";
-import type { NextFunction, Request, Response } from "express";
+import type { Request, Response } from "express";
 import mongoose from "mongoose";
-import multer from "multer";
 import { authenticateToken } from "../middleware/auth.middleware.js";
 import { requireUsage } from "../middleware/usage.middleware.js";
 import { createRateLimiter } from "../lib/rate-limiter.js";
@@ -11,37 +9,10 @@ import { Chat } from "../models/chat.model.js";
 import { objectIdSchema } from "../lib/validation.js";
 import { Document } from "../models/document.model.js";
 import { enqueueDocumentProcessing } from "../queues/document.queue.js";
-import { deleteDocumentFromS3, uploadDocumentToS3 } from "../services/storage.service.js";
+import { uploadSingleDocumentFile } from "../middleware/document-upload.middleware.js";
+import { deleteDocumentFromS3, uploadDocumentFileToS3 } from "../services/storage.service.js";
 
 const router: express.Router = express.Router();
-const MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
-
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: MAX_UPLOAD_SIZE },
-});
-
-function uploadSingleFile(req: Request, res: Response, next: NextFunction): void {
-  upload.single("file")(req, res, (error: unknown) => {
-    if (!error) {
-      next();
-      return;
-    }
-
-    if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
-      res.status(413).json({
-        success: false,
-        error: "File exceeds the 50 MB upload limit",
-      });
-      return;
-    }
-
-    res.status(400).json({
-      success: false,
-      error: "Invalid multipart upload",
-    });
-  });
-}
 
 const CODE_FILE_EXTENSIONS = new Set([
   ".c",
@@ -113,7 +84,7 @@ const uploadRateLimiter = createRateLimiter({
 router.post(
   "/",
   uploadRateLimiter,
-  uploadSingleFile,
+  uploadSingleDocumentFile,
   // Runs after multer so the file size is available for the byte quota.
   requireUsage("upload"),
   async (req: Request, res: Response): Promise<void> => {
@@ -126,7 +97,7 @@ router.post(
         return;
       }
 
-      const { mimetype, originalname, buffer, size } = req.file;
+      const { mimetype, originalname, path, size } = req.file;
       const filename = safeFilename(originalname);
       const mimeType = mimetype.toLowerCase();
 
@@ -169,16 +140,14 @@ router.post(
 
       documentId = new mongoose.Types.ObjectId();
       s3Key = `documents/${userId}/${documentId.toString()}/${filename}`;
-      const checksum = crypto.createHash("sha256").update(buffer).digest("hex");
-
-      await uploadDocumentToS3({
+      const checksum = await uploadDocumentFileToS3({
         key: s3Key,
-        body: buffer,
+        path,
+        size,
         contentType: mimeType,
         metadata: {
           documentId: documentId.toString(),
           userId,
-          checksum,
         },
       });
 

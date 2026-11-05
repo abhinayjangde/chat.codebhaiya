@@ -16,7 +16,8 @@ Authorization: Bearer <access_token>
 ### Token Lifecycle
 - **Access Token**: Valid for 15 minutes
 - **Refresh Token**: Valid for 7 days
-- Refresh tokens are rotated on every refresh request and the previous token is revoked.
+- Refresh tokens are rotated on every refresh request, stored in an HttpOnly cookie, and the previous token is revoked.
+- The refresh cookie is `HttpOnly`, `Secure`, `SameSite=Strict`, and scoped to `/api/auth`; auth responses expose only the short-lived access token.
 - Logout revokes the current session, invalidating its refresh token and access token.
 
 ---
@@ -186,8 +187,7 @@ Register a new user account.
       }
     },
     "tokens": {
-      "accessToken": "eyJhbGciOiJIUzI1NiIs...",
-      "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
+      "accessToken": "eyJhbGciOiJIUzI1NiIs..."
     }
   }
 }
@@ -219,8 +219,7 @@ Authenticate and get tokens.
       }
     },
     "tokens": {
-      "accessToken": "eyJhbGciOiJIUzI1NiIs...",
-      "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
+      "accessToken": "eyJhbGciOiJIUzI1NiIs..."
     }
   }
 }
@@ -237,14 +236,7 @@ Authenticate and get tokens.
 ```
 
 #### POST /auth/refresh
-Refresh access token using refresh token.
-
-**Request Body:**
-```json
-{
-  "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
-}
-```
+Refresh the access token using the refresh token cookie. The server rotates the cookie on every successful refresh.
 
 **Response (200 OK):**
 ```json
@@ -252,8 +244,7 @@ Refresh access token using refresh token.
   "success": true,
   "data": {
     "tokens": {
-      "accessToken": "eyJhbGciOiJIUzI1NiIs...",
-      "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
+      "accessToken": "eyJhbGciOiJIUzI1NiIs..."
     }
   }
 }
@@ -496,8 +487,7 @@ Recover an account scheduled for deletion within the 30-day grace period. Reacti
       }
     },
     "tokens": {
-      "accessToken": "eyJhbGciOiJIUzI1NiIs...",
-      "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
+      "accessToken": "eyJhbGciOiJIUzI1NiIs..."
     }
   }
 }

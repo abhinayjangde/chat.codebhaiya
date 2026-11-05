@@ -28,12 +28,6 @@ export const loginSchema = z
   })
   .passthrough();
 
-export const refreshTokenSchema = z
-  .object({
-    refreshToken: z.string().trim().min(1, "Refresh token is required"),
-  })
-  .passthrough();
-
 export const passwordChangeSchema = z
   .object({
     currentPassword: z.string().trim().min(1, "Current password is required"),
