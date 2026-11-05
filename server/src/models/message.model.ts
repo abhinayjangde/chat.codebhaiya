@@ -44,6 +44,13 @@ const messageSchema = new mongoose.Schema({
         input: mongoose.Schema.Types.Mixed,
         output: String
     }],
+    feedback: {
+        rating: { type: String, enum: ["like", "dislike"] },
+        reason: { type: String },
+        comment: { type: String },
+        createdAt: { type: Date },
+        updatedAt: { type: Date }
+    },
     createdAt: { type: Date, default: Date.now }
 });
 

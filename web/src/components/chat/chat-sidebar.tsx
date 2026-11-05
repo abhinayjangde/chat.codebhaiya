@@ -35,8 +35,6 @@ import {
   SunMoon,
   Languages,
   Trash2,
-  ThumbsDown,
-  ThumbsUp,
   AlertTriangle,
   Activity,
   Megaphone,
@@ -58,6 +56,7 @@ import { ExternalLink } from "lucide-react";
 import { ChangePasswordModal } from "./sidebar/change-password-modal";
 import { CustomInstructionsModal } from "./sidebar/custom-instructions-modal";
 import { DeleteAccountModal } from "./sidebar/delete-account-modal";
+import { FeedbackModal, type FeedbackType } from "@/components/feedback/feedback-modal";
 
 function HighlightMatch({ text, query }: { text: string; query: string }) {
   if (!query.trim() || !text) return <>{text}</>;
@@ -214,6 +213,8 @@ export const ChatSidebar = memo(function ChatSidebar({
   const [usageSummary, setUsageSummary] = useState<UsageSummary | null>(null);
   const [isUsageLoading, setIsUsageLoading] = useState(false);
   const [usageError, setUsageError] = useState<string | null>(null);
+  const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
+  const [feedbackModalType, setFeedbackModalType] = useState<FeedbackType>("feedback");
   const usageUserId = user?.id ?? user?.userId;
 
   // Debounced message and chat search
@@ -1324,6 +1325,111 @@ export const ChatSidebar = memo(function ChatSidebar({
                   Documents
                 </button>
 
+                <div
+                  ref={usageRef}
+                  className="relative"
+                  onMouseEnter={() => setIsUsageOpen(true)}
+                  onMouseLeave={() => setIsUsageOpen(false)}
+                >
+                  {isUsageOpen && (
+                    <section
+                      id="usage-popover"
+                      role="dialog"
+                      aria-label="Daily and monthly usage"
+                      className="absolute bottom-full left-0 z-60 mb-1 max-h-[min(70dvh,30rem)] w-[292px] max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) p-3.5 text-(--chat-text) shadow-2xl md:bottom-0 md:left-full md:ml-1 md:mb-0"
+                    >
+                      <div className="mb-3 flex items-start justify-between gap-3">
+                        <div>
+                          <h2 className="text-sm font-semibold">Usage &amp; limits</h2>
+                          <p className="mt-0.5 text-[10px] text-(--chat-text-faint)">Daily activity · Monthly quota · UTC</p>
+                        </div>
+                        <button
+                          type="button"
+                          className="inline-flex h-6 w-6 items-center justify-center rounded-md text-(--chat-text-muted) hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text)"
+                          onClick={() => setIsUsageOpen(false)}
+                          aria-label="Close usage details"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+
+                      {isUsageLoading && !usageSummary ? (
+                        <div className="flex items-center justify-center gap-2 py-8 text-xs text-(--chat-text-muted)" role="status">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Loading usage…
+                        </div>
+                      ) : usageError && !usageSummary ? (
+                        <p className="rounded-lg bg-red-500/10 px-3 py-2.5 text-xs text-red-400" role="alert">{usageError}</p>
+                      ) : usageSummary ? (
+                        <div className="space-y-4">
+                          {usageError && (
+                            <p className="text-[10px] text-amber-400" role="status">Showing the last loaded usage; refresh failed.</p>
+                          )}
+                          <div>
+                            <div className="mb-2 flex items-center justify-between">
+                              <h3 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-(--chat-text-faint)">Today</h3>
+                              <span className="text-[10px] tabular-nums text-(--chat-text-faint)">
+                                {new Date(`${usageSummary.daily.period}T00:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" })}
+                              </span>
+                            </div>
+                            <table className="w-full text-xs">
+                              <tbody>
+                                {[
+                                  ["Messages", usageSummary.daily.usage.messages],
+                                  ["Files uploaded", usageSummary.daily.usage.uploads],
+                                  ["Images generated", usageSummary.daily.usage.imageGenerations],
+                                  ["Document analyses", usageSummary.daily.usage.expensiveModelCalls],
+                                ].map(([label, value]) => (
+                                  <tr key={label} className="border-t border-(--chat-dropdown-border)/70 first:border-0">
+                                    <th scope="row" className="py-1.5 text-left font-normal text-(--chat-text-secondary)">{label}</th>
+                                    <td className="py-1.5 text-right font-medium tabular-nums text-(--chat-text)">{Number(value).toLocaleString()}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          <div className="border-t border-(--chat-dropdown-border) pt-3">
+                            <div className="mb-3 flex items-center justify-between">
+                              <h3 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-(--chat-text-faint)">This month</h3>
+                              <span className="text-[10px] text-(--chat-text-faint)">remaining quota</span>
+                            </div>
+                            <div className="space-y-3">
+                              <UsageQuotaLine label="Messages" used={usageSummary.usage.messages} limit={usageSummary.quotas.messages} />
+                              <UsageQuotaLine
+                                label="File uploads"
+                                used={usageSummary.usage.uploads}
+                                limit={usageSummary.quotas.uploads}
+                                detail={`${formatUsageBytes(usageSummary.usage.uploadBytes)} used · ${formatUsageBytes(Math.max(0, usageSummary.quotas.uploadBytes - usageSummary.usage.uploadBytes))} storage left`}
+                              />
+                              <UsageQuotaLine label="Images" used={usageSummary.usage.imageGenerations} limit={usageSummary.quotas.imageGenerations} />
+                              <UsageQuotaLine label="Document analyses" used={usageSummary.usage.expensiveModelCalls} limit={usageSummary.quotas.expensiveModelCalls} />
+                            </div>
+                          </div>
+
+                          <p className="border-t border-(--chat-dropdown-border) pt-2 text-[10px] leading-relaxed text-(--chat-text-faint)">
+                            Monthly limits refresh on the first day of each month. Daily activity resets at midnight UTC.
+                          </p>
+                        </div>
+                      ) : null}
+                    </section>
+                  )}
+                  <button
+                    type="button"
+                    aria-expanded={isUsageOpen}
+                    aria-controls="usage-popover"
+                    onClick={() => setIsUsageOpen(true)}
+                    onFocus={() => setIsUsageOpen(true)}
+                    className={cn(
+                      "flex w-full items-center gap-3 px-4 py-2 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text) hover:cursor-pointer md:py-2.5",
+                      isUsageOpen && "bg-(--chat-dropdown-hover) text-(--chat-text)"
+                    )}
+                  >
+                    <Activity className="h-[18px] w-[18px] text-(--chat-text-muted)" />
+                    Usage &amp; limits
+                  </button>
+                </div>
+
 
                 {/* More section */}
                 <div
@@ -1402,6 +1508,8 @@ export const ChatSidebar = memo(function ChatSidebar({
                         onClick={() => {
                           setActiveSubmenu(null);
                           setSettingsMenuOpen(false);
+                          setFeedbackModalType("feedback");
+                          setIsFeedbackModalOpen(true);
                         }}
                       >
                         <span className="flex items-center gap-1 text-(--chat-label)">
@@ -1415,6 +1523,8 @@ export const ChatSidebar = memo(function ChatSidebar({
                         onClick={() => {
                           setActiveSubmenu(null);
                           setSettingsMenuOpen(false);
+                          setFeedbackModalType("bug_report");
+                          setIsFeedbackModalOpen(true);
                         }}
                       >
                         <span className="flex items-center gap-1 text-(--chat-label)">
@@ -1445,111 +1555,6 @@ export const ChatSidebar = memo(function ChatSidebar({
               Settings
             </button>
 
-          </div>
-
-          <div
-            ref={usageRef}
-            className="relative"
-            onMouseEnter={() => setIsUsageOpen(true)}
-            onMouseLeave={() => setIsUsageOpen(false)}
-          >
-            {isUsageOpen && (
-              <section
-                id="usage-popover"
-                role="dialog"
-                aria-label="Daily and monthly usage"
-                className="absolute bottom-full left-0 z-50 mb-2 max-h-[min(70dvh,30rem)] w-[292px] max-w-[calc(100vw-1rem)] overflow-y-auto rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) p-3.5 text-(--chat-text) shadow-2xl"
-              >
-                <div className="mb-3 flex items-start justify-between gap-3">
-                  <div>
-                    <h2 className="text-sm font-semibold">Usage &amp; limits</h2>
-                    <p className="mt-0.5 text-[10px] text-(--chat-text-faint)">Daily activity · Monthly quota · UTC</p>
-                  </div>
-                  <button
-                    type="button"
-                    className="inline-flex h-6 w-6 items-center justify-center rounded-md text-(--chat-text-muted) hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text)"
-                    onClick={() => setIsUsageOpen(false)}
-                    aria-label="Close usage details"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-
-                {isUsageLoading && !usageSummary ? (
-                  <div className="flex items-center justify-center gap-2 py-8 text-xs text-(--chat-text-muted)" role="status">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading usage…
-                  </div>
-                ) : usageError && !usageSummary ? (
-                  <p className="rounded-lg bg-red-500/10 px-3 py-2.5 text-xs text-red-400" role="alert">{usageError}</p>
-                ) : usageSummary ? (
-                  <div className="space-y-4">
-                    {usageError && (
-                      <p className="text-[10px] text-amber-400" role="status">Showing the last loaded usage; refresh failed.</p>
-                    )}
-                    <div>
-                      <div className="mb-2 flex items-center justify-between">
-                        <h3 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-(--chat-text-faint)">Today</h3>
-                        <span className="text-[10px] tabular-nums text-(--chat-text-faint)">
-                          {new Date(`${usageSummary.daily.period}T00:00:00Z`).toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" })}
-                        </span>
-                      </div>
-                      <table className="w-full text-xs">
-                        <tbody>
-                          {[
-                            ["Messages", usageSummary.daily.usage.messages],
-                            ["Files uploaded", usageSummary.daily.usage.uploads],
-                            ["Images generated", usageSummary.daily.usage.imageGenerations],
-                            ["Document analyses", usageSummary.daily.usage.expensiveModelCalls],
-                          ].map(([label, value]) => (
-                            <tr key={label} className="border-t border-(--chat-dropdown-border)/70 first:border-0">
-                              <th scope="row" className="py-1.5 text-left font-normal text-(--chat-text-secondary)">{label}</th>
-                              <td className="py-1.5 text-right font-medium tabular-nums text-(--chat-text)">{Number(value).toLocaleString()}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-
-                    <div className="border-t border-(--chat-dropdown-border) pt-3">
-                      <div className="mb-3 flex items-center justify-between">
-                        <h3 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-(--chat-text-faint)">This month</h3>
-                        <span className="text-[10px] text-(--chat-text-faint)">remaining quota</span>
-                      </div>
-                      <div className="space-y-3">
-                        <UsageQuotaLine label="Messages" used={usageSummary.usage.messages} limit={usageSummary.quotas.messages} />
-                        <UsageQuotaLine
-                          label="File uploads"
-                          used={usageSummary.usage.uploads}
-                          limit={usageSummary.quotas.uploads}
-                          detail={`${formatUsageBytes(usageSummary.usage.uploadBytes)} used · ${formatUsageBytes(Math.max(0, usageSummary.quotas.uploadBytes - usageSummary.usage.uploadBytes))} storage left`}
-                        />
-                        <UsageQuotaLine label="Images" used={usageSummary.usage.imageGenerations} limit={usageSummary.quotas.imageGenerations} />
-                        <UsageQuotaLine label="Document analyses" used={usageSummary.usage.expensiveModelCalls} limit={usageSummary.quotas.expensiveModelCalls} />
-                      </div>
-                    </div>
-
-                    <p className="border-t border-(--chat-dropdown-border) pt-2 text-[10px] leading-relaxed text-(--chat-text-faint)">
-                      Monthly limits refresh on the first day of each month. Daily activity resets at midnight UTC.
-                    </p>
-                  </div>
-                ) : null}
-              </section>
-            )}
-            <button
-              type="button"
-              aria-expanded={isUsageOpen}
-              aria-controls="usage-popover"
-              onClick={() => setIsUsageOpen(true)}
-              onFocus={() => setIsUsageOpen(true)}
-              className={cn(
-                "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-sidebar-text-hover) hover:text-(--chat-text)",
-                isUsageOpen && "bg-(--chat-sidebar-text-hover) text-(--chat-text)"
-              )}
-            >
-              <Activity className="h-[18px] w-[18px] text-(--chat-label)" />
-              Usage &amp; limits
-            </button>
           </div>
 
           {/* User row */}
@@ -1589,6 +1594,15 @@ export const ChatSidebar = memo(function ChatSidebar({
         isOpen={isChangePasswordOpen}
         onClose={() => setIsChangePasswordOpen(false)}
         onChangePassword={onChangePassword}
+      />
+
+      <FeedbackModal
+        isOpen={isFeedbackModalOpen}
+        initialType={feedbackModalType}
+        chatId={activeChatId}
+        userEmail={user?.email}
+        accessToken={readStoredTokens()?.accessToken}
+        onClose={() => setIsFeedbackModalOpen(false)}
       />
     </>
   );

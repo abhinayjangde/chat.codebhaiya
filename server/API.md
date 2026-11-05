@@ -839,6 +839,41 @@ GET /chat/65a1b2c3d4e5f6g7h8i9j0k1/messages?limit=20&before=65a1b2c3d4e5f6g7h8i9
 }
 ```
 
+#### POST /chat/:chatId/messages/:messageId/feedback
+Submit or update user feedback on an individual message (e.g. thumbs up / down, reasons, and comments).
+
+**Headers:**
+```http
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "rating": "like", // "like" | "dislike" | null (null removes feedback)
+  "reason": "inaccurate", // Optional: "inaccurate" | "unhelpful" | "hallucination" | "incomplete" | "bad_format" | "other"
+  "comment": "The explanation missed error handling." // Optional string (max 1000 chars)
+}
+```
+
+**Response (200 OK):**
+```json
+{
+  "success": true,
+  "data": {
+    "messageId": "65a1b2c3d4e5f6g7h8i9j0k2",
+    "feedback": {
+      "rating": "like",
+      "reason": "inaccurate",
+      "comment": "The explanation missed error handling.",
+      "createdAt": "2026-11-05T15:00:00.000Z",
+      "updatedAt": "2026-11-05T15:00:00.000Z"
+    }
+  }
+}
+```
+
 #### POST /chat/:chatId
 Send a message and get a response (synchronous).
 
@@ -1366,6 +1401,49 @@ MCP servers can be attached to a chat by passing `mcpServerIds` (an array of ser
 {
   "message": "Create an issue for this bug",
   "mcpServerIds": ["65a1b2c3d4e5f6g7h8i9j0k1"]
+}
+```
+
+---
+
+## Feedback
+
+### Submit User Feedback / Bug Report
+
+#### POST /feedback
+Submit general application feedback, feature requests, or bug reports. Authentication is optional (attaches user ID and default contact email when signed in).
+
+**Headers:**
+```http
+Authorization: Bearer <access_token> (optional)
+Content-Type: application/json
+```
+
+**Request Body:**
+```json
+{
+  "type": "feedback", // "feedback" | "bug_report" | "feature_request"
+  "title": "Dark mode contrast issue", // Optional (max 200 chars)
+  "message": "The code block syntax highlighting has low contrast in dark mode.",
+  "rating": 4, // Optional (1 to 5)
+  "contactEmail": "user@example.com", // Optional
+  "metadata": { // Optional
+    "url": "http://localhost:3000/chat",
+    "userAgent": "Mozilla/5.0 ...",
+    "chatId": "65a1b2c3d4e5f6g7h8i9j0k1",
+    "screenSize": "1440x900"
+  }
+}
+```
+
+**Response (201 Created):**
+```json
+{
+  "success": true,
+  "message": "Feedback submitted successfully. Thank you!",
+  "data": {
+    "feedbackId": "65a1b2c3d4e5f6g7h8i9j0k9"
+  }
 }
 ```
 

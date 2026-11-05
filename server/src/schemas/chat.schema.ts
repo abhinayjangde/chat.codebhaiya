@@ -108,3 +108,13 @@ export const searchChatsQuerySchema = z
   .passthrough();
 
 export type SearchChatsQuery = z.infer<typeof searchChatsQuerySchema>;
+
+export const messageFeedbackSchema = z
+  .object({
+    rating: z.enum(["like", "dislike"]).nullable().optional(),
+    reason: z.string().trim().max(100).nullable().optional(),
+    comment: z.string().trim().max(1000).nullable().optional(),
+  })
+  .passthrough();
+
+export type MessageFeedbackInput = z.infer<typeof messageFeedbackSchema>;

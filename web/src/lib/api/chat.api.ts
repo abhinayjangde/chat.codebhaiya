@@ -3,6 +3,7 @@ import type {
   ChatHistoryExport,
   ChatMessage,
   ChatSummary,
+  MessageFeedback,
   ModelInfo,
   SearchChatsResponse,
 } from "@/lib/types";
@@ -224,5 +225,25 @@ export const chatApi = {
       headers: authHeaders(accessToken),
       body: JSON.stringify({}),
     });
+  },
+
+  async submitMessageFeedback(
+    chatId: string,
+    messageId: string,
+    feedback: {
+      rating?: "like" | "dislike" | null;
+      reason?: string | null;
+      comment?: string | null;
+    },
+    accessToken: string
+  ): Promise<{ messageId: string; feedback: MessageFeedback | null }> {
+    return requestData<{ messageId: string; feedback: MessageFeedback | null }>(
+      `/chat/${chatId}/messages/${messageId}/feedback`,
+      {
+        method: "POST",
+        headers: authHeaders(accessToken),
+        body: JSON.stringify(feedback),
+      }
+    );
   },
 };

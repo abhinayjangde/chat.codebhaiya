@@ -9,8 +9,8 @@ import {
   Paperclip,
   ThumbsDown,
   ThumbsUp,
-  Sparkles,
   ChevronDown,
+  X,
 } from "lucide-react";
 import { FaBrain } from "react-icons/fa";
 import {
@@ -36,6 +36,14 @@ import { cn } from "@/lib/utils";
 import { ChatMessage, MessageSource, ModelInfo } from "@/lib/types";
 import { formatTime } from "@/lib/chat-utils";
 
+const DISLIKE_REASONS = [
+  { id: "inaccurate", label: "Inaccurate / Hallucination" },
+  { id: "unhelpful", label: "Didn't follow prompt" },
+  { id: "incomplete", label: "Incomplete answer" },
+  { id: "bad_format", label: "Format or code error" },
+  { id: "other", label: "Other" },
+];
+
 interface ChatMessageListProps {
   messages: ChatMessage[];
   isLoadingMessages: boolean;
@@ -44,6 +52,14 @@ interface ChatMessageListProps {
   streamSteps?: { id: "thinking" | "webSearch" | "analyzing"; label: string; status: "pending" | "active" | "complete" }[] | null;
   onEditMessage: (message: ChatMessage) => void;
   onRegenerateMessage: (message: ChatMessage, userMessage: ChatMessage) => void;
+  onMessageFeedback?: (
+    messageId: string,
+    feedback: {
+      rating?: "like" | "dislike" | null;
+      reason?: string | null;
+      comment?: string | null;
+    }
+  ) => Promise<void>;
   onRetry?: () => void;
   onOpenResume?: () => void;
   targetMessageId?: string | null;
@@ -56,13 +72,17 @@ export const ChatMessageList = memo(function ChatMessageList({
   availableModels,
   onEditMessage,
   onRegenerateMessage,
+  onMessageFeedback,
   onRetry,
   onOpenResume,
   targetMessageId,
 }: ChatMessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
-  const [feedbackMap, setFeedbackMap] = useState<Record<string, "like" | "dislike">>({});
+  const [localFeedbackOverrides, setLocalFeedbackOverrides] = useState<Record<string, "like" | "dislike" | null>>({});
+  const [activeDislikeId, setActiveDislikeId] = useState<string | null>(null);
+  const [dislikeReason, setDislikeReason] = useState<string | null>(null);
+  const [dislikeComment, setDislikeComment] = useState("");
 
   useEffect(() => {
     if (targetMessageId) {
@@ -109,21 +129,45 @@ export const ChatMessageList = memo(function ChatMessageList({
     }, 2000);
   };
 
-  const handleFeedback = (id: string, type: "like" | "dislike") => {
-    setFeedbackMap((prev) => {
-      const current = prev[id];
-      if (current === type) {
-        const next = { ...prev };
-        delete next[id];
-        return next;
+  const handleFeedback = (id: string, type: "like" | "dislike", current: "like" | "dislike" | null) => {
+    if (current === type) {
+      setLocalFeedbackOverrides((prev) => ({ ...prev, [id]: null }));
+      if (activeDislikeId === id) setActiveDislikeId(null);
+      if (onMessageFeedback) {
+        void onMessageFeedback(id, { rating: null });
       }
-      if (type === "like") {
-        toast.success("Thanks for your feedback!", { id: "chat-feedback-toast", duration: 1800 });
-      } else {
-        toast("Feedback recorded", { icon: "📝", id: "chat-feedback-toast", duration: 1800 });
+      return;
+    }
+
+    setLocalFeedbackOverrides((prev) => ({ ...prev, [id]: type }));
+
+    if (type === "like") {
+      if (activeDislikeId === id) setActiveDislikeId(null);
+      toast.success("Thanks for your feedback!", { id: "chat-feedback-toast", duration: 1800 });
+      if (onMessageFeedback) {
+        void onMessageFeedback(id, { rating: "like" });
       }
-      return { ...prev, [id]: type };
-    });
+    } else {
+      setActiveDislikeId(id);
+      setDislikeReason(null);
+      setDislikeComment("");
+      toast("Feedback recorded", { icon: "📝", id: "chat-feedback-toast", duration: 1800 });
+      if (onMessageFeedback) {
+        void onMessageFeedback(id, { rating: "dislike" });
+      }
+    }
+  };
+
+  const handleDislikeDetailsSubmit = (messageId: string) => {
+    if (onMessageFeedback) {
+      void onMessageFeedback(messageId, {
+        rating: "dislike",
+        reason: dislikeReason,
+        comment: dislikeComment.trim() || null,
+      });
+    }
+    toast.success("Details saved. Thank you!", { id: "chat-feedback-details", duration: 1800 });
+    setActiveDislikeId(null);
   };
 
   return (
@@ -150,6 +194,11 @@ export const ChatMessageList = memo(function ChatMessageList({
             const isUser = message.role === "user";
             const displayContent = getDisplayContent(message, index);
             const messageId = message._id ?? `msg-${index}`;
+            const currentRating = messageId in localFeedbackOverrides
+              ? localFeedbackOverrides[messageId]
+              : (message.feedback?.rating ?? null);
+            const isLiked = currentRating === "like";
+            const isDisliked = currentRating === "dislike";
             const isTarget = Boolean(targetMessageId && (message._id === targetMessageId || messageId === targetMessageId));
 
             return (
@@ -363,12 +412,12 @@ export const ChatMessageList = memo(function ChatMessageList({
                           <button
                             type="button"
                             className={cn(
-                              "inline-flex h-7 w-7 items-center justify-center rounded-md text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)",
-                              feedbackMap[messageId] === "like" && "text-emerald-500 bg-emerald-500/10 hover:text-emerald-600"
+                              "inline-flex h-7 w-7 items-center justify-center rounded-md text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover) cursor-pointer",
+                              isLiked && "text-emerald-500 bg-emerald-500/10 hover:text-emerald-600"
                             )}
                             title="Good response"
                             aria-label="Like"
-                            onClick={() => handleFeedback(messageId, "like")}
+                            onClick={() => handleFeedback(messageId, "like", currentRating)}
                           >
                             <ThumbsUp className="h-4 w-4" />
                           </button>
@@ -377,12 +426,12 @@ export const ChatMessageList = memo(function ChatMessageList({
                           <button
                             type="button"
                             className={cn(
-                              "inline-flex h-7 w-7 items-center justify-center rounded-md text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)",
-                              feedbackMap[messageId] === "dislike" && "text-rose-500 bg-rose-500/10 hover:text-rose-600"
+                              "inline-flex h-7 w-7 items-center justify-center rounded-md text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover) cursor-pointer",
+                              isDisliked && "text-rose-500 bg-rose-500/10 hover:text-rose-600"
                             )}
                             title="Bad response"
                             aria-label="Dislike"
-                            onClick={() => handleFeedback(messageId, "dislike")}
+                            onClick={() => handleFeedback(messageId, "dislike", currentRating)}
                           >
                             <ThumbsDown className="h-4 w-4" />
                           </button>
@@ -408,6 +457,66 @@ export const ChatMessageList = memo(function ChatMessageList({
                         </div>
                       </div>
                     ) : null}
+
+                    {/* Dislike details feedback prompt */}
+                    {activeDislikeId === messageId && (
+                      <div className="mt-2.5 max-w-lg rounded-xl border border-(--chat-dropdown-border) bg-(--chat-surface) p-3.5 shadow-md">
+                        <div className="flex items-center justify-between gap-2 mb-2">
+                          <span className="text-xs font-semibold text-(--chat-text)">
+                            What was wrong with this response?
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setActiveDislikeId(null)}
+                            className="rounded p-1 text-(--chat-text-secondary) hover:text-(--chat-text) hover:bg-(--chat-dropdown-hover) transition cursor-pointer"
+                            aria-label="Close feedback panel"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 mb-2.5">
+                          {DISLIKE_REASONS.map((r) => (
+                            <button
+                              key={r.id}
+                              type="button"
+                              onClick={() => setDislikeReason(dislikeReason === r.id ? null : r.id)}
+                              className={cn(
+                                "rounded-md border px-2.5 py-1 text-xs transition cursor-pointer",
+                                dislikeReason === r.id
+                                  ? "border-rose-500/50 bg-rose-500/10 text-rose-500 font-medium"
+                                  : "border-(--chat-dropdown-border) bg-(--chat-bg) text-(--chat-text-secondary) hover:text-(--chat-text)"
+                              )}
+                            >
+                              {r.label}
+                            </button>
+                          ))}
+                        </div>
+                        <input
+                          type="text"
+                          value={dislikeComment}
+                          onChange={(e) => setDislikeComment(e.target.value)}
+                          placeholder="Optional: How could Codebhaiya improve this answer?"
+                          maxLength={500}
+                          className="w-full rounded-md border border-(--chat-dropdown-border) bg-(--chat-bg) px-2.5 py-1.5 text-xs text-(--chat-text) outline-none placeholder:text-(--chat-text-faint) focus:ring-1 focus:ring-(--chat-focus-ring)"
+                        />
+                        <div className="mt-2.5 flex justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setActiveDislikeId(null)}
+                            className="rounded-md px-2.5 py-1 text-xs text-(--chat-text-secondary) hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text) cursor-pointer"
+                          >
+                            Skip
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDislikeDetailsSubmit(messageId)}
+                            className="rounded-md bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground shadow-2xs hover:bg-primary/90 transition cursor-pointer"
+                          >
+                            Submit Details
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

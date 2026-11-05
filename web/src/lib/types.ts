@@ -122,6 +122,14 @@ export interface UsedTool {
   output?: string;
 }
 
+export interface MessageFeedback {
+  rating: "like" | "dislike";
+  reason?: string;
+  comment?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface ChatMessage {
   _id?: string;
   chatId?: string;
@@ -132,10 +140,25 @@ export interface ChatMessage {
   sources?: MessageSource[];
   usedTools?: UsedTool[];
   attachments?: Attachment[];
+  feedback?: MessageFeedback | null;
   isStreaming?: boolean;
   activeTool?: string;
   modelName?: string;
   errorMessage?: string;
+}
+
+export interface SubmitFeedbackPayload {
+  type: "feedback" | "bug_report" | "feature_request";
+  title?: string;
+  message: string;
+  rating?: number;
+  contactEmail?: string;
+  metadata?: {
+    url?: string;
+    userAgent?: string;
+    chatId?: string;
+    screenSize?: string;
+  };
 }
 
 export interface StreamToolStartEvent {

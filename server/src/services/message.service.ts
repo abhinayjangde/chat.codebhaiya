@@ -150,3 +150,45 @@ export async function deleteMessage(
     userId: new ObjectId(userId)
   });
 }
+
+export async function setMessageFeedback(
+  messageId: string,
+  chatId: string,
+  userId: string,
+  feedbackData: {
+    rating?: "like" | "dislike" | null | undefined;
+    reason?: string | null | undefined;
+    comment?: string | null | undefined;
+  }
+) {
+  if (!feedbackData.rating) {
+    return Message.findOneAndUpdate(
+      {
+        _id: new ObjectId(messageId),
+        chatId: new ObjectId(chatId),
+        userId: new ObjectId(userId),
+      },
+      { $unset: { feedback: 1 } },
+      { new: true }
+    );
+  }
+
+  const now = new Date();
+  return Message.findOneAndUpdate(
+    {
+      _id: new ObjectId(messageId),
+      chatId: new ObjectId(chatId),
+      userId: new ObjectId(userId),
+    },
+    {
+      $set: {
+        "feedback.rating": feedbackData.rating,
+        "feedback.reason": feedbackData.reason ?? undefined,
+        "feedback.comment": feedbackData.comment ?? undefined,
+        "feedback.updatedAt": now,
+        "feedback.createdAt": now,
+      },
+    },
+    { new: true }
+  );
+}

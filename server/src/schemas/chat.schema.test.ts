@@ -3,6 +3,7 @@ import {
   chatMessageSchema,
   createChatSchema,
   listChatsQuerySchema,
+  messageFeedbackSchema,
   renameChatSchema,
   searchChatsQuerySchema,
   updateChatSchema,
@@ -271,6 +272,38 @@ describe("chat.schema", () => {
         limit: "150",
       });
 
+      expect(result.success).toBe(false);
+    });
+  });
+
+  describe("messageFeedbackSchema", () => {
+    it("accepts valid like rating", () => {
+      const result = messageFeedbackSchema.safeParse({
+        rating: "like",
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("accepts dislike with reason and comment", () => {
+      const result = messageFeedbackSchema.safeParse({
+        rating: "dislike",
+        reason: "inaccurate",
+        comment: "The generated code had syntax errors.",
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("accepts null rating to clear feedback", () => {
+      const result = messageFeedbackSchema.safeParse({
+        rating: null,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("rejects invalid rating value", () => {
+      const result = messageFeedbackSchema.safeParse({
+        rating: "awesome",
+      });
       expect(result.success).toBe(false);
     });
   });

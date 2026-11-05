@@ -35,6 +35,11 @@ router.get(
   chatReadLimiter,
   chatController.getChatMessages
 );
+router.post(
+  "/:chatId/messages/:messageId/feedback",
+  chatReadLimiter,
+  chatController.updateMessageFeedback
+);
 router.post("/:chatId", chatGenerationLimiter, requireUsage("message"), chatController.sendMessage);
 router.patch("/:chatId", chatController.updateChat);
 router.post("/:chatId/duplicate", chatReadLimiter, chatController.duplicateChat);

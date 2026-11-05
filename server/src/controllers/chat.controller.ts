@@ -10,6 +10,8 @@ import {
   chatMessageSchema,
   createChatSchema,
   listChatsQuerySchema,
+  messageFeedbackSchema,
+  objectIdSchema,
   paginationQuerySchema,
   parseBody,
   renameChatSchema,
@@ -19,7 +21,7 @@ import {
 import { generateChatTitle } from "../services/chat.service.js";
 import { cleanupDocumentsForChat } from "../services/document-cleanup.service.js";
 import { searchChatsAndMessages } from "../services/chat-search.service.js";
-import { getPaginatedMessages } from "../services/message.service.js";
+import { getPaginatedMessages, setMessageFeedback } from "../services/message.service.js";
 import { recordUsage } from "../services/usage.service.js";
 import { downloadDocumentFromS3 } from "../services/storage.service.js";
 import { exportChatAsPdf, exportAllChatsAsJson } from "../services/chat-export.service.js";
@@ -588,6 +590,49 @@ export async function deleteAllChats(req: Request, res: Response, next: NextFunc
       data: {
         deletedChatsCount: deletedChats.deletedCount,
         deletedMessagesCount: deletedMessages.deletedCount,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function updateMessageFeedback(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const rawChatId = Array.isArray(req.params.chatId) ? req.params.chatId[0] : req.params.chatId;
+    const rawMessageId = Array.isArray(req.params.messageId) ? req.params.messageId[0] : req.params.messageId;
+    const chatId = parseBody(chatIdParamSchema, rawChatId);
+    const messageId = parseBody(objectIdSchema, rawMessageId);
+    const userId = req.user?.userId;
+
+    if (typeof userId !== "string") {
+      res.status(401).json({
+        success: false,
+        error: "User not authenticated",
+      });
+      return;
+    }
+
+    const payload = parseBody(messageFeedbackSchema, req.body);
+    const updatedMessage = await setMessageFeedback(messageId, chatId, userId, payload);
+
+    if (!updatedMessage) {
+      res.status(404).json({
+        success: false,
+        error: "Message not found",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      data: {
+        messageId,
+        feedback: updatedMessage.feedback ?? null,
       },
     });
   } catch (error) {

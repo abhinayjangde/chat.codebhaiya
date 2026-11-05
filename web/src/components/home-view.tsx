@@ -1,229 +1,207 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import {
+  ArrowDownRight,
+  ArrowRight,
   ArrowUpRight,
-  BookOpen,
+  BookOpenText,
   Check,
+  ChevronDown,
   Code2,
-  FileSearch,
-  Mic,
+  FileText,
+  Github,
+  Globe2,
+  Layers3,
+  MessageSquareText,
   Paperclip,
   Search,
-  Terminal,
+  Sparkles,
+  SquarePen,
   WandSparkles,
 } from "lucide-react";
-import { Navbar } from "@/components/navbar";
 import { Footer } from "@/components/footer";
 
-const capabilities = [
+const features = [
   {
-    number: "01",
-    icon: FileSearch,
-    title: "Grounded answers",
-    text: "Search the live web and your documents without leaving the thread.",
+    index: "01",
+    icon: Globe2,
+    title: "Answers with receipts.",
+    detail: "Search the live web and follow every citation back to its source.",
+    note: "LIVE WEB · CITED SOURCES",
+    color: "mint",
   },
   {
-    number: "02",
+    index: "02",
+    icon: FileText,
+    title: "Your files in the conversation.",
+    detail: "Ask questions across PDFs, notes, and documents you bring along.",
+    note: "DOCUMENT CONTEXT · MULTIMODAL",
+    color: "peach",
+  },
+  {
+    index: "03",
     icon: Code2,
-    title: "Code that fits",
-    text: "Explain, refactor, and ship code with context from the work you are already doing.",
-  },
-  {
-    number: "03",
-    icon: WandSparkles,
-    title: "The right model",
-    text: "Move between fast, visual, and reasoning-first models in one calm workspace.",
+    title: "Built for the build loop.",
+    detail: "Explain an error, shape an idea, refactor a snippet, keep moving.",
+    note: "CODE · EXPLANATIONS · STREAMING",
+    color: "blue",
   },
 ];
 
 const prompts = [
-  { icon: Terminal, text: "Explain this error in plain English" },
-  { icon: BookOpen, text: "Turn my notes into a study plan" },
-  { icon: Search, text: "Find the latest on React Server Components" },
+  { icon: Search, tag: "RESEARCH", text: "What changed in React this month?", tone: "pink" },
+  { icon: Code2, tag: "BUILD", text: "Explain this TypeScript error", tone: "yellow" },
+  { icon: BookOpenText, tag: "LEARN", text: "Turn these notes into a study plan", tone: "blue" },
 ];
+
+const integrations = ["GitHub", "Linear", "Notion", "PostgreSQL", "MongoDB", "Supabase"];
 
 export function HomeView() {
   return (
-    <main className="home-shell min-h-screen overflow-hidden bg-[#0b1112] text-[#e9f1ed]">
-      <Navbar />
-      <section className="relative border-b border-[#e9f1ed]/10">
-        <div className="home-grid pointer-events-none absolute inset-0 opacity-50" />
-        <div className="absolute -left-48 top-20 h-96 w-96 rounded-full bg-[#1cbfa6]/10 blur-3xl" />
-        <div className="mx-auto grid max-w-7xl gap-14 px-6 pb-20 pt-16 sm:px-10 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-20 lg:px-16 lg:pb-28 lg:pt-24">
+    <main className="landing-page min-h-screen overflow-hidden">
+      <header className="landing-nav">
+        <div className="landing-nav-inner">
+          <Link href="/" className="landing-brand" aria-label="Codebhaiya home">
+            <Image
+              className="brand-logo"
+              src="https://avatars.githubusercontent.com/u/166032907?v=4"
+              alt="Codebhaiya logo"
+              width={31}
+              height={31}
+            />
+            <span>codebhaiya<span className="brand-period">.</span></span>
+          </Link>
+          <nav className="landing-links" aria-label="Main navigation">
+            <a href="#capabilities">What it does</a>
+            <a href="#connectors">Connections</a>
+            <a href="#start">Try a prompt</a>
+          </nav>
+          <div className="landing-nav-actions">
+            <Link href="/login" className="nav-login">Log in</Link>
+            <Link href="/register" className="nav-cta">Get started <ArrowUpRight size={15} /></Link>
+          </div>
+        </div>
+      </header>
+
+      <section className="hero-section">
+        <div className="hero-grain" aria-hidden="true" />
+        <div className="hero-layout">
           <motion.div
-            initial={{ opacity: 0, y: 24 }}
+            className="hero-copy"
+            initial={{ opacity: 0, y: 18 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
-            className="relative z-10"
+            transition={{ duration: 0.65, ease: "easeOut" }}
           >
-            <p className="mb-7 flex items-center gap-3 text-xs font-bold uppercase tracking-[0.22em] text-[#75e8d0]">
-              <span className="h-px w-8 bg-[#75e8d0]" /> An AI workbench for curious people
+            <div className="eyebrow"><span className="eyebrow-dot" /> YOUR THOUGHTS, WITH ROOM TO GO</div>
+            <h1>Good questions<br />go <span className="headline-highlight">somewhere.</span></h1>
+            <p className="hero-description">
+              Research the web. Make sense of your files. Get unstuck in code.
+              One thoughtful workspace for whatever you’re figuring out.
             </p>
-            <h1 className="max-w-2xl text-[4rem] font-medium leading-[0.91] tracking-[-0.06em] text-[#e9f1ed] sm:text-[6rem] lg:text-[7.4rem]">
-              Think out loud. <em className="font-normal text-[#75e8d0]">Build</em> in public.
-            </h1>
-            <p className="mt-8 max-w-lg text-lg leading-8 text-[#9aadaa] sm:text-xl">
-              Codebhaiya is the intelligent workspace for turning rough questions into clear plans, useful code, and work you are proud to share.
-            </p>
-            <div className="mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-center">
-              <Link
-                href="/chat"
-                className="group inline-flex h-13 items-center gap-3 bg-[#75e8d0] px-6 text-sm font-bold text-[#0b1112] transition-transform hover:-translate-y-1"
-              >
-                Open the workbench{" "}
-                <ArrowUpRight className="h-4 w-4 transition-transform group-hover:translate-x-1 group-hover:-translate-y-1" />
-              </Link>
-              <Link
-                href="/register"
-                className="inline-flex items-center gap-2 px-3 py-3 text-sm font-bold text-[#e9f1ed] underline decoration-[#e2b45c] decoration-2 underline-offset-4 hover:text-[#75e8d0]"
-              >
-                Start for free <span aria-hidden="true">↗</span>
-              </Link>
+            <div className="hero-actions">
+              <Link href="/chat" className="button-primary">Start a conversation <ArrowRight size={17} /></Link>
+              <a href="#capabilities" className="button-text">Take a look <ArrowDownRight size={17} /></a>
             </div>
-            <div className="mt-12 flex items-center gap-3 text-xs font-bold uppercase tracking-[0.14em] text-[#718380]">
-              <span className="flex -space-x-2">
-                {["#75e8d0", "#e2b45c", "#e77c65"].map((color) => (
-                  <span
-                    key={color}
-                    className="h-7 w-7 rounded-full border-2 border-[#0b1112]"
-                    style={{ backgroundColor: color }}
-                  />
-                ))}
-              </span>{" "}
-              Used by builders who like to understand the why
-            </div>
+            <div className="hero-footnote"><span className="sparkle-mini">✳</span> Free to start <span className="footnote-divider">·</span> Pick the model that fits</div>
           </motion.div>
 
           <motion.div
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.8, delay: 0.15 }}
-            className="relative z-10"
+            className="hero-art"
+            initial={{ opacity: 0, y: 22, rotate: 1.4 }}
+            animate={{ opacity: 1, y: 0, rotate: 0 }}
+            transition={{ duration: 0.75, delay: 0.12, ease: "easeOut" }}
           >
-            <div className="absolute -right-5 -top-7 hidden h-24 w-24 border-r border-t border-[#75e8d0] sm:block" />
-            <div className="workbench-panel relative border border-[#e9f1ed]/10 bg-[#151e1f] p-3 shadow-[14px_14px_0_#263c37] sm:p-5">
-              <div className="flex items-center justify-between border-b border-[#e9f1ed]/10 pb-4 text-[11px] font-bold uppercase tracking-[0.16em] text-[#718380]">
-                <span className="flex items-center gap-2">
-                  <span className="h-2 w-2 rounded-full bg-[#e2b45c]" /> New thread
-                </span>
-                <span>01 / 04</span>
+            <div className="orbit orbit-one" /><div className="orbit orbit-two" />
+            <div className="chat-window">
+              <div className="window-topbar">
+                <div className="window-dots"><i /><i /><i /></div>
+                <span className="window-title"><span className="window-live" /> NEW CONVERSATION</span>
+                <SquarePen size={15} />
               </div>
-              <div className="min-h-[330px] py-8 sm:min-h-[380px] sm:px-5">
-                <p className="text-xs font-bold uppercase tracking-[0.15em] text-[#75e8d0]">You asked</p>
-                <p className="mt-3 max-w-md text-2xl font-medium leading-tight tracking-[-0.03em] text-[#e9f1ed] sm:text-3xl">
-                  How do I make my side project feel less like a side project?
-                </p>
-                <div className="my-8 h-px bg-[#e9f1ed]/10" />
-                <p className="mb-3 text-xs font-bold uppercase tracking-[0.15em] text-[#75e8d0]">Codebhaiya says</p>
-                <p className="max-w-md text-base leading-7 text-[#9aadaa]">
-                  Start with the part people can feel: a clear point of view, a short path to value, and one detail that makes the experience unmistakably yours.
-                </p>
-                <div className="mt-7 flex flex-wrap gap-2 text-xs font-bold text-[#b8c8c3]">
-                  <span className="bg-[#1c3935] px-3 py-2">
-                    <Check className="mr-1 inline h-3 w-3 text-[#75e8d0]" /> Point of view
-                  </span>
-                  <span className="bg-[#3a3020] px-3 py-2">
-                    <Check className="mr-1 inline h-3 w-3 text-[#e2b45c]" /> Clear next step
-                  </span>
+              <div className="conversation">
+                <div className="model-line"><span className="model-avatar"><Sparkles size={12} /></span><span>Codebhaiya</span><span className="model-sep">/</span><span className="model-selected">Gemini Flash <ChevronDown size={12} /></span></div>
+                <div className="user-question">I have a folder of customer interviews. What are people asking for most?</div>
+                <div className="answer-block">
+                  <p>I found a clear pattern across your interviews: people want to <strong>see what changed</strong> without digging through every update.</p>
+                  <p>Three themes come up repeatedly:</p>
+                  <div className="insight-row"><span className="insight-number">01</span><span>One place to compare versions</span><span className="citation">[1]</span></div>
+                  <div className="insight-row"><span className="insight-number">02</span><span>Short, plain-language summaries</span><span className="citation">[2]</span></div>
+                  <div className="insight-row"><span className="insight-number">03</span><span>Clear ownership of next steps</span><span className="citation">[3]</span></div>
+                  <div className="source-pills"><span><FileText size={11} /> Interview notes.pdf</span><span><FileText size={11} /> 8 conversations</span></div>
                 </div>
               </div>
-              <div className="flex items-center gap-3 border-t border-[#e9f1ed]/10 pt-4">
-                <Paperclip className="h-4 w-4 text-[#718380]" />
-                <span className="flex-1 text-sm text-[#627571]">Ask anything, attach context...</span>
-                <button aria-label="Use voice input" className="p-2 text-[#75e8d0] hover:bg-[#1c3935]">
-                  <Mic className="h-4 w-4" />
-                </button>
-                <Link
-                  aria-label="Send message"
-                  href="/chat"
-                  className="bg-[#75e8d0] p-2 text-[#0b1112] hover:bg-[#9bf1df]"
-                >
-                  <ArrowUpRight className="h-4 w-4" />
-                </Link>
-              </div>
+              <div className="composer"><Paperclip size={15} /><span>Ask a follow-up or add a file...</span><span className="composer-shortcut">↵</span></div>
             </div>
-            <div className="mt-7 flex justify-end gap-3 text-xs font-bold uppercase tracking-[0.14em] text-[#718380]">
-              <span className="h-px w-10 self-center bg-[#718380]" /> Think less about prompts. More about progress.
-            </div>
+            <div className="floating-note note-top"><span className="note-icon note-icon-green"><Globe2 size={14} /></span><span><b>Grounded</b><small>In your sources</small></span><Check size={14} className="note-check" /></div>
+            <div className="floating-note note-bottom"><span className="note-icon note-icon-yellow"><Layers3 size={14} /></span><span><b>Multi-model</b><small>Your call, always</small></span><span className="note-count">03</span></div>
+            <div className="art-caption">A better place to think things through <span>↗</span></div>
           </motion.div>
         </div>
+        <div className="hero-rule"><span>THINK CLEARER, MAKE MORE</span><span>01 — 04</span></div>
       </section>
 
-      <section id="features" className="mx-auto max-w-7xl px-6 py-20 sm:px-10 lg:px-16 lg:py-28">
-        <div className="mb-14 flex flex-col justify-between gap-6 border-b border-[#e9f1ed]/10 pb-8 sm:flex-row sm:items-end">
-          <div>
-            <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-[#75e8d0]">The useful stuff</p>
-            <h2 className="max-w-xl text-4xl font-medium leading-none tracking-[-0.05em] sm:text-6xl">
-              A sharper second brain.
-            </h2>
-          </div>
-          <p className="max-w-xs text-sm leading-6 text-[#9aadaa]">
-            Less ceremony between a thought and the thing it becomes.
-          </p>
+      <section className="capabilities-section" id="capabilities">
+        <div className="section-heading">
+          <div><span className="section-kicker">A WORKSPACE THAT KEEPS UP</span><h2>From “wait, what?”<br /><span>to “there it is.”</span></h2></div>
+          <p>Less tab juggling. More useful answers. Start with a question, bring the context, and keep the momentum.</p>
         </div>
-        <div className="grid gap-px bg-[#e9f1ed]/10 md:grid-cols-3">
-          {capabilities.map((item) => (
-            <article
-              key={item.number}
-              className="group bg-[#0f1718] p-7 transition-colors hover:bg-[#172525] sm:p-9"
-            >
-              <div className="flex items-start justify-between">
-                <span className="text-sm font-bold text-[#e2b45c]">{item.number}</span>
-                <item.icon className="h-6 w-6 text-[#75e8d0] transition-transform group-hover:rotate-12" />
-              </div>
-              <h3 className="mt-20 text-2xl font-medium tracking-[-0.04em]">{item.title}</h3>
-              <p className="mt-4 max-w-xs text-sm leading-6 text-[#9aadaa]">{item.text}</p>
+        <div className="feature-grid">
+          {features.map((feature) => (
+            <article className={`feature-card feature-${feature.color}`} key={feature.index}>
+              <div className="feature-card-top"><span>{feature.index}</span><feature.icon size={21} strokeWidth={1.7} /></div>
+              <h3>{feature.title}</h3><p>{feature.detail}</p>
+              <div className="feature-foot"><span className="feature-mini-icon"><feature.icon size={13} /></span>{feature.note}<ArrowUpRight size={14} /></div>
             </article>
           ))}
         </div>
       </section>
 
-      <section id="models" className="border-y border-[#e9f1ed]/10 bg-[#121c1d]">
-        <div className="mx-auto grid max-w-7xl gap-12 px-6 py-20 sm:px-10 lg:grid-cols-[0.8fr_1.2fr] lg:px-16 lg:py-24">
-          <div>
-            <p className="mb-5 text-xs font-bold uppercase tracking-[0.2em] text-[#75e8d0]">Start anywhere</p>
-            <h2 className="max-w-md text-4xl font-medium leading-[0.95] tracking-[-0.05em] sm:text-6xl">
-              Bring the half-formed idea.
-            </h2>
-            <p className="mt-6 max-w-sm text-[#9aadaa]">
-              The best prompts are often not prompts yet. Pick a direction and let the conversation do the shaping.
-            </p>
-          </div>
-          <div className="space-y-3">
-            {prompts.map((prompt) => (
-              <Link
-                key={prompt.text}
-                href="/chat"
-                className="group flex items-center gap-5 border-b border-[#e9f1ed]/15 py-5 text-lg transition-colors hover:border-[#75e8d0]"
-              >
-                <prompt.icon className="h-5 w-5 text-[#75e8d0]" />
-                <span className="flex-1">{prompt.text}</span>
-                <ArrowUpRight className="h-5 w-5 text-[#718380] transition-transform group-hover:-translate-y-1 group-hover:translate-x-1" />
-              </Link>
-            ))}
+      <section className="model-band">
+        <div className="model-copy"><span className="section-kicker">GOOD TO HAVE OPTIONS</span><h2>One workspace.<br /><em>Your choice of mind.</em></h2><p>Switch between models as the work changes. Keep the conversation, change the perspective.</p></div>
+        <div className="model-showcase" aria-label="Available model providers">
+          <div className="model-showcase-header"><span>CHOOSE YOUR MODEL</span><span>AVAILABLE IN CHAT <span className="available-dot" /></span></div>
+          <div className="provider-grid">
+            <div className="provider-card provider-gemini"><span className="provider-glyph">✳</span><span><b>Gemini</b><small>Fast & multimodal</small></span><span className="provider-active">ACTIVE</span></div>
+            <div className="provider-card"><span className="provider-glyph glyph-openai">◎</span><span><b>GPT</b><small>Versatile reasoning</small></span><ArrowUpRight size={14} /></div>
+            <div className="provider-card"><span className="provider-glyph glyph-llama">◈</span><span><b>Llama</b><small>Open model family</small></span><ArrowUpRight size={14} /></div>
+            <div className="provider-hint"><WandSparkles size={14} /> The right tool for the thought you’re having.</div>
           </div>
         </div>
       </section>
 
-      <section id="how-it-works" className="mx-auto max-w-7xl px-6 py-20 sm:px-10 lg:px-16 lg:py-28">
-        <div className="flex flex-col items-start justify-between gap-10 sm:flex-row sm:items-end">
-          <div>
-            <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-[#75e8d0]">Your next move</p>
-            <h2 className="text-4xl font-medium tracking-[-0.05em] sm:text-6xl">
-              Make a little<br />
-              <span className="text-[#75e8d0]">more sense</span>.
-            </h2>
+      <section className="prompt-section" id="start">
+        <div className="prompt-topline"><span className="section-kicker">NO PERFECT PROMPT REQUIRED</span><span>02 / BEGIN ANYWHERE</span></div>
+        <div className="prompt-layout"><h2>Bring the<br /><span>half-formed</span><br />thought.</h2>
+          <div className="prompt-list">
+            {prompts.map((prompt) => <Link href="/chat" className={`prompt-item prompt-${prompt.tone}`} key={prompt.tag}>
+              <span className="prompt-icon"><prompt.icon size={19} /></span><span className="prompt-label">{prompt.tag}</span><span className="prompt-text">{prompt.text}</span><ArrowUpRight size={17} className="prompt-arrow" />
+            </Link>)}
+            <Link href="/chat" className="prompt-more">Or just say what’s on your mind <ArrowRight size={15} /></Link>
           </div>
-          <Link
-            href="/chat"
-            className="inline-flex items-center gap-2 border-b-2 border-[#e2b45c] pb-2 text-sm font-bold"
-          >
-            Open Codebhaiya <ArrowUpRight className="h-4 w-4" />
-          </Link>
         </div>
       </section>
+
+      <section className="connectors-section" id="connectors">
+        <div className="connector-intro"><span className="section-kicker">WHEN YOUR WORK LIVES ELSEWHERE</span><h2>Bring your tools<br />into the conversation.</h2><p>Connect the places where your work already happens, then ask for what you need in plain language.</p><Link href="/register" className="connector-link">Explore the workspace <ArrowRight size={16} /></Link></div>
+        <div className="connector-board"><div className="connector-board-head"><span>YOUR TOOLKIT</span><span>CONNECTED CONTEXT <span className="available-dot" /></span></div>
+          <div className="connector-list">{integrations.map((name, index) => <div className="connector-row" key={name}><span className={`connector-icon connector-${index}`}>
+            {index === 0 ? <Github size={17} /> : index === 1 ? <span className="linear-glyph">◉</span> : index === 2 ? <span className="notion-glyph">N</span> : index === 3 ? <span className="db-glyph">PG</span> : index === 4 ? <span className="mongo-glyph">◉</span> : <span className="supabase-glyph">ϟ</span>}
+          </span><span className="connector-name">{name}</span><span className="connector-type">{index < 3 ? "WORKSPACE" : "DATABASE"}</span><ArrowUpRight size={14} /></div>)}</div>
+          <div className="connector-foot"><MessageSquareText size={14} /><span>Ask once. Let context do the connecting.</span></div>
+        </div>
+      </section>
+
+      <section className="closing-section">
+        <div className="closing-stamp">CB<span>✳</span></div>
+        <span className="section-kicker">YOUR NEXT GOOD QUESTION STARTS HERE</span>
+        <h2>Curiosity looks<br /><em>good on you.</em></h2>
+        <Link href="/chat" className="button-primary closing-button">Open your workspace <ArrowRight size={17} /></Link>
+        <span className="closing-aside">No ceremony. Just start.</span>
+      </section>
+
       <Footer />
     </main>
   );

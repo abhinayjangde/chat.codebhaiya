@@ -103,6 +103,7 @@ export function ChatApp() {
   // Streaming & Message Generation
   const {
     messages,
+    setMessages,
     composer,
     setComposer,
     isLoadingMessages,
@@ -139,6 +140,46 @@ export function ChatApp() {
       return runWithSession((accessToken) => apiClient.searchChats(query, accessToken));
     },
     [runWithSession]
+  );
+
+  const handleMessageFeedback = useCallback(
+    async (
+      messageId: string,
+      feedback: {
+        rating?: "like" | "dislike" | null;
+        reason?: string | null;
+        comment?: string | null;
+      }
+    ) => {
+      if (!activeChatId) return;
+
+      // Optimistically update message in state
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg._id === messageId
+            ? {
+                ...msg,
+                feedback: feedback.rating
+                  ? {
+                      rating: feedback.rating,
+                      reason: feedback.reason ?? undefined,
+                      comment: feedback.comment ?? undefined,
+                    }
+                  : null,
+              }
+            : msg
+        )
+      );
+
+      try {
+        await runWithSession((token) =>
+          apiClient.submitMessageFeedback(activeChatId, messageId, feedback, token)
+        );
+      } catch (err) {
+        console.error("Failed to submit feedback:", err);
+      }
+    },
+    [activeChatId, runWithSession, setMessages]
   );
 
   const handleSelectChat = useCallback(
@@ -343,6 +384,7 @@ export function ChatApp() {
                   availableModels={availableModels}
                   onEditMessage={handleEditMessage}
                   onRegenerateMessage={handleRegenerateMessage}
+                  onMessageFeedback={handleMessageFeedback}
                   onRetry={canRetry ? handleRetry : undefined}
                   onOpenResume={() => setResumeSidePanelOpen(true)}
                   targetMessageId={targetMessageId}
