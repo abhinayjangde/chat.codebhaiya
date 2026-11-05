@@ -1,6 +1,7 @@
 services:
   mongodb:
     image: mongo:9.0
+    profiles: ["local-infra"]
     ports:
       - "27017:27017"
     volumes:
@@ -11,13 +12,12 @@ services:
     restart: unless-stopped
   redis:
     image: redis:7-alpine
-    # profiles: ["local-infra"]
     ports:
       - "6379:6379"
     restart: unless-stopped
   qdrant:
     image: qdrant/qdrant:v1.20.0
-    # profiles: ["local-infra"]
+    profiles: ["local-infra"]
     ports:
       - "6333:6333"
       - "6334:6334"

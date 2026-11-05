@@ -50,7 +50,7 @@ describe("chat.schema", () => {
     it("accepts message with model and language", () => {
       const result = chatMessageSchema.safeParse({
         message: "Explain recursion in Hindi",
-        model: "openai/gpt-oss-20b",
+        model: "qwen/qwen3.8-27b",
         language: "hinglish",
       });
 

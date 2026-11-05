@@ -1,6 +1,6 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { ChatGroq } from "@langchain/groq";
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { ChatGoogle } from "@langchain/google";
 import { ChatOllama } from "@langchain/ollama";
 import { createAgent } from "langchain";
 import { type Tool } from "@langchain/core/tools";
@@ -33,14 +33,13 @@ export interface ModelConfig {
 
 export const MODEL_REGISTRY: Record<string, ModelConfig> = {
   // Groq Models
-  // The older Llama 3.1 identifier is no longer available on some Groq accounts.
-  "llama-3.1-8b-instant": {
-    id: "llama-3.1-8b-instant",
+  "qwen/qwen3.8-27b": {
+    id: "qwen/qwen3.8-27b",
     provider: "groq",
-    modelName: "openai/gpt-oss-20b",
-    displayName: "GPT OSS 20B (Groq)",
-    tier: "cheap",
-    capabilities: { vision: false, audio: false },
+    modelName: "qwen/qwen3.8-27b",
+    displayName: "Qwen 3.8 27B",
+    tier: "heavy",
+    capabilities: { vision: true, audio: false },
   },
 
   // Google Models
@@ -53,11 +52,19 @@ export const MODEL_REGISTRY: Record<string, ModelConfig> = {
     capabilities: { vision: true, audio: true },
   },
   // Ollama Cloud Models
+  "gemma4:31b": {
+    id: "gemma4:31b",
+    provider: "ollama",
+    modelName: "gemma4:31b",
+    displayName: "Gemma 4 31B",
+    tier: "heavy",
+    capabilities: { vision: true, audio: false },
+  },
   "nemotron-3-nano:30b": {
     id: "nemotron-3-nano:30b",
     provider: "ollama",
     modelName: "nemotron-3-nano:30b",
-    displayName: "Nemotron-3 Nano",
+    displayName: "Nemotron 3 Nano",
     tier: "heavy",
     capabilities: { vision: true, audio: false },
   },
@@ -80,7 +87,11 @@ export const AUTO_MODEL_CONFIG: ModelConfig = {
   capabilities: { vision: true, audio: true },
 };
 
-export const DEFAULT_MODEL = "auto"; // Default to auto model
+export const DEFAULT_MODEL = "nemotron-3-nano:30b";
+
+export function getDefaultModel(): string {
+  return env.OLLAMA_API_KEY ? DEFAULT_MODEL : AUTO_MODEL_CONFIG.id;
+}
 
 // -- Factory --
 
@@ -92,7 +103,7 @@ export function getAvailableModels(): ModelConfig[] {
 
   // Check Groq
   if (env.GROQ_API_KEY) {
-    available.push(MODEL_REGISTRY["llama-3.1-8b-instant"]!);
+    available.push(MODEL_REGISTRY["qwen/qwen3.8-27b"]!);
   }
 
   // Check Google
@@ -102,6 +113,7 @@ export function getAvailableModels(): ModelConfig[] {
 
   // Check Ollama
   if (env.OLLAMA_API_KEY) {
+    available.push(MODEL_REGISTRY["gemma4:31b"]!);
     available.push(MODEL_REGISTRY["nemotron-3-nano:30b"]!);
     available.push(MODEL_REGISTRY["gpt-oss:20b"]!);
   }
@@ -122,6 +134,10 @@ export interface Attachment {
  * Automatically classifies the user message and selects the most appropriate model.
  */
 export async function autoSelectModel(message: string, attachments?: Attachment[]): Promise<string> {
+  if (env.OLLAMA_API_KEY) {
+    return DEFAULT_MODEL;
+  }
+
   const models = getAvailableModels().filter(m => m.id !== "auto");
 
   // Requirement flags based on attachments
@@ -187,7 +203,7 @@ export async function autoSelectModel(message: string, attachments?: Attachment[
     if (config.provider === "groq") {
       baseLlm = new ChatGroq({ apiKey: env.GROQ_API_KEY!, model: config.modelName, temperature: 0 });
     } else if (config.provider === "google") {
-      baseLlm = new ChatGoogleGenerativeAI({ apiKey: env.GOOGLE_API_KEY!, model: config.modelName, temperature: 0 });
+      baseLlm = new ChatGoogle({ apiKey: env.GOOGLE_API_KEY!, model: config.modelName, temperature: 0 });
     } else if (config.provider === "ollama") {
       baseLlm = new ChatOllama({ model: config.modelName, baseUrl: env.OLLAMA_BASE_URL, temperature: 0 });
     } else {
@@ -289,7 +305,7 @@ export async function getAgent(
     case "google":
       if (!env.GOOGLE_API_KEY)
         throw new Error("GOOGLE_API_KEY is not configured");
-      llm = new ChatGoogleGenerativeAI({
+      llm = new ChatGoogle({
         apiKey: env.GOOGLE_API_KEY,
         model: config.modelName,
         temperature: 0.7,

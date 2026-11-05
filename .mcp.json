@@ -7,15 +7,6 @@
         "next-devtools-mcp@latest"
       ]
     },
-    "sarvam": {
-      "command": "uvx",
-      "args": [
-        "sarvam-mcp"
-      ],
-      "env": {
-        "SARVAM_API_KEY": "${env:SARVAM_API_KEY}"
-      }
-    },
  
     "mongodb": {
       "command": "npx",

@@ -137,6 +137,67 @@ export function useChatStream({
     [runWithSession]
   );
 
+  const handleGenerateImage = useCallback(async (promptOverride?: string) => {
+    const prompt = (promptOverride ?? composer).trim();
+    if (!tokens || !prompt || isSendingRef.current) return;
+
+    setComposer("");
+    setChatError(null);
+    setIsSending(true);
+    isSendingRef.current = true;
+    const nowIso = new Date().toISOString();
+    let targetChatId = activeChatId;
+
+    try {
+      if (!targetChatId) {
+        const created = await runWithSession((accessToken) =>
+          apiClient.createChat(prompt, accessToken, selectedModel, undefined, language)
+        );
+        targetChatId = String(created.chatId);
+        const provisionalChat: ChatSummary = {
+          _id: targetChatId,
+          userId: user?.id ?? user?.userId ?? "",
+          title: created.title,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        };
+        setChats((previous) => [provisionalChat, ...previous.filter((chat) => chat._id !== targetChatId)]);
+        skipNextFetchRef.current = true;
+        setActiveChatId(targetChatId);
+      }
+
+      const result = await runWithSession((accessToken) =>
+        apiClient.generateImage(targetChatId!, prompt, accessToken, "google")
+      );
+      const userMessage: ChatMessage = {
+        _id: result.userMessageId,
+        role: "user",
+        content: prompt,
+        createdAt: nowIso,
+      };
+      const assistantMessage: ChatMessage = {
+        _id: result.assistantMessageId,
+        role: "assistant",
+        content: "Image generated.",
+        createdAt: new Date().toISOString(),
+        modelName: result.modelName,
+        attachments: [result.attachment],
+      };
+      setMessages((previous) => [...previous, userMessage, assistantMessage]);
+      setChats((previous) => previous.map((chat) => chat._id === targetChatId
+        ? { ...chat, title: chat.title || prompt.slice(0, 60), updatedAt: new Date().toISOString() }
+        : chat
+      ));
+    } catch (error) {
+      setComposer(prompt);
+      setChatError(getErrorMessage(error));
+    } finally {
+      skipNextFetchRef.current = false;
+      isSendingRef.current = false;
+      setIsSending(false);
+    }
+  }, [tokens, composer, activeChatId, runWithSession, selectedModel, language, user, setChats, setActiveChatId, setChatError, setComposer]);
+
   const handleSendPrompt = useCallback(
     async (
       promptOverride?: string,
@@ -535,6 +596,7 @@ export function useChatStream({
     isLoadingMessages,
     isSending,
     handleSendPrompt,
+    handleGenerateImage,
     handleEditMessage,
     handleRegenerateMessage,
     handleStopStreaming,

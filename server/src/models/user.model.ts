@@ -80,7 +80,7 @@ const userSchema = new mongoose.Schema<IUser, UserModel, IUserMethods>(
       },
       defaultModel: {
         type: String,
-        default: "gpt-5-mini-2025-08-07",
+        default: "nemotron-3-nano:30b",
       },
       language: {
         type: String,

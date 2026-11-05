@@ -9,6 +9,7 @@ import { HttpError } from "./lib/validation.js";
 import authRoutes from "./routes/auth.route.js";
 import chatRoutes from "./routes/chat.route.js";
 import documentRoutes from "./routes/documents.route.js";
+import imageRoutes from "./routes/images.route.js";
 import uploadRoutes from "./routes/upload.route.js";
 import mcpRoutes from "./routes/mcp.route.js";
 import { purgeExpiredAccounts } from "./services/auth.service.js";
@@ -52,6 +53,7 @@ app.get("/health", (_req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/documents", documentRoutes);
+app.use("/api/images", imageRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/mcp", mcpRoutes);
 

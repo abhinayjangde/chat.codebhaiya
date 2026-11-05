@@ -2,8 +2,9 @@ import type { NextFunction, Request, Response } from "express";
 import { ObjectId } from "mongodb";
 import { Chat } from "../models/chat.model.js";
 import { Message } from "../models/message.model.js";
+import { Document } from "../models/document.model.js";
 import { User } from "../models/user.model.js";
-import { autoSelectModel, DEFAULT_MODEL, getAgent, getAvailableModels } from "../lib/model.js";
+import { autoSelectModel, getAgent, getAvailableModels, getDefaultModel } from "../lib/model.js";
 import {
   chatIdParamSchema,
   chatMessageSchema,
@@ -17,6 +18,7 @@ import {
 import { generateChatTitle } from "../services/chat.service.js";
 import { cleanupDocumentsForChat } from "../services/document-cleanup.service.js";
 import { getPaginatedMessages } from "../services/message.service.js";
+import { downloadDocumentFromS3 } from "../services/storage.service.js";
 import { exportChatAsPdf } from "../services/chat-export.service.js";
 import {
   buildMessageContent,
@@ -30,7 +32,7 @@ export async function getModels(_req: Request, res: Response): Promise<void> {
     success: true,
     data: {
       models,
-      default: DEFAULT_MODEL,
+      default: getDefaultModel(),
     },
   });
 }
@@ -102,6 +104,35 @@ export async function getChatMessages(req: Request, res: Response, next: NextFun
       before,
       after,
     });
+
+    const generatedImageIds = result.messages.flatMap((message) =>
+      (message.attachments ?? [])
+        .filter((attachment: { type?: string; documentId?: string; content?: string }) =>
+          attachment.type === "image" && attachment.documentId && !attachment.content
+        )
+        .map((attachment: { documentId: string }) => attachment.documentId)
+    );
+    if (generatedImageIds.length > 0) {
+      const generatedDocuments = await Document.find({
+        _id: { $in: generatedImageIds.map((id: string) => new ObjectId(id)) },
+        userId: new ObjectId(userId),
+        filename: /^generated-image-/,
+        status: "ready",
+      }).select("_id mimeType s3Key").lean();
+      const images = await Promise.all(generatedDocuments.map(async (document) => ({
+        id: document._id.toString(),
+        content: `data:${document.mimeType};base64,${(await downloadDocumentFromS3(document.s3Key)).toString("base64")}`,
+      })));
+      const imageContentById = new Map(images.map((image) => [image.id, image.content]));
+      for (const message of result.messages) {
+        message.attachments = (message.attachments ?? []).map((attachment: any) => ({
+          ...(attachment.toObject?.() ?? attachment),
+          ...(attachment.documentId && imageContentById.has(attachment.documentId)
+            ? { content: imageContentById.get(attachment.documentId) }
+            : {}),
+        }));
+      }
+    }
 
     res.status(200).json({
       success: true,

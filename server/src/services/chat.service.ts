@@ -1,5 +1,4 @@
-import { ChatGroq } from "@langchain/groq";
-import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
+import { ChatOllama } from "@langchain/ollama";
 import { env } from "../config/env.js";
 
 /**
@@ -9,22 +8,17 @@ import { env } from "../config/env.js";
  */
 export async function generateChatTitle(message: string): Promise<string> {
   // Short messages do not need an extra model request.
-  if (message.length < 10 || (!env.GROQ_API_KEY && !env.GOOGLE_API_KEY)) {
+  if (message.length < 10 || !env.OLLAMA_API_KEY) {
     return message.slice(0, 50).trim() + (message.length > 50 ? "..." : "");
   }
 
   try {
-    const llm = env.GOOGLE_API_KEY
-      ? new ChatGoogleGenerativeAI({
-          apiKey: env.GOOGLE_API_KEY,
-          model: "gemini-2.5-flash",
-          temperature: 0.1,
-        })
-      : new ChatGroq({
-          apiKey: env.GROQ_API_KEY!,
-          model: "openai/gpt-oss-20b",
-          temperature: 0.1,
-        });
+    const llm = new ChatOllama({
+      model: "nemotron-3-nano:30b",
+      baseUrl: env.OLLAMA_BASE_URL,
+      headers: { Authorization: `Bearer ${env.OLLAMA_API_KEY}` },
+      temperature: 0.1,
+    });
 
     const response = await llm.invoke([
       {

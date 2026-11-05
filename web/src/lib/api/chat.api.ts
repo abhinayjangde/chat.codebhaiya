@@ -22,7 +22,27 @@ export interface MessagesEnvelope {
   };
 }
 
+export interface GenerateImageResponse {
+  userMessageId: string;
+  assistantMessageId: string;
+  attachment: Attachment;
+  modelName: string;
+}
+
 export const chatApi = {
+  async generateImage(
+    chatId: string,
+    prompt: string,
+    accessToken: string,
+    provider = "google"
+  ): Promise<GenerateImageResponse> {
+    return requestData<GenerateImageResponse>("/images/generate", {
+      method: "POST",
+      headers: authHeaders(accessToken),
+      body: JSON.stringify({ chatId, prompt, provider }),
+    });
+  },
+
   async listModels(): Promise<{ models: ModelInfo[]; default: string }> {
     return requestData<{ models: ModelInfo[]; default: string }>("/chat/models", {
       method: "GET",

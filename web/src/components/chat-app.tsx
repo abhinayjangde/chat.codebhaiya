@@ -15,7 +15,6 @@ import { useChatStream } from "@/hooks/use-chat-stream";
 import { ChatSidebar } from "@/components/chat/chat-sidebar";
 import { ChatMessageList } from "@/components/chat/chat-message-list";
 import { ChatComposer } from "@/components/chat/chat-composer";
-import { ChatAuthForm } from "@/components/chat/chat-auth-form";
 import { DocumentLibrary } from "@/components/documents/document-library";
 import { McpServerList } from "@/components/mcp/mcp-server-list";
 import { ResumeSidePanel } from "@/components/resume/resume-side-panel";
@@ -42,22 +41,7 @@ export function ChatApp() {
     tokens,
     user,
     setUser,
-    authMode,
-    setAuthMode,
-    name,
-    setName,
-    email,
-    setEmail,
-    password,
-    setPassword,
-    authError,
-    setAuthError,
-    isAuthLoading,
-    pendingRecovery,
-    handleRecoverAccount,
-    dismissRecovery,
     runWithSession,
-    handleAuthSubmit,
     handleLogout,
     handleDeleteAccount,
     handleChangePassword,
@@ -112,6 +96,7 @@ export function ChatApp() {
     isLoadingMessages,
     isSending,
     handleSendPrompt,
+    handleGenerateImage,
     handleEditMessage,
     handleRegenerateMessage,
     handleStopStreaming,
@@ -197,36 +182,14 @@ export function ChatApp() {
     [handleDeleteChat, activeChatId, clearStreaming]
   );
 
-  if (!hydrated) {
+  if (!hydrated || !tokens) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="inline-flex items-center gap-3 rounded-full border border-border/80 bg-card/90 px-4 py-2 text-sm text-muted-foreground">
+      <div className="flex min-h-screen items-center justify-center bg-[#212121] text-[#ececec]">
+        <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-[#2a2a2a] px-4 py-2 text-sm text-[#b8b8b8]">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Loading application...
+          {hydrated ? "Redirecting to sign in..." : "Loading application..."}
         </div>
       </div>
-    );
-  }
-
-  if (!tokens) {
-    return (
-      <ChatAuthForm
-        authMode={authMode}
-        setAuthMode={setAuthMode}
-        name={name}
-        setName={setName}
-        email={email}
-        setEmail={setEmail}
-        password={password}
-        setPassword={setPassword}
-        authError={authError}
-        setAuthError={setAuthError}
-        isAuthLoading={isAuthLoading}
-        pendingRecovery={pendingRecovery}
-        onRecover={handleRecoverAccount}
-        onDismissRecovery={dismissRecovery}
-        onSubmit={handleAuthSubmit}
-      />
     );
   }
 
@@ -337,6 +300,7 @@ export function ChatApp() {
 
                     <ChatComposer
                       onSend={(msg, atts) => handleSendPrompt(msg, atts)}
+                      onGenerateImage={(prompt) => void handleGenerateImage(prompt)}
                       isSending={isSending}
                       isBootstrapping={isBootstrapping}
                       availableModels={availableModels}
@@ -390,6 +354,7 @@ export function ChatApp() {
                 <footer className="bg-(--chat-bg) px-3 py-3 md:px-6">
                   <ChatComposer
                     onSend={(msg, atts) => handleSendPrompt(msg, atts)}
+                    onGenerateImage={(prompt) => void handleGenerateImage(prompt)}
                     onStop={handleStopStreaming}
                     isSending={isSending}
                     isBootstrapping={isBootstrapping}

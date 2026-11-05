@@ -28,6 +28,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import toast from "react-hot-toast";
+import NextImage from "next/image";
 import { CodeBlock } from "@/components/ui/code-block";
 import { CitationMarker } from "@/components/chat/citation-popover";
 import { ChatLoadingIndicator } from "@/components/chat/chat-loading-indicator";
@@ -190,6 +191,25 @@ export const ChatMessageList = memo(function ChatMessageList({
                         />
                       </div>
                     ) : null}
+
+                    {message.attachments?.some((attachment) => attachment.type === "image") && (
+                      <div className="mt-3 grid max-w-xl gap-3 sm:grid-cols-1">
+                        {message.attachments.filter((attachment) => attachment.type === "image").map((attachment, imageIndex) => (
+                          attachment.content ? (
+                            <a
+                              key={attachment.documentId ?? `${messageId}-image-${imageIndex}`}
+                              href={attachment.content}
+                              download={attachment.name || "generated-image.png"}
+                              className="group block overflow-hidden rounded-2xl border border-(--chat-dropdown-border) bg-(--chat-surface)"
+                              aria-label={`Download ${attachment.name || "generated image"}`}
+                            >
+                              <NextImage src={attachment.content} alt={attachment.name || "Generated image"} width={1024} height={1024} unoptimized sizes="(max-width: 768px) 100vw, 640px" className="h-auto max-h-[640px] w-full object-contain" />
+                              <span className="block border-t border-(--chat-dropdown-border) px-3 py-2 text-xs text-(--chat-text-muted) group-hover:text-(--chat-text)">Click to download · {attachment.name}</span>
+                            </a>
+                          ) : null
+                        ))}
+                      </div>
+                    )}
 
                     {/* Document sources accordion (web search sources are attached directly on citation line as small icons) */}
                     {(() => {

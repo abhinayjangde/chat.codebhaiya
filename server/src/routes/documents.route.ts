@@ -7,7 +7,7 @@ import { collectionDocumentsSchema, collectionSchema, documentMetadataSchema, ob
 import { Document } from "../models/document.model.js";
 import { DocumentCollection } from "../models/document-collection.model.js";
 import { deleteDocumentVectors } from "../services/document-processing.service.js";
-import { deleteDocumentFromS3, uploadDocumentToS3 } from "../services/storage.service.js";
+import { deleteDocumentFromS3, downloadDocumentFromS3, uploadDocumentToS3 } from "../services/storage.service.js";
 import { enqueueDocumentProcessing } from "../queues/document.queue.js";
 import crypto from "node:crypto";
 import { autoSelectModel, getAgent } from "../lib/model.js";
@@ -293,6 +293,37 @@ function getDocumentId(req: Request, res: Response): string | undefined {
 
   return result.data;
 }
+
+router.get(
+  "/:documentId/content",
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const documentId = getDocumentId(req, res);
+      if (!documentId) return;
+      const document = await Document.findOne({
+        _id: new mongoose.Types.ObjectId(documentId),
+        userId: ownerId(req.user!.userId),
+      }).select("mimeType s3Key status").lean();
+
+      if (!document || !document.mimeType.startsWith("image/")) {
+        res.status(404).json({ success: false, error: "Image not found" });
+        return;
+      }
+      if (document.status !== "ready") {
+        res.status(409).json({ success: false, error: "Image is not ready" });
+        return;
+      }
+
+      const image = await downloadDocumentFromS3(document.s3Key);
+      res.setHeader("Content-Type", document.mimeType);
+      res.setHeader("Content-Length", image.length);
+      res.setHeader("Cache-Control", "private, max-age=300");
+      res.send(image);
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 router.get(
   "/:documentId",

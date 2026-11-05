@@ -33,6 +33,7 @@ import { McpServer, ModelInfo } from "@/lib/types";
 import { Bot } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
 import { SiMeta, SiOpenai } from "react-icons/si";
+import toast from "react-hot-toast";
 import type { Attachment } from "@/lib/types";
 import { PromptToolsMenu } from "@/components/chat/prompt-tools-menu";
 
@@ -70,6 +71,7 @@ export type { Attachment };
 
 interface ChatComposerProps {
   onSend: (message: string, attachments?: Attachment[]) => void;
+  onGenerateImage?: (prompt: string) => void;
   onStop?: () => void;
   isSending: boolean;
   isBootstrapping: boolean;
@@ -89,6 +91,7 @@ interface ChatComposerProps {
 
 export const ChatComposer = memo(function ChatComposer({
   onSend,
+  onGenerateImage,
   onStop,
   isSending,
   isBootstrapping,
@@ -116,6 +119,7 @@ export const ChatComposer = memo(function ChatComposer({
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [imageGenerationMode, setImageGenerationMode] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -209,6 +213,17 @@ export const ChatComposer = memo(function ChatComposer({
     setAttachments(prev => prev.filter((_, i) => i !== index));
   };
 
+  const submitPrompt = () => {
+    if (imageGenerationMode && onGenerateImage) {
+      onGenerateImage(composer);
+    } else {
+      onSend(composer, attachments.length > 0 ? attachments : undefined);
+    }
+    setAttachments([]);
+    setImageGenerationMode(false);
+    if (inputValue === undefined) setInternalComposer("");
+  };
+
   const handleComposerSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!composer.trim() && attachments.length === 0) return;
@@ -221,11 +236,7 @@ export const ChatComposer = memo(function ChatComposer({
       setUploadError("Remove the failed document and upload it again.");
       return;
     }
-    onSend(composer, attachments.length > 0 ? attachments : undefined);
-    setAttachments([]);
-    if (inputValue === undefined) {
-      setInternalComposer("");
-    }
+    submitPrompt();
   };
 
   const handleComposerKeyDown = (
@@ -243,11 +254,7 @@ export const ChatComposer = memo(function ChatComposer({
         setUploadError("Remove the failed document and upload it again.");
         return;
       }
-      onSend(composer, attachments.length > 0 ? attachments : undefined);
-      setAttachments([]);
-      if (inputValue === undefined) {
-        setInternalComposer("");
-      }
+      submitPrompt();
     }
   };
 
@@ -272,6 +279,12 @@ export const ChatComposer = memo(function ChatComposer({
       <div className="rounded-2xl mx-1 md:mx-0 border border-(--chat-composer-border) bg-(--chat-composer) px-4 pb-2.5 pt-3">
         {uploadError && (
           <p className="mb-2 text-xs text-red-500" role="status">{uploadError}</p>
+        )}
+        {imageGenerationMode && (
+          <div className="mb-2 flex items-center justify-between rounded-lg border border-(--chat-brand)/30 bg-(--chat-brand)/10 px-3 py-2 text-xs text-(--chat-brand)">
+            <span className="inline-flex items-center gap-1.5"><Sparkles className="h-3.5 w-3.5" /> Image generation · Gemini</span>
+            <button type="button" onClick={() => setImageGenerationMode(false)} className="text-(--chat-text-muted) hover:text-(--chat-text)">Cancel</button>
+          </div>
         )}
         {attachments.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-2">
@@ -305,7 +318,7 @@ export const ChatComposer = memo(function ChatComposer({
           value={composer}
           onChange={(event) => setComposer(event.target.value)}
           onKeyDown={handleComposerKeyDown}
-          placeholder={variant === "center" ? "Ask anything..." : "Ask a follow-up"}
+          placeholder={imageGenerationMode ? "Describe the image you want..." : variant === "center" ? "Ask anything..." : "Ask a follow-up"}
           maxHeight={140}
           disabled={isSending && !onStop || isBootstrapping}
           className="w-full resize-none border-0 bg-transparent text-[15px] leading-6 text-(--chat-input-text) outline-none placeholder:text-(--chat-input-placeholder) focus-visible:ring-0 min-h-[44px] py-[10px]"
@@ -393,16 +406,17 @@ export const ChatComposer = memo(function ChatComposer({
                     </button>
                   )}
 
-                  {/* Create images (future) */}
-                  <button
+                  {onGenerateImage && <button
                     type="button"
-                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-medium text-(--chat-text-muted) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
-                    onClick={() => setPlusMenuOpen(false)}
-                    disabled
+                    className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) opacity-60 transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
+                    onClick={() => {
+                      setPlusMenuOpen(false);
+                      toast("This feature is coming soon", { icon: "🚧" });
+                    }}
                   >
-                    <Sparkles className="h-[18px] w-[18px] text-(--chat-text-muted)" />
-                    Create images
-                  </button>
+                    <Sparkles className="h-[18px] w-[18px] text-(--chat-brand)" />
+                    Create image
+                  </button>}
 
                   {onMcpServerIdsChange && (
                     <>
@@ -494,21 +508,21 @@ export const ChatComposer = memo(function ChatComposer({
               <button
                 type="button"
                 onClick={() => setModelDropdownOpen(!modelDropdownOpen)}
-                className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover)"
+                disabled={imageGenerationMode}
+                className="inline-flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs text-(--chat-action-icon) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-action-icon-hover) disabled:cursor-default"
               >
                 <ModelLogo
-                  provider={
+                  provider={imageGenerationMode ? "google" :
                     availableModels.find((m) => m.id === selectedModel)
                       ?.provider || ""
                   }
                   className="h-3.5 w-3.5"
                 />
-                {availableModels.find((m) => m.id === selectedModel)
-                  ?.displayName || "Model"}
-                <ChevronDown className="h-3 w-3" />
+                {imageGenerationMode ? "Gemini Image" : availableModels.find((m) => m.id === selectedModel)?.displayName || "Model"}
+                {!imageGenerationMode && <ChevronDown className="h-3 w-3" />}
               </button>
 
-              {modelDropdownOpen && (
+              {!imageGenerationMode && modelDropdownOpen && (
                 <>
                   <div
                     className="fixed inset-0 z-10"
@@ -587,9 +601,9 @@ export const ChatComposer = memo(function ChatComposer({
                     ? "bg-(--chat-send-bg) text-white hover:bg-(--chat-send-bg-hover)"
                     : "bg-(--chat-dropdown-hover) text-(--chat-action-icon)"
                 )}
-                aria-label="Send"
+                aria-label={imageGenerationMode ? "Generate image" : "Send"}
               >
-                {isUploading ? <Loader2 className="h-4 w-4 animate-spin text-(--chat-action-icon)" /> : <ArrowUp className="h-4 w-4" />}
+                {isUploading ? <Loader2 className="h-4 w-4 animate-spin text-(--chat-action-icon)" /> : imageGenerationMode ? <Sparkles className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
               </button>
             )}
           </div>

@@ -23,6 +23,24 @@ Authorization: Bearer <access_token>
 
 ## Endpoints
 
+### Image generation
+
+#### POST /images/generate
+Generate and save an image in an existing chat. Requires a Bearer token.
+
+**Request body:**
+```json
+{
+  "chatId": "<chat id>",
+  "prompt": "A watercolor illustration of a fox in a pine forest",
+  "provider": "google"
+}
+```
+
+The response includes the persisted image attachment and a data URL for immediate display. Generated image files are stored in the configured S3-compatible storage. The Google provider uses `GOOGLE_IMAGE_MODEL` (default `gemini-3.1-flash-image`) and `GOOGLE_API_KEY`.
+
+Google's image generation API currently requires a paid API tier; generation is free to app users only if the application owner covers provider usage. See [Google's current pricing](https://ai.google.dev/gemini-api/docs/pricing).
+
 ### Health
 
 #### GET /health
