@@ -272,9 +272,9 @@ export const ChatMessageList = memo(function ChatMessageList({
 
                     {/* Resume Created / Updated Callout Card */}
                     {message.usedTools?.some((t) => t.name === "save_or_update_resume") && onOpenResume ? (
-                      <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-blue-500/30 bg-blue-500/10 p-3 text-xs text-blue-700 dark:text-blue-300">
+                      <div className="mt-3 flex items-center justify-between gap-3 rounded-md border border-blue-500/30 bg-black/10 p-3 text-xs text-blue-700 dark:text-blue-300">
                         <div className="flex items-center gap-2">
-                          <Sparkles className="h-4 w-4 shrink-0 text-blue-600 dark:text-blue-400" />
+                          
                           <span>
                             <strong>Resume Created & Tailored:</strong> Live preview is ready.
                           </span>
