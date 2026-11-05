@@ -934,20 +934,7 @@ export const ChatSidebar = memo(function ChatSidebar({
           <div className="relative" ref={settingsRef}>
             {settingsMenuOpen && (
               <div className="absolute bottom-full left-0 z-50 mb-1 w-full max-h-[calc(100dvh-120px)] overflow-y-auto rounded-md border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl md:max-h-none md:overflow-visible">
-                {/* Direct Settings Link */}
-                <button
-                  type="button"
-                  className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text) hover:cursor-pointer"
-                  onClick={() => {
-                    setActiveSubmenu(null);
-                    setSettingsMenuOpen(false);
-                    if (onOpenSettings) onOpenSettings();
-                  }}
-                >
-                  <SlidersHorizontal className="h-4 w-4 text-(--chat-label)" />
-                  Settings & Data
-                </button>
-                <div className="my-1 border-t border-(--chat-dropdown-border)" />
+               
 
                 {/* You section */}
                 <div
@@ -1345,7 +1332,7 @@ export const ChatSidebar = memo(function ChatSidebar({
                         </div>
                         <button
                           type="button"
-                          className="inline-flex h-6 w-6 items-center justify-center rounded-md text-(--chat-text-muted) hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text)"
+                          className="inline-flex h-6 w-6 items-center cursor-pointer justify-center rounded-md text-(--chat-text-muted) hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text)"
                           onClick={() => setIsUsageOpen(false)}
                           aria-label="Close usage details"
                         >
