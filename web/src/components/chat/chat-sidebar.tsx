@@ -303,7 +303,7 @@ export const ChatSidebar = memo(function ChatSidebar({
     return () => {
       isCurrent = false;
     };
-  }, [isUsageOpen, usageUserId]);
+  }, [isUsageOpen, isSending, usageUserId]);
 
   const handleMouseEnter = (menu: "theme" | "language" | "customize" | "you" | "more") => {
     if (
@@ -1484,6 +1484,9 @@ export const ChatSidebar = memo(function ChatSidebar({
                   <p className="rounded-lg bg-red-500/10 px-3 py-2.5 text-xs text-red-400" role="alert">{usageError}</p>
                 ) : usageSummary ? (
                   <div className="space-y-4">
+                    {usageError && (
+                      <p className="text-[10px] text-amber-400" role="status">Showing the last loaded usage; refresh failed.</p>
+                    )}
                     <div>
                       <div className="mb-2 flex items-center justify-between">
                         <h3 className="text-[10px] font-semibold uppercase tracking-[0.14em] text-(--chat-text-faint)">Today</h3>
