@@ -16,6 +16,7 @@ import mcpRoutes from "./routes/mcp.route.js";
 import usageRoutes from "./routes/usage.route.js";
 import feedbackRoutes from "./routes/feedback.route.js";
 import { purgeExpiredAccounts } from "./services/auth.service.js";
+import { closeRateLimiter } from "./lib/rate-limiter.js";
 import { startDocumentWorker, type DocumentWorkerHandle } from "./workers/document.worker.js";
 
 const app = express();
@@ -164,6 +165,7 @@ async function bootstrap(): Promise<void> {
           await Promise.all([
             attempt("HTTP server", () => httpServerClose),
             attempt("document worker", () => documentWorker.close()),
+            attempt("rate limiter Redis", () => closeRateLimiter()),
           ]);
           await attempt("MongoDB connection", () => mongoose.disconnect());
           console.log("Graceful shutdown complete");

@@ -1,6 +1,7 @@
 import type { McpTool } from "../../mcp.js";
 import type { CloudToolExecutionContext, CloudToolResult } from "../types.js";
 import { MongoClient } from "mongodb";
+import { validateMongoUri } from "../ssrf-validator.js";
 
 export const mongodbTools: McpTool[] = [
   {
@@ -88,14 +89,27 @@ export async function executeMongodbTool(
   args: Record<string, unknown>,
   ctx: CloudToolExecutionContext
 ): Promise<CloudToolResult> {
-  const uri =
+  const rawUri =
     (ctx.config.connectionString as string) ||
     ctx.authData.connectionString ||
     (ctx.config.uri as string) ||
     process.env.MANAGED_MONGODB_URI;
+  const uri = typeof rawUri === "string" ? rawUri.trim() : undefined;
 
-  if (uri && uri.startsWith("mongodb")) {
-    const client = new MongoClient(uri, { serverSelectionTimeoutMS: 5000 });
+  if (uri) {
+    const validation = await validateMongoUri(uri);
+    if (!validation.valid) {
+      return {
+        isError: true,
+        content: [{ type: "text", text: `MongoDB Atlas connection error: ${validation.error}` }],
+      };
+    }
+
+    const client = new MongoClient(uri, {
+      serverSelectionTimeoutMS: 5000,
+      tls: true,
+      tlsAllowInvalidCertificates: false,
+    });
     try {
       await client.connect();
       const dbName = (args.database as string) || (ctx.config.database as string) || undefined;

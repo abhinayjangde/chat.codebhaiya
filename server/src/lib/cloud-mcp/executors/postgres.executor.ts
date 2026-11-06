@@ -1,6 +1,7 @@
 import type { McpTool } from "../../mcp.js";
 import type { CloudToolExecutionContext, CloudToolResult } from "../types.js";
 import pg from "pg";
+import { validatePostgresConnectionString } from "../ssrf-validator.js";
 
 export const postgresTools: McpTool[] = [
   {
@@ -72,21 +73,43 @@ export async function executePostgresTool(
   args: Record<string, unknown>,
   ctx: CloudToolExecutionContext
 ): Promise<CloudToolResult> {
-  const connectionString =
+  const rawConnectionString =
     (ctx.config.connectionString as string) ||
     ctx.authData.connectionString ||
     (ctx.config.url as string) ||
     process.env.MANAGED_POSTGRES_URL;
+  const connectionString = typeof rawConnectionString === "string" ? rawConnectionString.trim() : undefined;
 
   if (connectionString) {
+    const validation = await validatePostgresConnectionString(connectionString);
+    if (!validation.valid) {
+      return {
+        isError: true,
+        content: [{ type: "text", text: `PostgreSQL connection error: ${validation.error}` }],
+      };
+    }
+
     const client = new pg.Client({
       connectionString,
       connectionTimeoutMillis: 5000,
       statement_timeout: 10000,
-      ssl: connectionString.includes("localhost") || connectionString.includes("127.0.0.1")
-        ? false
-        : { rejectUnauthorized: false },
+      ssl: { rejectUnauthorized: true },
     });
+
+    const clientWithSsl = client as unknown as { ssl: boolean | { rejectUnauthorized?: boolean } };
+    if (typeof clientWithSsl.ssl === "boolean") {
+      if (!clientWithSsl.ssl) {
+        return {
+          isError: true,
+          content: [{ type: "text", text: "PostgreSQL connection error: SSL certificate validation must not be disabled." }],
+        };
+      }
+      clientWithSsl.ssl = { rejectUnauthorized: true };
+    } else if (clientWithSsl.ssl) {
+      clientWithSsl.ssl.rejectUnauthorized = true;
+    } else {
+      clientWithSsl.ssl = { rejectUnauthorized: true };
+    }
 
     try {
       await client.connect();

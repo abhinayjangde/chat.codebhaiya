@@ -1212,6 +1212,8 @@ Authorization: Bearer <access_token>
 ### POST /mcp/marketplace/connect
 1-Click zero-terminal connection to a managed cloud MCP connector (e.g. GitHub, Postgres, MongoDB Atlas, Supabase, Linear, Notion).
 
+> **Security Note (Database Connectors):** Connection URIs for PostgreSQL and MongoDB Atlas must point to public hosts or databases. To prevent SSRF and internal network probing, private/internal IP ranges (`127.0.0.0/8`, `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `169.254.0.0/16`, link-local, loopback, and cloud metadata endpoints) and DNS-rebound addresses are rejected. Secure TLS with valid certificate verification (`rejectUnauthorized: true`) is enforced; insecure SSL downgrades or disabling certificate checks are prohibited.
+
 **Headers:**
 ```http
 Authorization: Bearer <access_token>
@@ -1310,6 +1312,8 @@ Authorization: Bearer <access_token>
 
 ### POST /mcp/servers
 Register a new MCP server. The server is validated by connecting and listing its tools before saving.
+
+Custom STDIO servers are disabled by default. Set `ALLOW_CUSTOM_MCP_STDIO=true` only in a trusted non-production environment; production startup rejects that setting. Requests that create or update a custom server receive `403` while the feature is disabled. Managed cloud connectors remain available.
 
 **Headers:**
 ```http
