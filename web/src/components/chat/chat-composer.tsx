@@ -182,9 +182,6 @@ export const ChatComposer = memo(function ChatComposer({
       setUploadError(`${failed.length} file${failed.length === 1 ? "" : "s"} could not be uploaded. Retry below.`);
     }
     setIsUploading(false);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
   };
 
   const retryUpload = async (index: number) => {
@@ -214,10 +211,11 @@ export const ChatComposer = memo(function ChatComposer({
   };
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (files) {
-      await uploadFiles(Array.from(files));
-    }
+    const input = event.currentTarget;
+    const files = Array.from(input.files ?? []);
+    // Clear before awaiting so selecting the same file again still fires change.
+    input.value = "";
+    await uploadFiles(files);
   };
 
   const handleDragOver = (event: DragEvent<HTMLFormElement>) => {
@@ -374,6 +372,23 @@ export const ChatComposer = memo(function ChatComposer({
         <div className="mt-2 flex items-center justify-between">
           {/* Left — attach */}
           <div className="relative">
+            {/* Keep file inputs mounted while the picker is open. */}
+            <input
+              type="file"
+              multiple
+              className="hidden"
+              ref={imageInputRef}
+              onChange={handleFileChange}
+              accept="image/*"
+            />
+            <input
+              type="file"
+              multiple
+              className="hidden"
+              ref={fileInputRef}
+              onChange={handleFileChange}
+              accept="audio/*,application/pdf,text/*,.c,.cpp,.js,.ts,.py,.java,.md,.csv,.log"
+            />
             <button
               type="button"
               onClick={() => setPlusMenuOpen(!plusMenuOpen)}
@@ -395,14 +410,6 @@ export const ChatComposer = memo(function ChatComposer({
                 />
                 <div className="absolute bottom-full -left-4 mb-2 w-55 rounded-xl border border-(--chat-dropdown-border) bg-(--chat-dropdown) py-1.5 shadow-2xl z-50">
                   {/* Upload images */}
-                  <input
-                    type="file"
-                    multiple
-                    className="hidden"
-                    ref={imageInputRef}
-                    onChange={handleFileChange}
-                    accept="image/*"
-                  />
                   <button
                     type="button"
                     className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"
@@ -416,14 +423,6 @@ export const ChatComposer = memo(function ChatComposer({
                   </button>
 
                   {/* Upload files */}
-                  <input
-                    type="file"
-                    multiple
-                    className="hidden"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    accept="audio/*,application/pdf,text/*,.c,.cpp,.js,.ts,.py,.java,.md,.csv,.log"
-                  />
                   <button
                     type="button"
                     className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm font-medium text-(--chat-text) transition hover:bg-(--chat-dropdown-hover) hover:cursor-pointer"

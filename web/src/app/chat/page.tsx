@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ChatApp } from "@/components/chat-app";
 
 export const metadata: Metadata = {
-  title: "Workbench & Chat",
+  title: "Chat",
   description:
     "Interactive AI workbench with live web search grounding, multi-model intelligence, and document context.",
   alternates: {
