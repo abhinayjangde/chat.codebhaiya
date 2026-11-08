@@ -5,6 +5,7 @@ import {
   ArrowLeft,
   Cloud,
   Code2,
+  Terminal,
   Loader2,
   Pencil,
   Plus,
@@ -183,72 +184,45 @@ export function McpServerList({
     }
   };
 
-  if (activeTab === "marketplace") {
-    return (
-      <McpMarketplace
-        accessToken={accessToken}
-        runWithSession={runWithSession}
-        refreshTokens={refreshTokens}
-        onServersChange={(newServers) => {
-          setServers(newServers);
-          onServersChange?.(newServers);
-        }}
-        onSwitchToCustom={() => setActiveTab("custom")}
-        onBack={onBack}
-      />
-    );
-  }
-
   return (
-    <div className="flex-1 overflow-y-auto bg-(--chat-bg) text-(--chat-text)">
-      <div className="mx-auto max-w-4xl px-4 py-5 sm:py-8 md:px-8">
-        {/* Top Header */}
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-(--chat-dropdown-border) pb-5 sm:mb-8 sm:pb-6">
-          <div className="flex min-w-0 items-start gap-3">
-            {onBack && (
-              <button
-                type="button"
-                onClick={onBack}
-                className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-(--chat-dropdown-border) bg-(--chat-surface) text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text)"
-                title="Back to chat"
-                aria-label="Back"
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </button>
-            )}
-            <div>
-              <h1 className="text-lg font-bold tracking-tight text-(--chat-text) sm:text-xl">
-                Custom STDIO Connectors
-              </h1>
-              <p className="mt-1 max-w-[25rem] text-xs leading-4 text-(--chat-text-muted)">
-                Advanced: configure local command-line subprocesses and custom arguments.
-              </p>
-            </div>
+    <div className="flex h-full min-h-0 w-full flex-col overflow-hidden bg-(--chat-bg) text-(--chat-text)">
+      <header className="flex h-14 shrink-0 items-center border-b border-(--chat-dropdown-border) bg-(--chat-surface)/50 px-4 backdrop-blur-md md:px-8">
+        <div className="flex items-center gap-3">
+          {onBack && (
+            <button type="button" onClick={onBack} className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-(--chat-dropdown-border) bg-(--chat-surface) text-(--chat-text-secondary) transition hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text)" aria-label="Back to chat">
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+          )}
+          <div>
+            <h1 className="text-base font-semibold leading-tight text-(--chat-text)">MCP Connectors</h1>
+            <p className="text-xs text-(--chat-text-muted)">Manage cloud integrations and active servers</p>
           </div>
+        </div>
+      </header>
 
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setActiveTab("marketplace")}
-              className="gap-1.5 text-xs border-(--chat-dropdown-border) text-indigo-400 hover:text-indigo-300"
-            >
-              <Cloud className="h-3.5 w-3.5" />
-              Cloud Marketplace
-            </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                setEditingServer(null);
-                setFormOpen(true);
-              }}
-              disabled={loading}
-              className="shrink-0 gap-1.5"
-            >
-              <Plus className="h-4 w-4" /> Add Server
-            </Button>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden md:flex-row">
+        <nav aria-label="MCP connector sections" className="flex shrink-0 flex-row gap-1 border-b border-(--chat-dropdown-border) bg-(--chat-surface)/30 p-2 md:w-64 md:flex-col md:border-b-0 md:border-r md:p-4">
+          <button type="button" onClick={() => setActiveTab("marketplace")} className={cn("flex flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-medium transition md:flex-none", activeTab === "marketplace" ? "bg-(--chat-brand)/10 font-semibold text-(--chat-brand)" : "text-(--chat-text-secondary) hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text)")}>
+            <Cloud className="h-4 w-4 shrink-0" /><span>Cloud Marketplace</span>
+          </button>
+          <button type="button" onClick={() => setActiveTab("custom")} className={cn("flex flex-1 items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-medium transition md:flex-none", activeTab === "custom" ? "bg-(--chat-brand)/10 font-semibold text-(--chat-brand)" : "text-(--chat-text-secondary) hover:bg-(--chat-dropdown-hover) hover:text-(--chat-text)")}>
+            <Terminal className="h-4 w-4 shrink-0" /><span>Custom STDIO</span>
+          </button>
+        </nav>
+
+        <main className="min-h-0 flex-1 overflow-y-auto p-4 md:p-8">
+          {activeTab === "marketplace" ? (
+            <McpMarketplace embedded accessToken={accessToken} runWithSession={runWithSession} refreshTokens={refreshTokens} onServersChange={(newServers) => { setServers(newServers); onServersChange?.(newServers); }} />
+          ) : (
+      <div className="mx-auto max-w-4xl space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-(--chat-text)">Custom STDIO Connectors</h2>
+            <p className="text-xs text-(--chat-text-muted)">Configure local command-line servers and custom arguments.</p>
           </div>
+          <Button type="button" onClick={() => { setEditingServer(null); setFormOpen(true); }} disabled={loading} className="shrink-0 gap-1.5">
+            <Plus className="h-4 w-4" /> Add Server
+          </Button>
         </div>
 
         {/* Content */}
@@ -497,6 +471,9 @@ export function McpServerList({
             </div>
           </div>
         )}
+      </div>
+          )}
+        </main>
       </div>
     </div>
   );

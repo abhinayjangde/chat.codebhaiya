@@ -38,6 +38,7 @@ interface McpMarketplaceProps {
   onServersChange?: (servers: McpServer[]) => void;
   onSwitchToCustom?: () => void;
   onBack?: () => void;
+  embedded?: boolean;
 }
 
 export function McpMarketplace({
@@ -47,6 +48,7 @@ export function McpMarketplace({
   onServersChange,
   onSwitchToCustom,
   onBack,
+  embedded = false,
 }: McpMarketplaceProps) {
   const [connectors, setConnectors] = useState<CloudConnector[]>([]);
   const [loading, setLoading] = useState(true);
@@ -293,7 +295,7 @@ export function McpMarketplace({
                 Custom STDIO
               </Button>
             )}
-            {onBack && (
+            {!embedded && onBack && (
               <Button
                 variant="ghost"
                 size="sm"
