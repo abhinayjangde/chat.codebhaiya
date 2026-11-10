@@ -43,8 +43,8 @@ const router: Router = express.Router();
 const REFRESH_COOKIE = "refresh_token";
 const REFRESH_COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: true,
-  sameSite: "strict" as const,
+  secure: env.NODE_ENV === "production",
+  sameSite: env.NODE_ENV === "production" ? ("none" as const) : ("lax" as const),
   path: "/api/auth",
 };
 
