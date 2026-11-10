@@ -110,7 +110,7 @@ const userSchema = new mongoose.Schema<IUser, UserModel, IUserMethods>(
       },
       defaultModel: {
         type: String,
-        default: "nemotron-3-nano:30b",
+        default: "nemotron-3-super:cloud",
       },
       language: {
         type: String,

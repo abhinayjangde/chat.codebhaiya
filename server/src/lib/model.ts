@@ -60,11 +60,11 @@ export const MODEL_REGISTRY: Record<string, ModelConfig> = {
     tier: "heavy",
     capabilities: { vision: true, audio: false },
   },
-  "nemotron-3-nano:30b": {
-    id: "nemotron-3-nano:30b",
+  "nemotron-3-super:cloud": {
+    id: "nemotron-3-super:cloud",
     provider: "ollama",
-    modelName: "nemotron-3-nano:30b",
-    displayName: "Nemotron 3 Nano",
+    modelName: "nemotron-3-super:cloud",
+    displayName: "Nemotron 3 Super",
     tier: "heavy",
     capabilities: { vision: true, audio: false },
   },
@@ -87,7 +87,7 @@ export const AUTO_MODEL_CONFIG: ModelConfig = {
   capabilities: { vision: true, audio: true },
 };
 
-export const DEFAULT_MODEL = "nemotron-3-nano:30b";
+export const DEFAULT_MODEL = "nemotron-3-super:cloud";
 
 export function getDefaultModel(): string {
   return env.OLLAMA_API_KEY ? DEFAULT_MODEL : AUTO_MODEL_CONFIG.id;
@@ -114,7 +114,7 @@ export function getAvailableModels(): ModelConfig[] {
   // Check Ollama
   if (env.OLLAMA_API_KEY) {
     available.push(MODEL_REGISTRY["gemma4:31b"]!);
-    available.push(MODEL_REGISTRY["nemotron-3-nano:30b"]!);
+    available.push(MODEL_REGISTRY["nemotron-3-super:cloud"]!);
     available.push(MODEL_REGISTRY["gpt-oss:20b"]!);
   }
 

@@ -14,7 +14,7 @@ export async function generateChatTitle(message: string): Promise<string> {
 
   try {
     const llm = new ChatOllama({
-      model: "nemotron-3-nano:30b",
+      model: "nemotron-3-super:cloud",
       baseUrl: env.OLLAMA_BASE_URL,
       headers: { Authorization: `Bearer ${env.OLLAMA_API_KEY}` },
       temperature: 0.1,
