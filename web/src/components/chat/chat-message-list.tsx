@@ -381,7 +381,7 @@ export const ChatMessageList = memo(function ChatMessageList({
                           <FaBrain className="h-3 w-3" />
                           <span className="text-[11px] font-medium">
                             {message.modelName 
-                                ? availableModels?.find(m => m.id === message.modelName)?.displayName || message.modelName
+                                ? availableModels?.find(m => m?.id === message.modelName)?.displayName || message.modelName
                                 : "AI Assistant"}
                           </span>
                         </div>

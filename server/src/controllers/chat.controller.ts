@@ -4,7 +4,7 @@ import { Chat } from "../models/chat.model.js";
 import { Message } from "../models/message.model.js";
 import { Document } from "../models/document.model.js";
 import { User } from "../models/user.model.js";
-import { autoSelectModel, getAgent, getAvailableModels, getDefaultModel } from "../lib/model.js";
+import { autoSelectModel, getAgent, getAvailableModels, getDefaultModel, isModelDisabled, MODEL_REGISTRY } from "../lib/model.js";
 import {
   chatIdParamSchema,
   chatMessageSchema,
@@ -259,7 +259,7 @@ export async function sendMessage(req: Request, res: Response, next: NextFunctio
 
     formatted.push({ role: "user", content: finalContent });
 
-    if (selectedModel === "auto" || !selectedModel) {
+    if (selectedModel === "auto" || !selectedModel || isModelDisabled(selectedModel) || !MODEL_REGISTRY[selectedModel]) {
       selectedModel = await autoSelectModel(message, attachments ?? []);
     }
 

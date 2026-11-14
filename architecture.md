@@ -242,7 +242,7 @@ The system supports multiple LLM providers with auto-selection:
 
 **Supported Models:**
 - **Groq**: Llama 3.3 70B, Llama 3.1 8B (fast, text-only)
-- **Google**: Gemini 2.5 Flash (vision + audio)
+- **Google**: gemini-3.1-flash-lite (vision + audio)
 - **OpenAI**: GPT-5 Nano (vision + audio)
 - **Ollama Cloud**: GLM-5, Kimi K2.5 (vision)
 

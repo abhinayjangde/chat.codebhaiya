@@ -43,7 +43,10 @@ export function useChatHistory({ tokens, runWithSession, setUser }: UseChatHisto
     apiClient
       .listModels()
       .then((data) => {
-        setAvailableModels(data.models);
+        const models = Array.isArray(data.models)
+          ? data.models.filter((m): m is ModelInfo => Boolean(m && m.id))
+          : [];
+        setAvailableModels(models);
         setSelectedModel(data.default);
       })
       .catch(console.error);

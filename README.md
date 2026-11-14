@@ -118,7 +118,7 @@ Browser → Next.js (SSR/Client) → Express API → LangChain Agent
 | Provider | Models | Capabilities |
 |---|---|---|
 | **Groq** | Llama 3.3 70B, Llama 3.1 8B | Fast text inference |
-| **Google** | Gemini 2.5 Flash | Vision, audio, multimodal |
+| **Google** | gemini-3.1-flash-lite Flash | Vision, audio, multimodal |
 | **OpenAI** | GPT-5 Nano | Vision, audio, multimodal |
 | **Ollama Cloud** | GLM-5, Kimi K2.5 | Vision, large context |
 

@@ -559,12 +559,12 @@ export const ChatComposer = memo(function ChatComposer({
               >
                 <ModelLogo
                   provider={imageGenerationMode ? "google" :
-                    availableModels.find((m) => m.id === selectedModel)
+                    availableModels.find((m) => m?.id === selectedModel)
                       ?.provider || ""
                   }
                   className="h-3.5 w-3.5"
                 />
-                {imageGenerationMode ? "Gemini Image" : availableModels.find((m) => m.id === selectedModel)?.displayName || "Model"}
+                {imageGenerationMode ? "Gemini Image" : availableModels.find((m) => m?.id === selectedModel)?.displayName || "Model"}
                 {!imageGenerationMode && <ChevronDown className="h-3 w-3" />}
               </button>
 
@@ -580,7 +580,7 @@ export const ChatComposer = memo(function ChatComposer({
                       variant === "center" ? "left-0" : "right-0" // Align right for footer composer to prevent overflow potentially
                     )}
                   >
-                    {availableModels.map((model) => (
+                    {(availableModels || []).filter((model): model is ModelInfo => Boolean(model && model.id)).map((model) => (
                       <button
                         key={model.id}
                         type="button"

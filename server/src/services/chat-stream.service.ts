@@ -4,7 +4,7 @@ import { Chat } from "../models/chat.model.js";
 import { Document } from "../models/document.model.js";
 import { Message } from "../models/message.model.js";
 import { User } from "../models/user.model.js";
-import { autoSelectModel, getAgent } from "../lib/model.js";
+import { autoSelectModel, getAgent, isModelDisabled, MODEL_REGISTRY } from "../lib/model.js";
 import { HttpError } from "../lib/validation.js";
 import { recordUsage } from "./usage.service.js";
 import { downloadDocumentFromS3 } from "./storage.service.js";
@@ -339,7 +339,7 @@ export async function executeChatStream(params: StreamChatParams): Promise<void>
   let usageMetadata: { input_tokens?: number; output_tokens?: number } | undefined;
 
   let selectedModel = model ?? undefined;
-  if (selectedModel === "auto" || !selectedModel) {
+  if (selectedModel === "auto" || !selectedModel || isModelDisabled(selectedModel) || !MODEL_REGISTRY[selectedModel]) {
     selectedModel = await autoSelectModel(message, attachments ?? []);
   }
 

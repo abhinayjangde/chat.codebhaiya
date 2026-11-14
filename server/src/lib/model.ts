@@ -43,12 +43,12 @@ export const MODEL_REGISTRY: Record<string, ModelConfig> = {
   },
 
   // Google Models
-  "gemini-2.5-flash": {
-    id: "gemini-2.5-flash",
+  "gemini-3.1-flash-lite": {
+    id: "gemini-3.1-flash-lite",
     provider: "google",
-    modelName: "gemini-2.5-flash",
-    displayName: "Gemini 2.5 Flash",
-    tier: "heavy", // Flash works well as both, but it's the primary fallback for heavy multimodal
+    modelName: "gemini-3.1-flash-lite",
+    displayName: "Gemini 3.1 Flash-Lite",
+    tier: "cheap",
     capabilities: { vision: true, audio: true },
   },
   // Ollama Cloud Models
@@ -87,10 +87,26 @@ export const AUTO_MODEL_CONFIG: ModelConfig = {
   capabilities: { vision: true, audio: true },
 };
 
-export const DEFAULT_MODEL = "nemotron-3-super:cloud";
+// Models temporarily disabled from use (gemma, nemotron, gpt-oss)
+export const DISABLED_MODELS = new Set<string>([
+  "gemma4:31b",
+  "nemotron-3-super:cloud",
+  "gpt-oss:20b",
+]);
+
+export function isModelDisabled(modelId?: string | null): boolean {
+  if (!modelId) return false;
+  return DISABLED_MODELS.has(modelId);
+}
+
+export const DEFAULT_MODEL = env.GOOGLE_API_KEY
+  ? "gemini-3.1-flash-lite"
+  : env.GROQ_API_KEY
+  ? "qwen/qwen3.8-27b"
+  : "gemini-3.1-flash-lite";
 
 export function getDefaultModel(): string {
-  return env.OLLAMA_API_KEY ? DEFAULT_MODEL : AUTO_MODEL_CONFIG.id;
+  return AUTO_MODEL_CONFIG.id;
 }
 
 // -- Factory --
@@ -102,23 +118,28 @@ export function getAvailableModels(): ModelConfig[] {
   const available: ModelConfig[] = [AUTO_MODEL_CONFIG];
 
   // Check Groq
-  if (env.GROQ_API_KEY) {
-    available.push(MODEL_REGISTRY["qwen/qwen3.8-27b"]!);
+  if (env.GROQ_API_KEY && !isModelDisabled("qwen/qwen3.8-27b")) {
+    const groqModel = MODEL_REGISTRY["qwen/qwen3.8-27b"];
+    if (groqModel) available.push(groqModel);
   }
 
   // Check Google
-  if (env.GOOGLE_API_KEY) {
-    available.push(MODEL_REGISTRY["gemini-2.5-flash"]!);
+  if (env.GOOGLE_API_KEY && !isModelDisabled("gemini-3.1-flash-lite")) {
+    const googleModel = MODEL_REGISTRY["gemini-3.1-flash-lite"];
+    if (googleModel) available.push(googleModel);
   }
 
-  // Check Ollama
+  // Check Ollama (gemma4:31b, nemotron-3-super:cloud, gpt-oss:20b are disabled for now)
   if (env.OLLAMA_API_KEY) {
-    available.push(MODEL_REGISTRY["gemma4:31b"]!);
-    available.push(MODEL_REGISTRY["nemotron-3-super:cloud"]!);
-    available.push(MODEL_REGISTRY["gpt-oss:20b"]!);
+    for (const id of ["gemma4:31b", "nemotron-3-super:cloud", "gpt-oss:20b"]) {
+      if (!isModelDisabled(id)) {
+        const model = MODEL_REGISTRY[id];
+        if (model) available.push(model);
+      }
+    }
   }
 
-  return available;
+  return available.filter((m): m is ModelConfig => Boolean(m && m.id));
 }
 
 export interface Attachment {
@@ -134,11 +155,7 @@ export interface Attachment {
  * Automatically classifies the user message and selects the most appropriate model.
  */
 export async function autoSelectModel(message: string, attachments?: Attachment[]): Promise<string> {
-  if (env.OLLAMA_API_KEY) {
-    return DEFAULT_MODEL;
-  }
-
-  const models = getAvailableModels().filter(m => m.id !== "auto");
+  const models = getAvailableModels().filter(m => m.id !== "auto" && !isModelDisabled(m.id));
 
   // Requirement flags based on attachments
   let requireVision = false;
@@ -273,10 +290,15 @@ export async function getAgent(
   mcpServerIds: string[] = [],
   options?: GetAgentOptions
 ) {
-  const resolvedModelId = modelId ?? DEFAULT_MODEL;
+  let resolvedModelId = modelId ?? DEFAULT_MODEL;
 
   if (resolvedModelId === "auto") {
     throw new Error("Cannot instantiate agent with 'auto' model. Run autoSelectModel first to get a specific model ID.");
+  }
+
+  if (isModelDisabled(resolvedModelId)) {
+    console.warn(`Model '${resolvedModelId}' is currently disabled. Falling back to default model '${DEFAULT_MODEL}'.`);
+    resolvedModelId = DEFAULT_MODEL;
   }
 
   // 1. Resolve model config
@@ -284,7 +306,11 @@ export async function getAgent(
 
   // Fallback if invalid ID
   if (!config) {
-    console.warn(`Model ID '${resolvedModelId}' not found. Check if the model is registered and API keys are available.`);
+    console.warn(`Model ID '${resolvedModelId}' not found. Falling back to default model '${DEFAULT_MODEL}'.`);
+    resolvedModelId = DEFAULT_MODEL;
+    config = MODEL_REGISTRY[resolvedModelId];
+  }
+  if (!config) {
     throw new Error(`Model configuration for '${resolvedModelId}' not found.`);
   }
 
@@ -314,6 +340,9 @@ export async function getAgent(
       break;
 
     case "ollama":
+      if (isModelDisabled(config.id)) {
+        throw new Error(`Model '${config.displayName}' is currently disabled.`);
+      }
       if (!env.OLLAMA_API_KEY)
         throw new Error("OLLAMA_API_KEY is not configured");
       llm = new ChatOllama({

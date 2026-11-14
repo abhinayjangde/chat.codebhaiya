@@ -1,4 +1,5 @@
-import { ChatOllama } from "@langchain/ollama";
+import { ChatGroq } from "@langchain/groq";
+import { ChatGoogle } from "@langchain/google";
 import { env } from "../config/env.js";
 
 /**
@@ -8,17 +9,27 @@ import { env } from "../config/env.js";
  */
 export async function generateChatTitle(message: string): Promise<string> {
   // Short messages do not need an extra model request.
-  if (message.length < 10 || !env.OLLAMA_API_KEY) {
+  if (message.length < 10) {
     return message.slice(0, 50).trim() + (message.length > 50 ? "..." : "");
   }
 
   try {
-    const llm = new ChatOllama({
-      model: "nemotron-3-super:cloud",
-      baseUrl: env.OLLAMA_BASE_URL,
-      headers: { Authorization: `Bearer ${env.OLLAMA_API_KEY}` },
-      temperature: 0.1,
-    });
+    let llm;
+    if (env.GROQ_API_KEY) {
+      llm = new ChatGroq({
+        apiKey: env.GROQ_API_KEY,
+        model: "qwen/qwen3.8-27b",
+        temperature: 0.1,
+      });
+    } else if (env.GOOGLE_API_KEY) {
+      llm = new ChatGoogle({
+        apiKey: env.GOOGLE_API_KEY,
+        model: "gemini-3.1-flash-lite",
+        temperature: 0.1,
+      });
+    } else {
+      return message.slice(0, 50).trim() + (message.length > 50 ? "..." : "");
+    }
 
     const response = await llm.invoke([
       {
